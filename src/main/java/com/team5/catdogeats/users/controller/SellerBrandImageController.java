@@ -1,7 +1,7 @@
 package com.team5.catdogeats.users.controller;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.users.domain.dto.SellerBrandImageResponseDTO;
 import com.team5.catdogeats.users.service.SellerBrandImageService;
@@ -34,7 +34,7 @@ public class SellerBrandImageController {
                     """
     )
     @PatchMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<SellerBrandImageResponseDTO>> uploadBrandImage(
+    public ResponseEntity<APIResponse<SellerBrandImageResponseDTO>> uploadBrandImage(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
 
             @Parameter(description = "업로드할 브랜드 이미지 파일")
@@ -47,7 +47,7 @@ public class SellerBrandImageController {
         SellerBrandImageResponseDTO response = sellerBrandImageService.uploadBrandImage(userPrincipal, imageFile);
 
         return ResponseEntity.ok(
-                ApiResponse.success(ResponseCode.SELLER_INFO_SAVE_SUCCESS, response)
+                APIResponse.success(ResponseCode.SELLER_INFO_SAVE_SUCCESS, response)
         );
     }
 
@@ -61,7 +61,7 @@ public class SellerBrandImageController {
                 """
     )
     @DeleteMapping("/image")
-    public ResponseEntity<ApiResponse<SellerBrandImageResponseDTO>> deleteBrandImage(
+    public ResponseEntity<APIResponse<SellerBrandImageResponseDTO>> deleteBrandImage(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
         log.info("판매자 브랜드 이미지 삭제 요청 - provider: {}, providerId: {}",
@@ -70,7 +70,7 @@ public class SellerBrandImageController {
         SellerBrandImageResponseDTO response = sellerBrandImageService.deleteBrandImage(userPrincipal);
 
         return ResponseEntity.ok(
-                ApiResponse.success(ResponseCode.SUCCESS, response)
+                APIResponse.success(ResponseCode.SUCCESS, response)
         );
     }
 }

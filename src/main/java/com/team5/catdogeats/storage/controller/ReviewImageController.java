@@ -1,6 +1,6 @@
 package com.team5.catdogeats.storage.controller;
 
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.storage.domain.dto.ReviewImageUploadResponseDto;
 import com.team5.catdogeats.storage.service.ReviewImageService;
@@ -30,26 +30,26 @@ public class ReviewImageController {
             description = "여러 장의 이미지를 한 번에 업로드합니다."
     )
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<List<ReviewImageUploadResponseDto>>> uploadReviewImage(
+    public ResponseEntity<APIResponse<List<ReviewImageUploadResponseDto>>> uploadReviewImage(
             @Parameter(description = "이미지를 업로드할 리뷰 id", required = true)
             @RequestParam String reviewId,
             @Parameter(description = "업로드할 이미지 파일 리스트", required = true)
             @RequestPart("images") List<MultipartFile> images) {
         try {
             List<ReviewImageUploadResponseDto> response = reviewImageService.uploadReviewImage(reviewId, images);
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity
                     .badRequest()
-                    .body(ApiResponse.error(ResponseCode.INVALID_TYPE_VALUE, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.INVALID_TYPE_VALUE, e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
 
@@ -58,7 +58,7 @@ public class ReviewImageController {
             description = "여러 장의 이미지를 한 번에 수정합니다."
     )
     @PatchMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<List<ReviewImageUploadResponseDto>>> updateReviewImage(
+    public ResponseEntity<APIResponse<List<ReviewImageUploadResponseDto>>> updateReviewImage(
             @Parameter(description = "이미지를 수정할 리뷰 id", required = true)
             @RequestParam String reviewId,
             @Parameter(description = "수정할 이미지 ids", required = true)
@@ -68,19 +68,19 @@ public class ReviewImageController {
     ) {
         try {
             List<ReviewImageUploadResponseDto> response = reviewImageService.updateReviewImage(reviewId, oldImageIds, images);
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity
                     .badRequest()
-                    .body(ApiResponse.error(ResponseCode.INVALID_TYPE_VALUE, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.INVALID_TYPE_VALUE, e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
 

@@ -1,7 +1,7 @@
 package com.team5.catdogeats.orders.controller;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.orders.dto.request.OrderCreateRequest;
 import com.team5.catdogeats.orders.dto.response.OrderCreateResponse;
@@ -37,7 +37,7 @@ public class OrderController {
      * @return 생성된 주문 정보 (토스 페이먼츠 연동 정보 포함)
      */
     @PostMapping
-    public ResponseEntity<ApiResponse<OrderCreateResponse>> createOrder(
+    public ResponseEntity<APIResponse<OrderCreateResponse>> createOrder(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody OrderCreateRequest request) {
 
@@ -56,31 +56,31 @@ public class OrderController {
             // 201 Created와 Location 헤더 설정
             return ResponseEntity
                     .created(URI.create("/v1/buyers/orders/" + response.getOrderNumber()))
-                    .body(ApiResponse.success(ResponseCode.CREATED, response));
+                    .body(APIResponse.success(ResponseCode.CREATED, response));
 
         } catch (NoSuchElementException e) {
             log.warn("주문 생성 실패 - 리소스를 찾을 수 없음: {}", e.getMessage());
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
 
         } catch (IllegalArgumentException e) {
             log.warn("주문 생성 실패 - 잘못된 요청: {}", e.getMessage());
             return ResponseEntity
                     .status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
 
         } catch (IllegalStateException e) {
             log.warn("주문 생성 실패 - 재고 차감 실패: {}", e.getMessage());
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
 
         } catch (Exception e) {
             log.error("주문 생성 중 내부 오류 발생", e);
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "주문 생성 중 서버 오류가 발생했습니다."));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "주문 생성 중 서버 오류가 발생했습니다."));
         }
     }
 }
