@@ -9,6 +9,7 @@ import com.team5.catdogeats.products.domain.enums.SellerProductSortType;
 import com.team5.catdogeats.reviews.domain.dto.ProductReviewResponseDto;
 import com.team5.catdogeats.reviews.domain.dto.SellerReviewSummaryResponseDto;
 import com.team5.catdogeats.reviews.service.ReviewService;
+import com.team5.catdogeats.users.domain.dto.SellerProductListWithReviewSummaryResponseDto;
 import com.team5.catdogeats.users.service.SellerRatingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -31,11 +32,11 @@ public class SellerRatingController {
     private final ReviewService reviewService;
 
     @Operation(
-            summary = "판매자 상품 목록 조회",
-            description = "판매자가 등록한 상품 목록을 조회합니다. 상품명, 대표 이미지, 리뷰 개수, 평균 별점 정보를 제공합니다. with 정렬 기능"
+            summary = "판매자 상품 목록 + 리뷰 통계 조회",
+            description = "판매자가 등록한 상품 목록(정렬/페이징)과 전체 리뷰 통계(개수, 평균 별점, 구간별 별점)를 한번에 조회"
     )
     @GetMapping("/list")
-    public ResponseEntity<ApiResponse<PageResponseDto<MyProductResponseDto>>> getMyProductsBySeller(
+    public ResponseEntity<ApiResponse<SellerProductListWithReviewSummaryResponseDto>> getSellerProductsOverview(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -43,9 +44,16 @@ public class SellerRatingController {
             @RequestParam(defaultValue = "LATEST") SellerProductSortType sortType
     ) {
         try {
-            Page<MyProductResponseDto> data = sellerRatingService.getProductsBySeller(userPrincipal, page, size, sortType);
+            Page<MyProductResponseDto> products = sellerRatingService.getProductsBySeller(userPrincipal, page, size, sortType);
+            SellerReviewSummaryResponseDto reviewSummary = sellerRatingService.getSellerReviewSummary(userPrincipal);
 
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, PageResponseDto.from(data)));
+            SellerProductListWithReviewSummaryResponseDto response =
+                    new SellerProductListWithReviewSummaryResponseDto(
+                            PageResponseDto.from(products),
+                            reviewSummary
+                    );
+
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
@@ -56,6 +64,7 @@ public class SellerRatingController {
                     .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
+
 
     // 리뷰 domain의 특정 상품에 대한 리뷰 조회 controller 재활용
     @Operation(summary = "특정 상품에 대한 리뷰 목록 조회",
@@ -70,24 +79,6 @@ public class SellerRatingController {
             Page<ProductReviewResponseDto> reviews = reviewService.getReviewsByProductNumber(productNumber, page, size);
 
             return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, PageResponseDto.from(reviews)));
-        } catch (NoSuchElementException e) {
-            return ResponseEntity
-                    .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity
-                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
-        }
-    }
-
-    @Operation(summary = "특정 판매자의 전체 상품의 리뷰 통계 조회", description = "판매자가 등록한 모든 상품의 리뷰들 개수, 평균 별점, 별점구간별로 집계")
-    @GetMapping("/reviewSummary")
-    public ResponseEntity<ApiResponse<SellerReviewSummaryResponseDto>> getSellerReviewSummary(@AuthenticationPrincipal UserPrincipal userPrincipal) {
-        try {
-            SellerReviewSummaryResponseDto summary = sellerRatingService.getSellerReviewSummary(userPrincipal);
-
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, summary));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())

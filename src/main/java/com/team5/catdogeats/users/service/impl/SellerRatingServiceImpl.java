@@ -14,6 +14,8 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 @RequiredArgsConstructor
@@ -67,18 +69,19 @@ public class SellerRatingServiceImpl implements SellerRatingService {
         double avgStar = avgCount[0] != null ? ((Number) avgCount[0]).doubleValue() : 0.0;
         long totalCount = avgCount[1] != null ? ((Number) avgCount[1]).longValue() : 0L;
 
-        // 구간별 개수
-        Map<Integer, Long> starGroupCount = new HashMap<>();
-        // 0~5점대 기본값 0으로 초기화
-        for (int i = 0; i <= 5; i++) starGroupCount.put(i, 0L);
+        // 0~5점대 기본값 0으로 초기화 (stream)
+        Map<Integer, Long> starGroupCount = IntStream.rangeClosed(0, 5)
+                .boxed()
+                .collect(Collectors.toMap(i -> i, i -> 0L));
 
-        for (Object[] groupRow : reviewRepository.findGroupStarCountBySellerId(sellerDTO.userId())) {
-            Integer group = groupRow[0] != null ? ((Number) groupRow[0]).intValue() : null;
-            Long count = groupRow[1] != null ? ((Number) groupRow[1]).longValue() : null;
-            if (group != null && count != null) {
-                starGroupCount.put(group, count);
-            }
-        }
+        // 쿼리 결과 반영
+        reviewRepository.findGroupStarCountBySellerId(sellerDTO.userId()).stream()
+                .map(row -> Map.entry(
+                        row[0] != null ? ((Number) row[0]).intValue() : null,
+                        row[1] != null ? ((Number) row[1]).longValue() : null
+                ))
+                .filter(e -> e.getKey() != null && e.getValue() != null)
+                .forEach(e -> starGroupCount.put(e.getKey(), e.getValue()));
 
         // 소수점 한 자리로 평균 반올림
         avgStar = Math.round(avgStar * 10) / 10.0;
