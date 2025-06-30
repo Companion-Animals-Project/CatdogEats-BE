@@ -265,7 +265,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
-     * 주문 내역 삭제 (논리적 삭제 방식) - 단일 주문 처리
+     * 주문 내역 삭제 (논리적 삭제 방식 + 상태별 제한) - 단일 주문 처리
      * 주문 상세 페이지에서 사용되는 단일 주문 삭제 기능입니다.
      */
     @Override
@@ -284,20 +284,28 @@ public class OrderServiceImpl implements OrderService {
             Orders order = orderRepository.findOrderDetailByUserAndOrderNumber(user, orderNumber)
                     .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없거나 접근 권한이 없습니다"));
 
-            // 3. 이미 숨겨진 주문인지 확인
+            // 3. 주문 상태별 삭제 가능 여부 확인 (새로 추가된 로직)
+            if (isDeletionRestricted(order.getOrderStatus())) {
+                String restrictionMessage = getDeletionRestrictionMessage(order.getOrderStatus());
+                log.warn("주문 삭제 제한 - orderNumber: {}, status: {}, reason: {}",
+                        orderNumber, order.getOrderStatus(), restrictionMessage);
+                throw new IllegalArgumentException(restrictionMessage);
+            }
+
+            // 4. 이미 숨겨진 주문인지 확인
             if (order.isOrderHidden()) {
                 log.warn("이미 삭제된 주문 삭제 시도 - orderNumber: {}", orderNumber);
                 throw new IllegalArgumentException("이미 삭제된 주문 내역입니다");
             }
 
-            // 4. 주문 숨김 처리
+            // 5. 주문 숨김 처리
             order.hideOrder();  // 엔티티의 편의 메서드 사용
             Orders savedOrder = orderRepository.save(order);
 
-            log.info("주문 내역 삭제 완료 - orderNumber: {}, orderId: {}, hiddenAt: {}",
-                    savedOrder.getOrderNumber(), savedOrder.getId(), savedOrder.getHiddenAt());
+            log.info("주문 내역 삭제 완료 - orderNumber: {}, orderId: {}, status: {}, hiddenAt: {}",
+                    savedOrder.getOrderNumber(), savedOrder.getId(), savedOrder.getOrderStatus(), savedOrder.getHiddenAt());
 
-            // 5. 성공 응답 반환
+            // 6. 성공 응답 반환
             return OrderDeleteResponse.success(
                     savedOrder.getOrderNumber(),
                     savedOrder.getId(),
@@ -312,6 +320,41 @@ public class OrderServiceImpl implements OrderService {
             log.error("주문 내역 삭제 중 예상치 못한 오류 발생 - orderNumber: {}", orderNumber, e);
             return OrderDeleteResponse.failure(orderNumber, "주문 내역 삭제 중 서버 오류가 발생했습니다");
         }
+    }
+
+    /**
+     * 주문 상태별 삭제 제한 여부 확인
+     * @param orderStatus 주문 상태
+     * @return true: 삭제 제한, false: 삭제 허용
+     */
+    private boolean isDeletionRestricted(OrderStatus orderStatus) {
+        return orderStatus == OrderStatus.PAYMENT_COMPLETED ||
+                orderStatus == OrderStatus.PREPARING ||
+                orderStatus == OrderStatus.READY_FOR_SHIPMENT ||
+                orderStatus == OrderStatus.IN_DELIVERY ||
+                orderStatus == OrderStatus.REFUND_PROCESSING;
+    }
+
+    /**
+     * 주문 상태별 삭제 제한 메시지 반환
+     * @param orderStatus 주문 상태
+     * @return 제한 사유 메시지
+     */
+    private String getDeletionRestrictionMessage(OrderStatus orderStatus) {
+        return switch (orderStatus) {
+            case PAYMENT_COMPLETED ->
+                    "결제가 완료된 주문은 삭제할 수 없습니다. 상품 준비 진행상황을 확인해주세요.";
+            case PREPARING ->
+                    "상품 준비 중인 주문은 삭제할 수 없습니다.";
+            case READY_FOR_SHIPMENT ->
+                    "배송 준비가 완료된 주문은 삭제할 수 없습니다.";
+            case IN_DELIVERY ->
+                    "배송 중인 주문은 삭제할 수 없습니다. 배송 조회 페이지에서 배송상황을 확인해주세요.";
+            case REFUND_PROCESSING ->
+                    "환불 처리 중인 주문은 삭제할 수 없습니다. 환불 진행상황을 확인해주세요.";
+            default ->
+                    "현재 상태에서는 주문을 삭제할 수 없습니다.";
+        };
     }
 
     /**

@@ -188,7 +188,7 @@ class OrderServiceTest {
                 .id("order123")
                 .orderNumber(orderNumber)
                 .user(user)
-                .orderStatus(OrderStatus.PAYMENT_COMPLETED)
+                .orderStatus(OrderStatus.DELIVERED)
                 .totalPrice(33000L) // 상품가격 30000 + 배송비 3000
                 .recipientName("김철수")
                 .recipientPhone("010-1234-5678")
@@ -434,7 +434,7 @@ class OrderServiceTest {
             assertThat(response).isNotNull();
             assertThat(response.orderId()).isEqualTo("order123");
             assertThat(response.orderNumber()).isEqualTo(orderNumber);
-            assertThat(response.orderStatus()).isEqualTo(OrderStatus.PAYMENT_COMPLETED);
+            assertThat(response.orderStatus()).isEqualTo(OrderStatus.DELIVERED);
 
             // 받는 사람 정보 검증
             assertThat(response.recipientInfo()).isNotNull();
@@ -562,29 +562,45 @@ class OrderServiceTest {
         @Test
         @DisplayName("✅ 주문 내역 삭제 성공")
         void deleteOrder_Success() {
-            // Given
-            given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "google123"))
-                    .willReturn(Optional.of(buyerDTO));
-            given(userRepository.findById("user123"))
-                    .willReturn(Optional.of(user));
-            given(orderRepository.findOrderDetailByUserAndOrderNumber(user, orderNumber))
-                    .willReturn(Optional.of(orderForDetail));
-
-            // 숨김 처리된 주문 반환을 위한 설정
-            Orders hiddenOrder = Orders.builder()
+            // Given - DELIVERED 상태의 별도 주문 객체 생성
+            Orders deliveredOrder = Orders.builder()
                     .id(orderForDetail.getId())
                     .orderNumber(orderForDetail.getOrderNumber())
                     .user(orderForDetail.getUser())
-                    .orderStatus(orderForDetail.getOrderStatus())
+                    .orderStatus(OrderStatus.DELIVERED)  // ✅ 삭제 허용 상태로 변경
                     .totalPrice(orderForDetail.getTotalPrice())
                     .recipientName(orderForDetail.getRecipientName())
                     .recipientPhone(orderForDetail.getRecipientPhone())
                     .shippingAddress(orderForDetail.getShippingAddress())
                     .detailAddress(orderForDetail.getDetailAddress())
                     .deliveryNote(orderForDetail.getDeliveryNote())
+                    .isHidden(false)
+                    .hiddenAt(null)
+                    .orderItems(orderForDetail.getOrderItems())
+                    .build();
+
+            given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "google123"))
+                    .willReturn(Optional.of(buyerDTO));
+            given(userRepository.findById("user123"))
+                    .willReturn(Optional.of(user));
+            given(orderRepository.findOrderDetailByUserAndOrderNumber(user, orderNumber))
+                    .willReturn(Optional.of(deliveredOrder));  // ✅ 새로 만든 객체 사용
+
+            // 숨김 처리된 주문 반환을 위한 설정
+            Orders hiddenOrder = Orders.builder()
+                    .id(deliveredOrder.getId())  // ✅ deliveredOrder 기준으로 변경
+                    .orderNumber(deliveredOrder.getOrderNumber())
+                    .user(deliveredOrder.getUser())
+                    .orderStatus(deliveredOrder.getOrderStatus())
+                    .totalPrice(deliveredOrder.getTotalPrice())
+                    .recipientName(deliveredOrder.getRecipientName())
+                    .recipientPhone(deliveredOrder.getRecipientPhone())
+                    .shippingAddress(deliveredOrder.getShippingAddress())
+                    .detailAddress(deliveredOrder.getDetailAddress())
+                    .deliveryNote(deliveredOrder.getDeliveryNote())
                     .isHidden(true)
                     .hiddenAt(LocalDateTime.now())
-                    .orderItems(orderForDetail.getOrderItems())
+                    .orderItems(deliveredOrder.getOrderItems())
                     .build();
             given(orderRepository.save(any(Orders.class)))
                     .willReturn(hiddenOrder);
@@ -745,6 +761,200 @@ class OrderServiceTest {
             assertThat(response.message()).isEqualTo("주문 내역 삭제 중 서버 오류가 발생했습니다");
 
             verify(orderRepository).save(any(Orders.class));
+        }
+        @Test
+        @DisplayName("❌ 주문 내역 삭제 실패 - PAYMENT_COMPLETED 상태 제한")
+        void deleteOrder_Fail_PaymentCompletedRestriction() {
+            // Given
+            Orders paymentCompletedOrder = Orders.builder()
+                    .id(orderForDetail.getId())
+                    .orderNumber(orderForDetail.getOrderNumber())
+                    .user(orderForDetail.getUser())
+                    .orderStatus(OrderStatus.PAYMENT_COMPLETED)
+                    .totalPrice(orderForDetail.getTotalPrice())
+                    .recipientName(orderForDetail.getRecipientName())
+                    .recipientPhone(orderForDetail.getRecipientPhone())
+                    .shippingAddress(orderForDetail.getShippingAddress())
+                    .detailAddress(orderForDetail.getDetailAddress())
+                    .deliveryNote(orderForDetail.getDeliveryNote())
+                    .isHidden(false)
+                    .hiddenAt(null)
+                    .orderItems(orderForDetail.getOrderItems())
+                    .build();
+
+            given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "google123"))
+                    .willReturn(Optional.of(buyerDTO));
+            given(userRepository.findById("user123"))
+                    .willReturn(Optional.of(user));
+            given(orderRepository.findOrderDetailByUserAndOrderNumber(user, orderNumber))
+                    .willReturn(Optional.of(paymentCompletedOrder));
+
+            // When
+            OrderDeleteResponse response = orderService.deleteOrder(principal, orderNumber);
+
+            // Then
+            assertThat(response).isNotNull();
+            assertThat(response.success()).isFalse();
+            assertThat(response.orderNumber()).isEqualTo(orderNumber);
+            assertThat(response.message()).isEqualTo("결제가 완료된 주문은 삭제할 수 없습니다. 상품 준비 진행상황을 확인해주세요.");
+
+            verify(orderRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("❌ 주문 내역 삭제 실패 - PREPARING 상태 제한")
+        void deleteOrder_Fail_PreparingRestriction() {
+            // Given
+            Orders preparingOrder = Orders.builder()
+                    .id(orderForDetail.getId())
+                    .orderNumber(orderForDetail.getOrderNumber())
+                    .user(orderForDetail.getUser())
+                    .orderStatus(OrderStatus.PREPARING)
+                    .totalPrice(orderForDetail.getTotalPrice())
+                    .recipientName(orderForDetail.getRecipientName())
+                    .recipientPhone(orderForDetail.getRecipientPhone())
+                    .shippingAddress(orderForDetail.getShippingAddress())
+                    .detailAddress(orderForDetail.getDetailAddress())
+                    .deliveryNote(orderForDetail.getDeliveryNote())
+                    .isHidden(false)
+                    .hiddenAt(null)
+                    .orderItems(orderForDetail.getOrderItems())
+                    .build();
+
+            given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "google123"))
+                    .willReturn(Optional.of(buyerDTO));
+            given(userRepository.findById("user123"))
+                    .willReturn(Optional.of(user));
+            given(orderRepository.findOrderDetailByUserAndOrderNumber(user, orderNumber))
+                    .willReturn(Optional.of(preparingOrder));
+
+            // When
+            OrderDeleteResponse response = orderService.deleteOrder(principal, orderNumber);
+
+            // Then
+            assertThat(response).isNotNull();
+            assertThat(response.success()).isFalse();
+            assertThat(response.orderNumber()).isEqualTo(orderNumber);
+            assertThat(response.message()).isEqualTo("상품 준비 중인 주문은 삭제할 수 없습니다.");
+
+            verify(orderRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("❌ 주문 내역 삭제 실패 - READY_FOR_SHIPMENT 상태 제한")
+        void deleteOrder_Fail_ReadyForShipmentRestriction() {
+            // Given
+            Orders readyOrder = Orders.builder()
+                    .id(orderForDetail.getId())
+                    .orderNumber(orderForDetail.getOrderNumber())
+                    .user(orderForDetail.getUser())
+                    .orderStatus(OrderStatus.READY_FOR_SHIPMENT)
+                    .totalPrice(orderForDetail.getTotalPrice())
+                    .recipientName(orderForDetail.getRecipientName())
+                    .recipientPhone(orderForDetail.getRecipientPhone())
+                    .shippingAddress(orderForDetail.getShippingAddress())
+                    .detailAddress(orderForDetail.getDetailAddress())
+                    .deliveryNote(orderForDetail.getDeliveryNote())
+                    .isHidden(false)
+                    .hiddenAt(null)
+                    .orderItems(orderForDetail.getOrderItems())
+                    .build();
+
+            given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "google123"))
+                    .willReturn(Optional.of(buyerDTO));
+            given(userRepository.findById("user123"))
+                    .willReturn(Optional.of(user));
+            given(orderRepository.findOrderDetailByUserAndOrderNumber(user, orderNumber))
+                    .willReturn(Optional.of(readyOrder));
+
+            // When
+            OrderDeleteResponse response = orderService.deleteOrder(principal, orderNumber);
+
+            // Then
+            assertThat(response).isNotNull();
+            assertThat(response.success()).isFalse();
+            assertThat(response.orderNumber()).isEqualTo(orderNumber);
+            assertThat(response.message()).isEqualTo("배송 준비가 완료된 주문은 삭제할 수 없습니다.");
+
+            verify(orderRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("❌ 주문 내역 삭제 실패 - IN_DELIVERY 상태 제한")
+        void deleteOrder_Fail_InDeliveryRestriction() {
+            // Given
+            Orders inDeliveryOrder = Orders.builder()
+                    .id(orderForDetail.getId())
+                    .orderNumber(orderForDetail.getOrderNumber())
+                    .user(orderForDetail.getUser())
+                    .orderStatus(OrderStatus.IN_DELIVERY)
+                    .totalPrice(orderForDetail.getTotalPrice())
+                    .recipientName(orderForDetail.getRecipientName())
+                    .recipientPhone(orderForDetail.getRecipientPhone())
+                    .shippingAddress(orderForDetail.getShippingAddress())
+                    .detailAddress(orderForDetail.getDetailAddress())
+                    .deliveryNote(orderForDetail.getDeliveryNote())
+                    .isHidden(false)
+                    .hiddenAt(null)
+                    .orderItems(orderForDetail.getOrderItems())
+                    .build();
+
+            given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "google123"))
+                    .willReturn(Optional.of(buyerDTO));
+            given(userRepository.findById("user123"))
+                    .willReturn(Optional.of(user));
+            given(orderRepository.findOrderDetailByUserAndOrderNumber(user, orderNumber))
+                    .willReturn(Optional.of(inDeliveryOrder));
+
+            // When
+            OrderDeleteResponse response = orderService.deleteOrder(principal, orderNumber);
+
+            // Then
+            assertThat(response).isNotNull();
+            assertThat(response.success()).isFalse();
+            assertThat(response.orderNumber()).isEqualTo(orderNumber);
+            assertThat(response.message()).isEqualTo("배송 중인 주문은 삭제할 수 없습니다. 배송 조회 페이지에서 배송상황을 확인해주세요.");
+
+            verify(orderRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("❌ 주문 내역 삭제 실패 - REFUND_PROCESSING 상태 제한")
+        void deleteOrder_Fail_RefundProcessingRestriction() {
+            // Given
+            Orders refundProcessingOrder = Orders.builder()
+                    .id(orderForDetail.getId())
+                    .orderNumber(orderForDetail.getOrderNumber())
+                    .user(orderForDetail.getUser())
+                    .orderStatus(OrderStatus.REFUND_PROCESSING)
+                    .totalPrice(orderForDetail.getTotalPrice())
+                    .recipientName(orderForDetail.getRecipientName())
+                    .recipientPhone(orderForDetail.getRecipientPhone())
+                    .shippingAddress(orderForDetail.getShippingAddress())
+                    .detailAddress(orderForDetail.getDetailAddress())
+                    .deliveryNote(orderForDetail.getDeliveryNote())
+                    .isHidden(false)
+                    .hiddenAt(null)
+                    .orderItems(orderForDetail.getOrderItems())
+                    .build();
+
+            given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "google123"))
+                    .willReturn(Optional.of(buyerDTO));
+            given(userRepository.findById("user123"))
+                    .willReturn(Optional.of(user));
+            given(orderRepository.findOrderDetailByUserAndOrderNumber(user, orderNumber))
+                    .willReturn(Optional.of(refundProcessingOrder));
+
+            // When
+            OrderDeleteResponse response = orderService.deleteOrder(principal, orderNumber);
+
+            // Then
+            assertThat(response).isNotNull();
+            assertThat(response.success()).isFalse();
+            assertThat(response.orderNumber()).isEqualTo(orderNumber);
+            assertThat(response.message()).isEqualTo("환불 처리 중인 주문은 삭제할 수 없습니다. 환불 진행상황을 확인해주세요.");
+
+            verify(orderRepository, never()).save(any());
         }
     }
 
