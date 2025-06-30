@@ -70,7 +70,7 @@ public class ProductController {
 
     @Operation(
             summary = "상품 삭제",
-            description = "판매자가 특정 상품을 삭제합니다. 삭제할 상품의 ID를 요청 바디로 전달합니다."
+            description = "판매자가 특정 상품 (상품, 이미지, 매핑 테이블 모두) 삭제합니다. "
     )
     @DeleteMapping("/sellers/products")
     public ResponseEntity<ApiResponse<Void>> deleteProduct(@RequestBody @Valid @Parameter(description = "삭제할 상품 id", required = true) ProductDeleteRequestDto dto) {
@@ -87,6 +87,4 @@ public class ProductController {
                     .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
-
-    // TODO: 상품 조회 서비스 로직 / 상품 상세 조회 컨트롤러 구현하기
 }

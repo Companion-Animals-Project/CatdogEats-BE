@@ -7,9 +7,17 @@ import com.team5.catdogeats.pets.domain.dto.PetResponseDto;
 import com.team5.catdogeats.pets.domain.dto.PetUpdateRequestDto;
 import org.springframework.data.domain.Page;
 
+import java.time.ZonedDateTime;
+
 public interface PetService {
     String registerPet(UserPrincipal userPrincipal, PetCreateRequestDto dto);
+
     Page<PetResponseDto> getMyPets(UserPrincipal userPrincipal, int page, int size);
+
+    Page<PetResponseDto> getMyPetsWithCursor(UserPrincipal userPrincipal, ZonedDateTime cursorUpdatedAt, int size);
+
+
     void updatePet(PetUpdateRequestDto dto);
+
     void deletePet(PetDeleteRequestDto dto);
 }
