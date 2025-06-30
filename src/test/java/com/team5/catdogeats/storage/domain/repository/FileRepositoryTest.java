@@ -1,6 +1,7 @@
 package com.team5.catdogeats.storage.domain.repository;
 
 import com.team5.catdogeats.storage.domain.Files;
+import com.team5.catdogeats.storage.repository.FileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,13 +18,13 @@ import static org.assertj.core.api.Assertions.*;
 @DataJpaTest
 @ActiveProfiles("test")
 @DisplayName("파일 Repository 테스트")
-class FilesRepositoryTest {
+class FileRepositoryTest {
 
     @Autowired
     private TestEntityManager entityManager;
 
     @Autowired
-    private FilesRepository filesRepository;
+    private FileRepository fileRepository;
 
     private Files testFile;
 
@@ -45,7 +46,7 @@ class FilesRepositoryTest {
                 .build();
 
         // when
-        Files savedFile = filesRepository.save(file);
+        Files savedFile = fileRepository.save(file);
 
         // then
         assertThat(savedFile).isNotNull();
@@ -59,7 +60,7 @@ class FilesRepositoryTest {
     @DisplayName("파일 조회 - 성공")
     void findById_Success() {
         // when
-        Optional<Files> foundFile = filesRepository.findById(testFile.getId());
+        Optional<Files> foundFile = fileRepository.findById(testFile.getId());
 
         // then
         assertThat(foundFile).isPresent();
@@ -70,7 +71,7 @@ class FilesRepositoryTest {
     @DisplayName("파일 조회 - 존재하지 않는 ID")
     void findById_NotFound() {
         // when
-        Optional<Files> foundFile = filesRepository.findById("non-existing-id");
+        Optional<Files> foundFile = fileRepository.findById("non-existing-id");
 
         // then
         assertThat(foundFile).isEmpty();
@@ -83,10 +84,10 @@ class FilesRepositoryTest {
         String fileId = testFile.getId();
 
         // when
-        filesRepository.deleteById(fileId);
+        fileRepository.deleteById(fileId);
 
         // then
-        Optional<Files> deletedFile = filesRepository.findById(fileId);
+        Optional<Files> deletedFile = fileRepository.findById(fileId);
         assertThat(deletedFile).isEmpty();
     }
 
@@ -105,7 +106,7 @@ class FilesRepositoryTest {
         entityManager.persistAndFlush(file2);
 
         // when
-        List<Files> allFiles = filesRepository.findAll();
+        List<Files> allFiles = fileRepository.findAll();
 
         // then
         assertThat(allFiles).hasSize(3); // testFile + 2개 추가 파일
@@ -133,7 +134,7 @@ class FilesRepositoryTest {
         entityManager.persistAndFlush(file2);
 
         // when
-        long count = filesRepository.count();
+        long count = fileRepository.count();
 
         // then
         assertThat(count).isEqualTo(3); // testFile + 2개 추가 파일
@@ -143,7 +144,7 @@ class FilesRepositoryTest {
     @DisplayName("파일 존재 여부 확인 - 존재함")
     void existsById_True() {
         // when
-        boolean exists = filesRepository.existsById(testFile.getId());
+        boolean exists = fileRepository.existsById(testFile.getId());
 
         // then
         assertThat(exists).isTrue();
@@ -153,7 +154,7 @@ class FilesRepositoryTest {
     @DisplayName("파일 존재 여부 확인 - 존재하지 않음")
     void existsById_False() {
         // when
-        boolean exists = filesRepository.existsById("non-existing-id");
+        boolean exists = fileRepository.existsById("non-existing-id");
 
         // then
         assertThat(exists).isFalse();
@@ -167,7 +168,7 @@ class FilesRepositoryTest {
 
         // when
         testFile.setFileUrl(newFileUrl);
-        Files updatedFile = filesRepository.save(testFile);
+        Files updatedFile = fileRepository.save(testFile);
 
         // then
         assertThat(updatedFile.getFileUrl()).isEqualTo(newFileUrl);
@@ -188,7 +189,7 @@ class FilesRepositoryTest {
         List<Files> filesToSave = List.of(file1, file2);
 
         // when
-        List<Files> savedFiles = filesRepository.saveAll(filesToSave);
+        List<Files> savedFiles = fileRepository.saveAll(filesToSave);
 
         // then
         assertThat(savedFiles).hasSize(2);

@@ -1,0 +1,90 @@
+package com.team5.catdogeats.storage.controller;
+
+import com.team5.catdogeats.auth.dto.UserPrincipal;
+import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.enums.ResponseCode;
+import com.team5.catdogeats.storage.domain.dto.ProductImageUploadResponseDto;
+import com.team5.catdogeats.storage.service.ProductImageService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+import java.util.NoSuchElementException;
+
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/v1/sellers/products/images")
+@Tag(name = "ProductImage", description = "상품 이미지 관련 API")
+public class ProductImageController {
+
+    private final ProductImageService productImageService;
+
+    // 상품 이미지 등록 (S3 업로드 + Images DB 저장 + products_images 매핑)
+    @Operation(
+            summary = "상품 이미지 업로드",
+            description = "여러 장의 이미지를 한 번에 업로드합니다."
+    )
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<List<ProductImageUploadResponseDto>>> uploadProductImage(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @Parameter(description = "이미지를 업로드할 상품 id", required = true)
+            @RequestParam String productId,
+            @Parameter(description = "업로드할 이미지 파일 리스트", required = true)
+            @RequestPart("images") List<MultipartFile> images) {
+        try {
+            List<ProductImageUploadResponseDto> response = productImageService.uploadProductImage(userPrincipal, productId, images);
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity
+                    .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .badRequest()
+                    .body(ApiResponse.error(ResponseCode.INVALID_TYPE_VALUE, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+        }
+    }
+
+    @Operation(
+            summary = "상품 이미지 수정",
+            description = "여러 장의 이미지를 한 번에 수정합니다."
+    )
+    @PatchMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<List<ProductImageUploadResponseDto>>> updateProductImage(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @Parameter(description = "이미지를 수정할 상품 id", required = true)
+            @RequestParam String productId,
+            @Parameter(description = "수정할 이미지 ids", required = true)
+            @RequestParam List<String> oldImageIds,
+            @Parameter(description = "새로 업로드할 이미지 파일 리스트", required = true)
+            @RequestPart List<MultipartFile> images
+    ) {
+        try {
+            List<ProductImageUploadResponseDto> response = productImageService.updateProductImage(userPrincipal, productId, oldImageIds, images);
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity
+                    .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .badRequest()
+                    .body(ApiResponse.error(ResponseCode.INVALID_TYPE_VALUE, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+        }
+    }
+}

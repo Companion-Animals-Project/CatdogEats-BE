@@ -2,9 +2,9 @@ package com.team5.catdogeats.support.domain.notice.service.impl;
 
 import com.team5.catdogeats.storage.domain.Files;
 import com.team5.catdogeats.storage.domain.mapping.NoticeFiles;
-import com.team5.catdogeats.storage.domain.repository.FilesRepository;
-import com.team5.catdogeats.storage.domain.service.NoticeFileManagementService;
-import com.team5.catdogeats.storage.domain.service.ObjectStorageService;
+import com.team5.catdogeats.storage.repository.FileRepository;
+import com.team5.catdogeats.storage.service.NoticeFileManagementService;
+import com.team5.catdogeats.storage.service.ObjectStorageService;
 import com.team5.catdogeats.support.domain.Notices;
 import com.team5.catdogeats.support.domain.notice.dto.NoticeResponseDTO;
 import com.team5.catdogeats.support.domain.notice.repository.NoticeFilesRepository;
@@ -36,7 +36,7 @@ class NoticeServiceImplFileUploadTest {
     private NoticeRepository noticeRepository;
 
     @Mock
-    private FilesRepository filesRepository;
+    private FileRepository fileRepository;
 
     @Mock
     private NoticeFilesRepository noticeFilesRepository;

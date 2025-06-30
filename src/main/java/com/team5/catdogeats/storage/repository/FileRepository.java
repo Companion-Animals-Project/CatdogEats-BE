@@ -1,9 +1,9 @@
-package com.team5.catdogeats.storage.domain.repository;
+package com.team5.catdogeats.storage.repository;
 
 import com.team5.catdogeats.storage.domain.Files;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface FilesRepository extends JpaRepository<Files, String> {
+public interface FileRepository extends JpaRepository<Files, String> {
 
     // 기본 CRUD 메서드들이 자동으로 제공됩니다
     // save(), findById(), deleteById() 등
