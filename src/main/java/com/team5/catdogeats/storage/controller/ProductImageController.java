@@ -1,5 +1,6 @@
 package com.team5.catdogeats.storage.controller;
 
+import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.storage.domain.dto.ProductImageUploadResponseDto;
@@ -10,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -31,12 +33,13 @@ public class ProductImageController {
     )
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<List<ProductImageUploadResponseDto>>> uploadProductImage(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "이미지를 업로드할 상품 id", required = true)
             @RequestParam String productId,
             @Parameter(description = "업로드할 이미지 파일 리스트", required = true)
             @RequestPart("images") List<MultipartFile> images) {
         try {
-            List<ProductImageUploadResponseDto> response = productImageService.uploadProductImage(productId, images);
+            List<ProductImageUploadResponseDto> response = productImageService.uploadProductImage(userPrincipal, productId, images);
             return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
         } catch (NoSuchElementException e) {
             return ResponseEntity
@@ -59,6 +62,7 @@ public class ProductImageController {
     )
     @PatchMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<List<ProductImageUploadResponseDto>>> updateProductImage(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "이미지를 수정할 상품 id", required = true)
             @RequestParam String productId,
             @Parameter(description = "수정할 이미지 ids", required = true)
@@ -67,7 +71,7 @@ public class ProductImageController {
             @RequestPart List<MultipartFile> images
     ) {
         try {
-            List<ProductImageUploadResponseDto> response = productImageService.updateProductImage(productId, oldImageIds, images);
+            List<ProductImageUploadResponseDto> response = productImageService.updateProductImage(userPrincipal, productId, oldImageIds, images);
             return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
         } catch (NoSuchElementException e) {
             return ResponseEntity

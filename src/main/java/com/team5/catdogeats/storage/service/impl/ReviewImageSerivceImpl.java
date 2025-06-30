@@ -1,5 +1,6 @@
 package com.team5.catdogeats.storage.service.impl;
 
+import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.config.JpaTransactional;
 import com.team5.catdogeats.reviews.domain.Reviews;
 import com.team5.catdogeats.reviews.repository.ReviewRepository;
@@ -12,6 +13,8 @@ import com.team5.catdogeats.storage.repository.ReviewImageRepository;
 import com.team5.catdogeats.storage.service.ObjectStorageService;
 import com.team5.catdogeats.storage.service.ReviewImageService;
 import com.team5.catdogeats.storage.util.ImageValidationUtil;
+import com.team5.catdogeats.users.domain.dto.BuyerDTO;
+import com.team5.catdogeats.users.repository.BuyerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,10 +31,14 @@ public class ReviewImageSerivceImpl implements ReviewImageService {
     private final ReviewImageRepository reviewImageRepository;
     private final ReviewRepository reviewRepository;
     private final ImageValidationUtil imageValidationUtil;
+    private final BuyerRepository buyerRepository;
 
     @JpaTransactional
     @Override
-    public List<ReviewImageUploadResponseDto> uploadReviewImage(String reviewId, List<MultipartFile> images) throws IOException {
+    public List<ReviewImageUploadResponseDto> uploadReviewImage(UserPrincipal userPrincipal, String reviewId, List<MultipartFile> images) throws IOException {
+
+        BuyerDTO buyerDTO = buyerRepository.findOnlyBuyerByProviderAndProviderId(userPrincipal.provider(), userPrincipal.providerId())
+                .orElseThrow(() -> new NoSuchElementException("해당 유저 정보를 찾을 수 없습니다."));
 
         if (images.size() > 10) {
             throw new IllegalArgumentException("이미지는 한 번에 최대 10개까지만 업로드할 수 있습니다.");
@@ -77,14 +84,14 @@ public class ReviewImageSerivceImpl implements ReviewImageService {
 
     @JpaTransactional
     @Override
-    public List<ReviewImageUploadResponseDto> updateReviewImage(String reviewId, List<String> oldImageIds, List<MultipartFile> images) throws IOException {
+    public List<ReviewImageUploadResponseDto> updateReviewImage(UserPrincipal userPrincipal, String reviewId, List<String> oldImageIds, List<MultipartFile> images) throws IOException {
         // 1. 기존 이미지/매핑/S3에 있는 이미지들 중 골라서 삭제
         for (String oldImageId : oldImageIds) {
             this.deleteReviewImage(reviewId, oldImageId);
         }
 
         // 2. 새 이미지 업로드/매핑
-        return this.uploadReviewImage(reviewId, images);
+        return this.uploadReviewImage(userPrincipal, reviewId, images);
 
     }
 

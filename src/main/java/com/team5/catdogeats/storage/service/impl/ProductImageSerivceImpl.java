@@ -1,5 +1,6 @@
 package com.team5.catdogeats.storage.service.impl;
 
+import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.config.JpaTransactional;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.repository.ProductRepository;
@@ -12,6 +13,8 @@ import com.team5.catdogeats.storage.repository.ProductImageRepository;
 import com.team5.catdogeats.storage.service.ObjectStorageService;
 import com.team5.catdogeats.storage.service.ProductImageService;
 import com.team5.catdogeats.storage.util.ImageValidationUtil;
+import com.team5.catdogeats.users.domain.dto.SellerDTO;
+import com.team5.catdogeats.users.repository.SellersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,10 +34,14 @@ public class ProductImageSerivceImpl implements ProductImageService {
     private final ProductImageRepository productImageRepository;
     private final ProductRepository productRepository;
     private final ImageValidationUtil imageValidationUtil;
+    private final SellersRepository sellerRepository;
 
     @JpaTransactional
     @Override
-    public List<ProductImageUploadResponseDto> uploadProductImage(String productId, List<MultipartFile> images) throws IOException {
+    public List<ProductImageUploadResponseDto> uploadProductImage(UserPrincipal userPrincipal, String productId, List<MultipartFile> images) throws IOException {
+
+        SellerDTO sellerDTO = sellerRepository.findSellerDtoByProviderAndProviderId(userPrincipal.provider(), userPrincipal.providerId())
+                .orElseThrow(() -> new NoSuchElementException("해당 유저 정보를 찾을 수 없습니다."));
 
         if (images.size() > 10) {
             throw new IllegalArgumentException("이미지는 한 번에 최대 10개까지만 업로드할 수 있습니다.");
@@ -80,14 +87,14 @@ public class ProductImageSerivceImpl implements ProductImageService {
 
     @JpaTransactional
     @Override
-    public List<ProductImageUploadResponseDto> updateProductImage(String productId, List<String> oldImageIds, List<MultipartFile> images) throws IOException {
+    public List<ProductImageUploadResponseDto> updateProductImage(UserPrincipal userPrincipal, String productId, List<String> oldImageIds, List<MultipartFile> images) throws IOException {
         // 1. 기존 이미지/매핑/S3에 있는 이미지들 중 골라서 삭제
         for (String oldImageId : oldImageIds) {
             this.deleteProductImage(productId, oldImageId);
         }
 
         // 2. 새 이미지 업로드/매핑
-        return this.uploadProductImage(productId, images);
+        return this.uploadProductImage(userPrincipal, productId, images);
 
     }
 
