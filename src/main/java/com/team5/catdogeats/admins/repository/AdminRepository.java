@@ -38,61 +38,67 @@ public interface AdminRepository extends JpaRepository<Admins, String> {
     boolean existsByEmail(String email);
 
     /**
-     * 이름 또는 이메일로 검색 (페이지네이션 지원)
+     * 이름 또는 이메일로 검색
      */
     @Query("SELECT a FROM Admins a WHERE " +
             "LOWER(a.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-            "LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%'))")
+            "LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%')) " +
+            "ORDER BY a.createdAt DESC")
     Page<Admins> findByNameOrEmailContainingIgnoreCase(@Param("search") String search, Pageable pageable);
 
     /**
-     * 상태별 필터링 (활성화된 사용자)
+     * ACTIVE: 활성화 + 첫 로그인 완료된 사용자
      */
-    @Query("SELECT a FROM Admins a WHERE a.isActive = true AND a.isFirstLogin = false")
+    @Query("SELECT a FROM Admins a WHERE a.isActive = true AND a.isFirstLogin = false ORDER BY a.createdAt DESC")
     Page<Admins> findActiveAdmins(Pageable pageable);
 
     /**
-     * 상태별 필터링 (대기중인 사용자 - 비활성화 + 인증코드 있음)
+     * PENDING: 비활성화 + 인증코드 있음 (인증 대기중)
      */
-    @Query("SELECT a FROM Admins a WHERE a.isActive = false AND a.verificationCode IS NOT NULL")
+    @Query("SELECT a FROM Admins a WHERE a.isActive = false AND a.verificationCode IS NOT NULL ORDER BY a.createdAt DESC")
     Page<Admins> findPendingAdmins(Pageable pageable);
 
     /**
-     * 상태별 필터링 (비활성화된 사용자)
+     * INACTIVE: 비활성화된 사용자
      */
-    @Query("SELECT a FROM Admins a WHERE a.isActive = false")
+    @Query("SELECT a FROM Admins a WHERE " +
+            "(a.isActive = false AND a.verificationCode IS NULL) OR " +
+            "(a.isActive = true AND a.isFirstLogin = true) " +
+            "ORDER BY a.createdAt DESC")
     Page<Admins> findInactiveAdmins(Pageable pageable);
 
+
+
+    // ===== 복합 검색: 검색어 + 부서 =====
+
     /**
-     * 부서별 필터링 (페이지네이션 지원)
+     * 부서별 필터링
      */
+    @Query("SELECT a FROM Admins a WHERE a.department = :department ORDER BY a.createdAt DESC")
     Page<Admins> findByDepartment(Department department, Pageable pageable);
 
-    /**
-     * 복합 검색: 검색어 + 상태
-     */
-    @Query("SELECT a FROM Admins a WHERE " +
-            "(LOWER(a.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-            "LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
-            "a.isActive = :isActive")
-    Page<Admins> findBySearchAndActiveStatus(@Param("search") String search,
-                                             @Param("isActive") boolean isActive,
-                                             Pageable pageable);
+    // ===== 통계용 카운트 메서드들  =====
 
     /**
-     * 복합 검색: 검색어 + 부서
+     * 활성 사용자 수 (활성화 + 첫 로그인 완료)
      */
-    @Query("SELECT a FROM Admins a WHERE " +
-            "(LOWER(a.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-            "LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
-            "a.department = :department")
-    Page<Admins> findBySearchAndDepartment(@Param("search") String search,
-                                           @Param("department") Department department,
-                                           Pageable pageable);
+    @Query("SELECT COUNT(a) FROM Admins a WHERE a.isActive = true AND a.isFirstLogin = false")
+    long countActiveAdmins();
 
-    // ===== 통계용 카운트 메서드들 =====
-    long countByIsActiveTrue();
-    long countByIsActiveFalseAndVerificationCodeIsNotNull();
-    long countByIsActiveFalse();
+
+    /**
+     * 대기중 사용자 수 (비활성화 + 인증코드 있음) = 승인대기
+     */
+    @Query("SELECT COUNT(a) FROM Admins a WHERE a.isActive = false AND a.verificationCode IS NOT NULL")
+    long countPendingAdmins();
+
+    /**
+     * 비활성 사용자 수 (비활성화 또는 첫 로그인 안함) = 촛 ㄹ호
+     */
+    @Query("SELECT COUNT(a) FROM Admins a WHERE " +
+            "(a.isActive = false AND a.verificationCode IS NULL) OR " +
+            "(a.isActive = true AND a.isFirstLogin = true)")
+    long countInactiveAdmins();
+
 }
 

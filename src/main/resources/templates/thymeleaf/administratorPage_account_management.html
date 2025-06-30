@@ -802,9 +802,9 @@
                     <!-- 필터 탭 -->
                     <div class="filter-tabs">
                         <button class="filter-tab active" onclick="filterByStatus('all')" data-status="all">전체 (-)</button>
-                        <button class="filter-tab" onclick="filterByStatus('active')" data-status="active">활성 (-)</button>
+                        <button class="filter-tab" onclick="filterByStatus('active')" data-status="active">활성화 (-)</button>
                         <button class="filter-tab" onclick="filterByStatus('pending')" data-status="pending">승인대기 (-)</button>
-                        <button class="filter-tab" onclick="filterByStatus('inactive')" data-status="inactive">비활성 (-)</button>
+                        <button class="filter-tab" onclick="filterByStatus('inactive')" data-status="inactive">비활성화 (-)</button>
                     </div>
 
                     <!-- 관리자 테이블 -->
@@ -856,6 +856,8 @@
 
     // 페이지 로드 시 초기화
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('페이지 로드 시작');
+        initializeSearchInput(); // 검색 입력 초기화
         loadAdminList();
         initializeSidebar();
     });
@@ -863,6 +865,7 @@
     // 관리자 목록 로드
     async function loadAdminList() {
         try {
+            console.log('관리자 목록 로드 시작:', { currentPage, currentSize, currentStatus, currentSearch });
             showLoading(true);
 
             const params = new URLSearchParams({
@@ -872,6 +875,8 @@
                 ...(currentSearch && { search: currentSearch })
             });
 
+            console.log('요청 파라미터:', params.toString());
+
             const response = await fetch(`/v1/admin/accounts?${params}`, {
                 method: 'GET',
                 headers: {
@@ -879,15 +884,22 @@
                 }
             });
 
+            console.log('응답 상태:', response.status);
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             const result = await response.json();
+            console.log('응답 데이터:', result);
 
             if (result.success && result.data) {
                 adminData = result.data.admins;
                 statsData = result.data.stats;
+
+                console.log('통계 데이터:', statsData);
+                console.log('관리자 데이터:', adminData);
+
                 updateStats(statsData);
                 updateFilterTabs(statsData);
                 renderAdmins(result.data);
@@ -897,12 +909,13 @@
 
         } catch (error) {
             console.error('관리자 목록 로드 중 오류:', error);
-            showAlert('관리자 목록을 불러오는데 실패했습니다.', 'error');
+            showAlert('관리자 목록을 불러오는데 실패했습니다: ' + error.message, 'error');
         } finally {
             showLoading(false);
         }
     }
 
+    // 비밀번호 초기화
     async function resetAdminPassword(adminEmail, adminName) {
         if (adminEmail.includes('super@catdogeats.com')) {
             showAlert('슈퍼관리자 계정은 비밀번호를 초기화할 수 없습니다.', 'error');
@@ -947,6 +960,7 @@
 
     // 통계 업데이트
     function updateStats(stats) {
+        console.log('통계 업데이트:', stats);
         document.getElementById('totalAdmins').textContent = stats.totalCount || 0;
         document.getElementById('activeAdmins').textContent = stats.activeCount || 0;
         document.getElementById('pendingAdmins').textContent = stats.pendingCount || 0;
@@ -955,14 +969,21 @@
 
     // 필터 탭 업데이트
     function updateFilterTabs(stats) {
-        document.querySelector('[data-status="all"]').textContent = `전체 (${stats.totalCount || 0})`;
-        document.querySelector('[data-status="active"]').textContent = `활성 (${stats.activeCount || 0})`;
-        document.querySelector('[data-status="pending"]').textContent = `승인대기 (${stats.pendingCount || 0})`;
-        document.querySelector('[data-status="inactive"]').textContent = `비활성 (${stats.inactiveCount || 0})`;
+        console.log('필터 탭 업데이트:', stats);
+        const allTab = document.querySelector('[data-status="all"]');
+        const activeTab = document.querySelector('[data-status="active"]');
+        const pendingTab = document.querySelector('[data-status="pending"]');
+        const inactiveTab = document.querySelector('[data-status="inactive"]');
+
+        if (allTab) allTab.textContent = `전체 (${stats.totalCount || 0})`;
+        if (activeTab) activeTab.textContent = `활성화 (${stats.activeCount || 0})`;
+        if (pendingTab) pendingTab.textContent = `승인대기 (${stats.pendingCount || 0})`;
+        if (inactiveTab) inactiveTab.textContent = `비활성화 (${stats.inactiveCount || 0})`;
     }
 
     // 관리자 목록 렌더링
     function renderAdmins(data) {
+        console.log('관리자 목록 렌더링:', data);
         const tbody = document.getElementById('adminTableBody');
         const admins = data.admins;
 
@@ -977,47 +998,84 @@
         document.getElementById('emptyState').style.display = 'none';
         document.querySelector('.admin-table').style.display = 'table';
 
-        tbody.innerHTML = admins.map(admin => `
-  <tr>
-    <td>
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-          <span class="text-orange-600 font-semibold text-sm">${admin.name.substring(0, 2)}</span>
-        </div>
-        <div>
-          <div class="font-semibold text-gray-900">${admin.name}</div>
-          <div class="text-gray-500 text-sm">${admin.email}</div>
-        </div>
-      </div>
-    </td>
-    <td>${getDepartmentName(admin.department)}</td>
-    <td>
-      <span class="status-badge ${getStatusClass(admin)}">
-        <span class="material-icons-outlined text-xs">${getStatusIcon(admin)}</span>
-        ${getStatusName(admin)}
-      </span>
-    </td>
-    <td>${formatDate(admin.createdAt)}</td>
-    <td>${admin.lastLoginAt ? formatDateTime(admin.lastLoginAt) : '-'}</td>
-    <td>
-      <div class="action-buttons">
-        ${!admin.email.includes('super@catdogeats.com') ? `
-          <button class="action-btn action-reset" onclick="resetAdminPassword('${admin.email}', '${admin.name}')" title="비밀번호 초기화">
-            <span class="material-icons-outlined text-sm">lock_reset</span>
-          </button>
-        ` : `
-          <span class="text-gray-400 text-sm">관리 불가</span>
-        `}
-      </div>
-    </td>
-  </tr>
-`).join('');
+        tbody.innerHTML = admins.map(admin => {
+            const statusInfo = getAdminStatusInfo(admin);
+            console.log(`관리자 ${admin.email} 상태:`, statusInfo);
+
+            return `
+        <tr>
+            <td>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                        <span class="text-orange-600 font-semibold text-sm">${admin.name.substring(0, 2)}</span>
+                    </div>
+                    <div>
+                        <div class="font-semibold text-gray-900">${admin.name}</div>
+                        <div class="text-gray-500 text-sm">${admin.email}</div>
+                    </div>
+                </div>
+            </td>
+            <td>${getDepartmentName(admin.department)}</td>
+            <td>
+                <span class="status-badge ${statusInfo.cssClass}" style="${statusInfo.style}">
+                    <span class="material-icons-outlined text-xs">${statusInfo.icon}</span>
+                    ${statusInfo.name}
+                </span>
+            </td>
+            <td>${formatDate(admin.createdAt)}</td>
+            <td>${admin.lastLoginAt ? formatDateTime(admin.lastLoginAt) : '-'}</td>
+            <td>
+                <div class="action-buttons">
+                    ${!admin.email.includes('super@catdogeats.com') ? `
+                        <button class="action-btn action-reset" onclick="resetAdminPassword('${admin.email}', '${admin.name}')" title="비밀번호 초기화">
+                            <span class="material-icons-outlined text-sm">lock_reset</span>
+                        </button>
+                    ` : `
+                        <span class="text-gray-400 text-sm">관리 불가</span>
+                    `}
+                </div>
+            </td>
+        </tr>
+        `;
+        }).join('');
 
         renderPagination(data);
     }
 
+    // 관리자 상태 정보 계산 (3가지 상태)
+    function getAdminStatusInfo(admin) {
+        let status, cssClass, style, icon, name;
+
+        // 3가지 상태로 단순화
+        if (admin.isActive && !admin.isFirstLogin) {
+            // 활성화 상태
+            status = 'ACTIVE';
+            cssClass = 'status-active';
+            style = 'background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0;';
+            icon = 'check_circle';
+            name = '활성화';
+        } else if (!admin.isActive && admin.verificationCode) {
+            // 승인대기 상태
+            status = 'PENDING';
+            cssClass = 'status-pending';
+            style = 'background-color: #fef3c7; color: #d97706; border: 1px solid #fde68a;';
+            icon = 'schedule';
+            name = '승인대기';
+        } else {
+            // 비활성화 상태
+            status = 'INACTIVE';
+            cssClass = 'status-inactive';
+            style = 'background-color: #fee2e2; color: #dc2626; border: 1px solid #fecaca;';
+            icon = 'cancel';
+            name = '비활성화';
+        }
+
+        return { status, cssClass, style, icon, name };
+    }
+
     // 페이지네이션 렌더링
     function renderPagination(data) {
+        console.log('페이지네이션 렌더링:', data);
         const pagination = document.getElementById('pagination');
         const { totalPages, currentPage: page } = data;
 
@@ -1032,10 +1090,10 @@
 
         // 이전 버튼
         paginationHTML += `
-          <button class="pagination-btn ${page === 0 ? 'disabled' : ''}" onclick="goToPage(${page - 1})">
+        <button class="pagination-btn ${page === 0 ? 'disabled' : ''}" onclick="goToPage(${page - 1})" ${page === 0 ? 'disabled' : ''}>
             <span class="material-icons-outlined text-sm">chevron_left</span>
-          </button>
-        `;
+        </button>
+    `;
 
         // 페이지 번호들
         const startPage = Math.max(0, page - 2);
@@ -1051,9 +1109,9 @@
         for (let i = startPage; i <= endPage; i++) {
             paginationHTML += `
             <button class="pagination-btn ${page === i ? 'active' : ''}" onclick="goToPage(${i})">
-              ${i + 1}
+                ${i + 1}
             </button>
-          `;
+        `;
         }
 
         if (endPage < totalPages - 1) {
@@ -1065,10 +1123,10 @@
 
         // 다음 버튼
         paginationHTML += `
-          <button class="pagination-btn ${page === totalPages - 1 ? 'disabled' : ''}" onclick="goToPage(${page + 1})">
+        <button class="pagination-btn ${page === totalPages - 1 ? 'disabled' : ''}" onclick="goToPage(${page + 1})" ${page === totalPages - 1 ? 'disabled' : ''}>
             <span class="material-icons-outlined text-sm">chevron_right</span>
-          </button>
-        `;
+        </button>
+    `;
 
         pagination.innerHTML = paginationHTML;
     }
@@ -1076,12 +1134,14 @@
     // 페이지 이동
     function goToPage(page) {
         if (page < 0) return;
+        console.log('페이지 이동:', page);
         currentPage = page;
         loadAdminList();
     }
 
     // 상태별 필터링
     function filterByStatus(status) {
+        console.log('상태 필터링:', status);
         currentStatus = status;
         currentPage = 0;
 
@@ -1089,7 +1149,10 @@
         document.querySelectorAll('.filter-tab').forEach(tab => {
             tab.classList.remove('active');
         });
-        document.querySelector(`[data-status="${status}"]`).classList.add('active');
+        const targetTab = document.querySelector(`[data-status="${status}"]`);
+        if (targetTab) {
+            targetTab.classList.add('active');
+        }
 
         loadAdminList();
     }
@@ -1097,11 +1160,24 @@
     // 검색 필터링
     function filterAdmins() {
         const searchTerm = document.getElementById('searchInput').value.trim();
+        console.log('검색 필터링:', searchTerm);
         currentSearch = searchTerm;
         currentPage = 0;
         loadAdminList();
     }
 
+    // 검색 입력 디바운싱
+    let searchTimeout;
+    // DOM이 로드된 후에 이벤트 리스너 추가
+    function initializeSearchInput() {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(filterAdmins, 300); // 300ms 지연
+            });
+        }
+    }
 
     // 사용자 메뉴 토글
     function toggleUserMenu() {
@@ -1114,31 +1190,31 @@
         const userMenu = document.querySelector('.user-menu');
         const dropdown = document.getElementById('userDropdown');
 
-        if (!userMenu.contains(event.target)) {
+        if (userMenu && !userMenu.contains(event.target)) {
             dropdown.classList.remove('active');
-        }
-
-        // 모달 외부 클릭 시 닫기
-        if (event.target.classList.contains('modal-overlay')) {
-            if (event.target.id === 'deleteModal') {
-                closeDeleteModal();
-            }
         }
     });
 
-    // ESC 키로 모달 닫기
+    // ESC 키로 메뉴 닫기
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-            if (document.getElementById('deleteModal').classList.contains('active')) {
-                closeDeleteModal();
+            const dropdown = document.getElementById('userDropdown');
+            if (dropdown) {
+                dropdown.classList.remove('active');
             }
         }
     });
 
     // 알림 표시
     function showAlert(message, type = 'success') {
+        console.log('알림 표시:', message, type);
         const alert = document.getElementById('alertMessage');
         const alertText = document.getElementById('alertText');
+
+        if (!alert || !alertText) {
+            console.error('알림 요소를 찾을 수 없습니다');
+            return;
+        }
 
         alert.className = `alert alert-${type}`;
         alert.style.display = 'flex';
@@ -1155,14 +1231,14 @@
         if (show) {
             tbody.innerHTML = `
             <tr>
-              <td colspan="6" class="text-center py-8">
-                <div class="flex items-center justify-center gap-2">
-                  <div class="loading-spinner" style="display: block; border-top-color: #f5a623;"></div>
-                  <span>로딩 중...</span>
-                </div>
-              </td>
+                <td colspan="6" class="text-center py-8">
+                    <div class="flex items-center justify-center gap-2">
+                        <div class="loading-spinner" style="display: block; border-top-color: #f5a623;"></div>
+                        <span>로딩 중...</span>
+                    </div>
+                </td>
             </tr>
-          `;
+        `;
         }
     }
 
@@ -1177,48 +1253,29 @@
         return names[dept] || dept;
     }
 
-    function getStatusName(admin) {
-        if (!admin.isFirstLogin) {
-            return '활성';
-        } else if (admin.verificationCode) {
-            return '승인대기';
-        } else {
-            return '비활성';
-        }
-    }
-
-    function getStatusClass(admin) {
-        if (!admin.isFirstLogin) {
-            return 'status-active';
-        } else if (admin.verificationCode) {
-            return 'status-pending';
-        } else {
-            return 'status-inactive';
-        }
-    }
-
-    function getStatusIcon(admin) {
-        if (!admin.isFirstLogin) {
-            return 'check_circle';
-        } else if (admin.verificationCode) {
-            return 'schedule';
-        } else {
-            return 'cancel';
-        }
-    }
-
     function formatDate(dateString) {
         if (!dateString) return '-';
-        const date = new Date(dateString);
-        return date.toLocaleDateString('ko-KR');
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ko-KR');
+        } catch (e) {
+            console.error('날짜 포맷 오류:', e);
+            return '-';
+        }
     }
 
     function formatDateTime(dateString) {
         if (!dateString) return '-';
-        const date = new Date(dateString);
-        return date.toLocaleString('ko-KR');
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleString('ko-KR');
+        } catch (e) {
+            console.error('날짜시간 포맷 오류:', e);
+            return '-';
+        }
     }
 
+    // 사이드바 관리 함수들
     let currentAdminInfo = null;
 
     async function getCurrentAdminInfo() {
@@ -1242,8 +1299,14 @@
     }
 
     async function initializeSidebar() {
+        console.log('사이드바 초기화 시작');
         const adminInfo = await getCurrentAdminInfo();
-        if (!adminInfo) return;
+        if (!adminInfo) {
+            console.warn('관리자 정보를 가져올 수 없습니다');
+            return;
+        }
+
+        console.log('현재 관리자 정보:', adminInfo);
 
         const adminOnlyMenus = ['inviteMenuItem', 'accountManagementMenuItem'];
         adminOnlyMenus.forEach(menuId => {
@@ -1263,6 +1326,8 @@
 
     function setActivePage() {
         const currentPath = window.location.pathname;
+        console.log('현재 경로:', currentPath);
+
         const allLinks = document.querySelectorAll('.sidebar-link');
 
         allLinks.forEach(link => {
@@ -1284,13 +1349,13 @@
         if (activeLink) {
             activeLink.classList.remove('inactive-tab');
             activeLink.classList.add('active-tab');
+            console.log('활성 탭 설정:', activeLink);
         }
     }
 
     function showComingSoon(featureName) {
         alert(`${featureName} 기능은 현재 개발 중입니다. 곧 업데이트될 예정입니다.`);
     }
-
 </script>
 </body>
 </html>
