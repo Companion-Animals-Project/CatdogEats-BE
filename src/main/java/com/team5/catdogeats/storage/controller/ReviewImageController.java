@@ -87,31 +87,4 @@ public class ReviewImageController {
                     .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
-
-    // 리뷰 이미지 삭제 (매핑, 이미지 DB, S3 모두 정리)
-    // 리뷰 삭제에서 리뷰 내용 + 이미지 일괄로 삭제하므로 사용x
-//    @Operation(
-//            summary = "리뷰 이미지만 삭제",
-//            description = "imageId로 전달한 이미지 파일들을 삭제합니다." +
-//                    "(리뷰 삭제 api를 통해 리뷰 내용+이미지 일괄 삭제하므로 보통 사용x)"
-//    )
-//    @DeleteMapping
-//    public ResponseEntity<ApiResponse<Void>> deleteReviewImage(
-//            @Parameter(description = "이미지를 삭제할 리뷰 id", required = true)
-//            @RequestParam String reviewId,
-//            @Parameter(description = "삭제할 이미지 파일 id", required = true)
-//            @RequestParam String imageId) {
-//        try{
-//            reviewImageService.deleteReviewImage(reviewId, imageId);
-//            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS));
-//        } catch (NoSuchElementException e) {
-//            return ResponseEntity
-//                    .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-//                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
-//        } catch (Exception e) {
-//            return ResponseEntity
-//                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-//                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
-//        }
-//    }
 }
