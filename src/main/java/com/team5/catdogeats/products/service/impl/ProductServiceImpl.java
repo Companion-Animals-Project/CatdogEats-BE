@@ -3,12 +3,14 @@ package com.team5.catdogeats.products.service.impl;
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.config.JpaTransactional;
 import com.team5.catdogeats.products.domain.Products;
-import com.team5.catdogeats.products.domain.dto.ProductCreateRequestDto;
-import com.team5.catdogeats.products.domain.dto.ProductDeleteRequestDto;
-import com.team5.catdogeats.products.domain.dto.ProductUpdateRequestDto;
+import com.team5.catdogeats.products.domain.dto.*;
 import com.team5.catdogeats.products.exception.DuplicateProductNumberException;
 import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.products.service.ProductService;
+import com.team5.catdogeats.reviews.repository.ReviewRepository;
+import com.team5.catdogeats.storage.domain.mapping.ProductsImages;
+import com.team5.catdogeats.storage.repository.ProductImageRepository;
+import com.team5.catdogeats.storage.service.ProductImageService;
 import com.team5.catdogeats.users.domain.dto.SellerDTO;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
 import com.team5.catdogeats.users.repository.SellersRepository;
@@ -18,7 +20,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
@@ -28,6 +30,8 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
     private final SellersRepository sellerRepository;
+    private final ProductImageRepository productImageRepository;
+    private final ProductImageService productImageService;
 
     @Override
     public String registerProduct(UserPrincipal userPrincipal, ProductCreateRequestDto dto) {
@@ -63,6 +67,7 @@ public class ProductServiceImpl implements ProductService {
         return productRepository.save(product).getId();
     }
 
+
     @JpaTransactional
     @Override
     public void updateProduct(ProductUpdateRequestDto dto) {
@@ -77,8 +82,17 @@ public class ProductServiceImpl implements ProductService {
         Products product = productRepository.findById(dto.productId())
                 .orElseThrow(() -> new NoSuchElementException("해당 아이템 정보를 찾을 수 없습니다."));
 
+        // 1. 리뷰와 연결된 모든 이미지 매핑 조회
+        List<ProductsImages> mappings = productImageRepository.findAllByProductsId(dto.productId());
+        // 2. 이미지 삭제 서비스 호출
+        for (ProductsImages mapping : mappings) {
+            productImageService.deleteProductImage(dto.productId(), mapping.getImages().getId());
+        }
+
         productRepository.deleteById(dto.productId());
     }
+
+
 
     // TODO: 상품 조회 서비스 로직 / 상품 상세 조회 서비스 로직 구현하기
 
