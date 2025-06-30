@@ -845,6 +845,11 @@
     </div>
 </div>
 
+<script th:inline="javascript">
+    // 서버에서 전달받은 슈퍼관리자 이메일 (환경변수)
+    const SUPER_ADMIN_EMAIL = /*[[${superAdminEmail}]]*/ 'super@catdogeats.com1';
+    console.log('슈퍼관리자 이메일:', SUPER_ADMIN_EMAIL);
+</script>
 <script>
     // 전역 변수
     let currentPage = 0;
@@ -915,9 +920,10 @@
         }
     }
 
-    // 비밀번호 초기화
+    // 비밀번호 초기화 - 환경변수 사용
     async function resetAdminPassword(adminEmail, adminName) {
-        if (adminEmail.includes('super@catdogeats.com')) {
+        // 환경변수로 받아온 슈퍼관리자 이메일과 비교
+        if (adminEmail === SUPER_ADMIN_EMAIL) {
             showAlert('슈퍼관리자 계정은 비밀번호를 초기화할 수 없습니다.', 'error');
             return;
         }
@@ -958,30 +964,7 @@
         }
     }
 
-    // 통계 업데이트
-    function updateStats(stats) {
-        console.log('통계 업데이트:', stats);
-        document.getElementById('totalAdmins').textContent = stats.totalCount || 0;
-        document.getElementById('activeAdmins').textContent = stats.activeCount || 0;
-        document.getElementById('pendingAdmins').textContent = stats.pendingCount || 0;
-        document.getElementById('inactiveAdmins').textContent = stats.inactiveCount || 0;
-    }
-
-    // 필터 탭 업데이트
-    function updateFilterTabs(stats) {
-        console.log('필터 탭 업데이트:', stats);
-        const allTab = document.querySelector('[data-status="all"]');
-        const activeTab = document.querySelector('[data-status="active"]');
-        const pendingTab = document.querySelector('[data-status="pending"]');
-        const inactiveTab = document.querySelector('[data-status="inactive"]');
-
-        if (allTab) allTab.textContent = `전체 (${stats.totalCount || 0})`;
-        if (activeTab) activeTab.textContent = `활성화 (${stats.activeCount || 0})`;
-        if (pendingTab) pendingTab.textContent = `승인대기 (${stats.pendingCount || 0})`;
-        if (inactiveTab) inactiveTab.textContent = `비활성화 (${stats.inactiveCount || 0})`;
-    }
-
-    // 관리자 목록 렌더링
+    // 관리자 목록 렌더링 - 환경변수 사용
     function renderAdmins(data) {
         console.log('관리자 목록 렌더링:', data);
         const tbody = document.getElementById('adminTableBody');
@@ -1026,7 +1009,7 @@
             <td>${admin.lastLoginAt ? formatDateTime(admin.lastLoginAt) : '-'}</td>
             <td>
                 <div class="action-buttons">
-                    ${!admin.email.includes('super@catdogeats.com') ? `
+                    ${admin.email !== SUPER_ADMIN_EMAIL ? `
                         <button class="action-btn action-reset" onclick="resetAdminPassword('${admin.email}', '${admin.name}')" title="비밀번호 초기화">
                             <span class="material-icons-outlined text-sm">lock_reset</span>
                         </button>
@@ -1040,6 +1023,29 @@
         }).join('');
 
         renderPagination(data);
+    }
+
+    // 통계 업데이트
+    function updateStats(stats) {
+        console.log('통계 업데이트:', stats);
+        document.getElementById('totalAdmins').textContent = stats.totalCount || 0;
+        document.getElementById('activeAdmins').textContent = stats.activeCount || 0;
+        document.getElementById('pendingAdmins').textContent = stats.pendingCount || 0;
+        document.getElementById('inactiveAdmins').textContent = stats.inactiveCount || 0;
+    }
+
+    // 필터 탭 업데이트
+    function updateFilterTabs(stats) {
+        console.log('필터 탭 업데이트:', stats);
+        const allTab = document.querySelector('[data-status="all"]');
+        const activeTab = document.querySelector('[data-status="active"]');
+        const pendingTab = document.querySelector('[data-status="pending"]');
+        const inactiveTab = document.querySelector('[data-status="inactive"]');
+
+        if (allTab) allTab.textContent = `전체 (${stats.totalCount || 0})`;
+        if (activeTab) activeTab.textContent = `활성화 (${stats.activeCount || 0})`;
+        if (pendingTab) pendingTab.textContent = `승인대기 (${stats.pendingCount || 0})`;
+        if (inactiveTab) inactiveTab.textContent = `비활성화 (${stats.inactiveCount || 0})`;
     }
 
     // 관리자 상태 정보 계산 (3가지 상태)

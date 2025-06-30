@@ -15,6 +15,7 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -36,6 +37,9 @@ public class AdminManagementController {
     private final AdminControllerUtils controllerUtils;
     private final AdminManagementService managementService;
 
+    @Value("${admin.super.email}")
+    private String superAdminEmail;
+
 
     /**
      * 관리자 계정 관리 페이지 (ADMIN 부서만 접근 가능)
@@ -49,9 +53,10 @@ public class AdminManagementController {
 
         AdminSessionInfo sessionInfo = controllerUtils.requireAdminDepartment(session);
         model.addAttribute("admin", sessionInfo);
+        // 환경변수로부터 슈퍼관리자 이메일을 모델에 추가
+        model.addAttribute("superAdminEmail", superAdminEmail);
         return "thymeleaf/administratorPage_account_management";
     }
-
 
     /**
      * 관리자 목록 조회 API
@@ -146,6 +151,10 @@ public class AdminManagementController {
     public ResponseEntity<ApiResponse<AdminPasswordResetResponseDTO>> resetAdminPassword(
             @PathVariable String adminEmail,
             HttpSession session) {
+
+        if (superAdminEmail.equals(adminEmail)) {
+            throw new IllegalArgumentException("슈퍼관리자 계정은 비밀번호를 초기화할 수 없습니다.");
+        }
 
         AdminSessionInfo sessionInfo = controllerUtils.requireAdminDepartment(session);
         AdminPasswordResetRequestDTO request = new AdminPasswordResetRequestDTO(

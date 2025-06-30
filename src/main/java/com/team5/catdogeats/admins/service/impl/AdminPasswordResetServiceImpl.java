@@ -8,6 +8,7 @@ import com.team5.catdogeats.admins.util.AdminUtils;
 import com.team5.catdogeats.global.config.JpaTransactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -25,7 +26,8 @@ public class AdminPasswordResetServiceImpl implements AdminPasswordResetService 
     private final PasswordEncoder passwordEncoder;
     private final AdminUtils adminUtils;
 
-    private static final String SUPER_ADMIN_EMAIL = "super@catdogeats.com";
+    @Value("${admin.super.email}")
+    private String superAdminEmail;
 
     @Override
     @JpaTransactional
@@ -90,7 +92,7 @@ public class AdminPasswordResetServiceImpl implements AdminPasswordResetService 
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 관리자입니다."));
 
         // 슈퍼관리자 계정은 초기화 불가
-        if (SUPER_ADMIN_EMAIL.equals(targetAdmin.getEmail())) {
+        if (superAdminEmail.equals(targetAdmin.getEmail())) {
             throw new IllegalArgumentException("슈퍼관리자 계정은 비밀번호를 초기화할 수 없습니다.");
         }
 
