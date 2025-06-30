@@ -16,6 +16,4 @@ public interface PetRepository extends JpaRepository<Pets, String> {
 
     void deleteById(String id);
 
-    // 리뷰에서 작성자의 pet정보 추출 위해
-    List<Pets> findByBuyer(Buyers buyer);
 }

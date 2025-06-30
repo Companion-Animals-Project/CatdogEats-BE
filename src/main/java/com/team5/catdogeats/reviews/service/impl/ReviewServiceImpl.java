@@ -2,12 +2,13 @@ package com.team5.catdogeats.reviews.service.impl;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.config.JpaTransactional;
-import com.team5.catdogeats.pets.domain.Pets;
-import com.team5.catdogeats.pets.repository.PetRepository;
+import com.team5.catdogeats.pets.domain.dto.PetInfoResponseDto;
+import com.team5.catdogeats.pets.domain.enums.Gender;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.reviews.domain.Reviews;
 import com.team5.catdogeats.reviews.domain.dto.*;
+import com.team5.catdogeats.reviews.mapper.ReviewMapper;
 import com.team5.catdogeats.reviews.repository.ReviewRepository;
 import com.team5.catdogeats.reviews.service.ReviewService;
 import com.team5.catdogeats.storage.domain.dto.ReviewImageResponseDto;
@@ -19,12 +20,12 @@ import com.team5.catdogeats.users.domain.mapping.Buyers;
 import com.team5.catdogeats.users.repository.BuyerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -35,7 +36,7 @@ public class ReviewServiceImpl implements ReviewService {
     private final BuyerRepository buyerRepository;
     private final ReviewImageRepository reviewImageRepository;
     private final ReviewImageService reviewImageService;
-    private final PetRepository petRepository;
+    private final ReviewMapper reviewMapper;
 
     @Override
     public String registerReview(UserPrincipal userPrincipal, ReviewCreateRequestDto dto) {
@@ -61,19 +62,36 @@ public class ReviewServiceImpl implements ReviewService {
         BuyerDTO buyerDTO = buyerRepository.findOnlyBuyerByProviderAndProviderId(userPrincipal.provider(), userPrincipal.providerId())
                 .orElseThrow(() -> new NoSuchElementException("해당 유저 정보를 찾을 수 없습니다."));
 
-        Buyers buyer = Buyers.builder()
-                .userId(buyerDTO.userId())
-                .nameMaskingStatus(buyerDTO.nameMaskingStatus())
-                .build();
+        int offset = page * size;
 
-        Pageable pageable = PageRequest.of(page, size);
+        List<Object[]> flatRows = reviewRepository.findReviewsWithImagesAndProductByBuyerNative(buyerDTO.userId(), size, offset);
 
-        Page<Reviews> reviewsPage = reviewRepository.findByBuyer(buyer, pageable);
+        // 리뷰ID별로 group by
+        Map<String, MyReviewResponseDtoBuilder> builderMap = new LinkedHashMap<>();
+        for (Object[] row : flatRows) {
+            String reviewId = (String) row[0];
+            String productName = (String) row[1];
+            Double star = row[2] != null ? ((Number) row[2]).doubleValue() : null;
+            String contents = (String) row[3];
+            String updatedAt = row[4] != null ? row[4].toString() : null;
+            String imageId = (String) row[5];
+            String imageUrl = (String) row[6];
 
-        return reviewsPage.map(review -> {
-            List<ReviewImageResponseDto> images = reviewImageService.getReviewImagesByReviewId(review.getId());
-            return MyReviewResponseDto.fromEntity(review, images);
-        });
+            MyReviewResponseDtoBuilder builder = builderMap.computeIfAbsent(reviewId, rid ->
+                    new MyReviewResponseDtoBuilder(reviewId, productName, star, contents, updatedAt)
+            );
+            if (imageId != null && imageUrl != null) {
+                builder.addImage(new ReviewImageResponseDto(imageId, imageUrl));
+            }
+        }
+
+        long total = reviewRepository.countByBuyerId(buyerDTO.userId());
+
+        List<MyReviewResponseDto> dtos = builderMap.values().stream()
+                .map(MyReviewResponseDtoBuilder::build)
+                .toList();
+
+        return new PageImpl<>(dtos, PageRequest.of(page, size), total);
     }
 
     @JpaTransactional(readOnly = true)
@@ -82,19 +100,43 @@ public class ReviewServiceImpl implements ReviewService {
         Products product = productRepository.findByProductNumber(productNumber)
                 .orElseThrow(() -> new NoSuchElementException("해당 상품 정보를 찾을 수 없습니다."));
 
-        Pageable pageable = PageRequest.of(page, size);
+        int offset = page * size;
 
-        Page<Reviews> reviewsPage = reviewRepository.findByProductNumber(productNumber, pageable);
+        // 1. 리뷰 id만 먼저 page/size로 조회
+        List<String> reviewIds = reviewMapper.findReviewIdsByProductNumber(productNumber, offset, size);
+        if (reviewIds.isEmpty()) {
+            return new PageImpl<>(List.of(), PageRequest.of(page, size), 0);
+        }
 
+        // 2. 리뷰 id 리스트로 곱집합 row 조회
+        List<ReviewMapper.FlatReviewRow> flatRows = reviewMapper.findReviewFlatRowsByIds(reviewIds);
 
-        return reviewsPage.map(review -> {
-            //해당 리뷰 작성자(구매자) pet 조회
-            List<Pets> petInfos = petRepository.findByBuyer(review.getBuyer());
+        // 3. 기존 builder/grouping 코드 그대로
+        Map<String, ProductReviewResponseDtoBuilder> reviewBuilders = new LinkedHashMap<>();
+        for (ReviewMapper.FlatReviewRow row : flatRows) {
+            ProductReviewResponseDtoBuilder builder = reviewBuilders.computeIfAbsent(row.reviewId, rid ->
+                    new ProductReviewResponseDtoBuilder(
+                            row.reviewId,
+                            row.writerName,
+                            row.star,
+                            row.contents,
+                            row.updatedAt
+                    )
+            );
+            if (row.petBreed != null && row.petAge != null && row.petGender != null) {
+                builder.addPet(new PetInfoResponseDto(row.petBreed, row.petAge, Gender.valueOf(row.petGender)));
+            }
+            if (row.imageId != null && row.imageUrl != null) {
+                builder.addImage(new ReviewImageResponseDto(row.imageId, row.imageUrl));
+            }
+        }
+        long total = reviewMapper.countReviewsByProductNumber(productNumber);
 
-            List<ReviewImageResponseDto> images = reviewImageService.getReviewImagesByReviewId(review.getId());
+        List<ProductReviewResponseDto> dtos = reviewBuilders.values().stream()
+                .map(ProductReviewResponseDtoBuilder::build)
+                .toList();
 
-            return ProductReviewResponseDto.fromEntity(review, images, petInfos);
-        });
+        return new PageImpl<>(dtos, PageRequest.of(page, size), total);
     }
 
     @JpaTransactional

@@ -6,8 +6,9 @@ import com.team5.catdogeats.storage.domain.dto.ProductImageResponseDto;
 public record MyProductResponseDto(
     String productId,
     String productName,
-    long reviewCount,
-    double averageStar,
-    ProductImageResponseDto image
+    Long reviewCount,
+    Double averageStar,
+    String imageId,
+    String imageUrl
 ) {
 }

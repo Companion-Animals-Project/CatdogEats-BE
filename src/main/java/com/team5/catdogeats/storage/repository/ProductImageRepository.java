@@ -21,16 +21,4 @@ public interface ProductImageRepository extends JpaRepository<ProductsImages, St
         where ri.products.id = :productId
     """)
     List<ProductsImages> findAllByProductsIdWithImages(@Param("productId") String productId);
-
-    @Query("""
-        select new com.team5.catdogeats.storage.domain.dto.ProductImageResponseDto(
-            pi.images.id,
-            pi.images.imageUrl
-        )
-        from ProductsImages pi
-        where pi.products.id = :productId
-        order by pi.createdAt asc
-        """)
-    List<ProductImageResponseDto> findFirstImageDtoByProductId(@Param("productId") String productId);
-
 }

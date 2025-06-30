@@ -13,14 +13,6 @@ import java.util.List;
 public interface ReviewRepository extends JpaRepository<Reviews, String> {
     Page<Reviews> findByBuyer(Buyers buyer, Pageable pageable);
 
-    @Query("""
-        select r
-        from Reviews r
-        join r.product p
-        where p.productNumber = :productNumber
-    """)
-    Page<Reviews> findByProductNumber(@Param("productNumber") Long productNumber, Pageable pageable);
-
     void deleteById(String reviewId);
 
     // 전체 평균/갯수
@@ -31,6 +23,35 @@ public interface ReviewRepository extends JpaRepository<Reviews, String> {
     """)
     List<Object[]> findAvgAndCountBySellerId(@Param("sellerId") String sellerId);
 
+    @Query(value = """
+        SELECT
+            r.id as review_id,
+            p.title as product_name,
+            r.star as star,
+            r.contents as contents,
+            r.updated_at as updated_at,
+            i.id as image_id,
+            i.image_url as image_url
+        FROM reviews r
+        JOIN products p ON r.product_id = p.id
+        LEFT JOIN reviews_images ri ON ri.review_id = r.id
+        LEFT JOIN images i ON ri.review_image_id = i.id
+        WHERE r.buyer_id = :buyerId
+        ORDER BY r.updated_at DESC
+        LIMIT :limit OFFSET :offset
+        """, nativeQuery = true)
+    List<Object[]> findReviewsWithImagesAndProductByBuyerNative(
+            @Param("buyerId") String buyerId,
+            @Param("limit") int limit,
+            @Param("offset") int offset
+    );
+
+    @Query("""
+        SELECT COUNT(r)
+        FROM Reviews r
+        WHERE r.buyer.user.id = :buyerId
+    """)
+    long countByBuyerId(@Param("buyerId") String buyerId);
 
 
     // 별점 구간별 개수 (0점대~5점)
