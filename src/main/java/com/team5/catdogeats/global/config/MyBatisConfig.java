@@ -16,7 +16,8 @@ import javax.sql.DataSource;
         basePackages = {"com.team5.catdogeats.users.mapper",
                         "com.team5.catdogeats.batch.mapper",
                         "com.team5.catdogeats.products.mapper",
-                        "com.team5.catdogeats.orders.mapper"},
+                        "com.team5.catdogeats.orders.mapper",
+                        "com.team5.catdogeats.coupons.mapper"},
 
         sqlSessionFactoryRef = "sqlSessionFactory"
 )
