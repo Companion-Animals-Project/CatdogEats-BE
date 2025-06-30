@@ -1,12 +1,15 @@
 package com.team5.catdogeats.support.domain.enums;
 
-public enum InquiryStatus {
-    PENDING("답변 대기"),
-    ANSWERED("답변 완료");
+// 1:1문의 관리자 페이지의 긴급도입니다.
+
+public enum InquiryUrgentLevel {
+    HIGH("높음"),
+    MEDIUM("중간"),
+    LOW("낮음");
 
     private final String displayName;
 
-    InquiryStatus(String displayName) {
+    InquiryUrgentLevel(String displayName) {
         this.displayName = displayName;
     }
 

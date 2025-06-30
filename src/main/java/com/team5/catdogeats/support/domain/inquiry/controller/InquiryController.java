@@ -1,0 +1,156 @@
+package com.team5.catdogeats.support.domain.inquiry.controller;
+
+import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.enums.ResponseCode;
+import com.team5.catdogeats.support.domain.inquiry.dto.*;
+import com.team5.catdogeats.support.domain.inquiry.service.InquiryService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+import com.team5.catdogeats.auth.dto.UserPrincipal;
+import org.springframework.security.access.AccessDeniedException;  // 👈 이거 추가
+
+//  1:1 문의 사용자 Controller
+//  로그인한 사용자(판매자, 구매자)가 사용하는 CRUD 기능
+@Slf4j
+@RestController
+@RequestMapping("/v1/users/inquiries")
+@RequiredArgsConstructor
+@Tag(name = "Inquiry (User)", description = "1:1 문의 사용자 API - 로그인한 사용자만 접근 가능")
+public class InquiryController {
+
+    private final InquiryService inquiryService;
+
+    // 사용자별 문의 목록 조회 (페이징)
+    @GetMapping
+    @Operation(
+            summary = "내 문의 목록 조회",
+            description = "로그인한 사용자의 문의 목록을 페이징으로 조회합니다. 제목, 내용 미리보기, 상태, 작성일만 표시됩니다."
+    )
+    public ResponseEntity<ApiResponse<Page<UserInquiryListResponseDTO>>> getUserInquiries(
+            @Parameter(hidden = true) @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기", example = "10")
+            @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "정렬 기준", example = "createdAt")
+            @RequestParam(defaultValue = "createdAt") String sort,
+            @Parameter(description = "정렬 방향", example = "desc")
+            @RequestParam(defaultValue = "desc") String direction) {
+
+        try {
+            // 수동으로 Pageable 생성
+            Sort.Direction sortDirection = direction.equalsIgnoreCase("asc") ?
+                    Sort.Direction.ASC : Sort.Direction.DESC;
+            Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sort));
+
+            Page<UserInquiryListResponseDTO> inquiries = inquiryService.getUserInquiries(
+                    userPrincipal.providerId(), pageable);
+
+            log.info("사용자 문의 목록 조회 완료 - providerId: {}, page: {}, size: {}",
+                    userPrincipal.providerId(), page, size);
+
+            return ResponseEntity.ok(
+                    ApiResponse.success(ResponseCode.SUCCESS, inquiries)
+            );
+        } catch (IllegalArgumentException e) {
+            log.warn("사용자 문의 목록 조회 실패 - providerId: {}, error: {}",
+                    userPrincipal.providerId(), e.getMessage());
+            return ResponseEntity.badRequest().body(
+                    ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
+            );
+        } catch (Exception e) {
+            log.error("사용자 문의 목록 조회 중 서버 오류 - providerId: {}",
+                    userPrincipal.providerId(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
+            );
+        }
+    }
+
+    // 문의 상세 조회
+    @GetMapping("/{inquiryId}")
+    @Operation(
+            summary = "내 문의 상세 조회",
+            description = "로그인한 사용자의 특정 문의 상세 내용을 조회합니다. 제목, 전체 내용, 상태, 답변을 확인할 수 있습니다."
+    )
+    public ResponseEntity<ApiResponse<UserInquiryDetailResponseDTO>> getInquiryDetail(
+            @PathVariable String inquiryId,
+            @Parameter(hidden = true) @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        try {
+            UserInquiryDetailResponseDTO inquiry = inquiryService.getUserInquiryDetail(
+                    inquiryId, userPrincipal.providerId());
+            log.info("문의 상세 조회 완료 - inquiryId: {}, providerId: {}", inquiryId, userPrincipal.providerId());
+
+            return ResponseEntity.ok(
+                    ApiResponse.success(ResponseCode.SUCCESS, inquiry)
+            );
+        } catch (EntityNotFoundException e) {
+            log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
+            );
+        } catch (AccessDeniedException e) {
+            log.warn("접근 권한 없음 - inquiryId: {}, providerId: {}, error: {}",
+                    inquiryId, userPrincipal.providerId(), e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                    ApiResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage())
+            );
+        } catch (IllegalArgumentException e) {
+            log.warn("문의 상세 조회 실패 - inquiryId: {}, providerId: {}, error: {}",
+                    inquiryId, userPrincipal.providerId(), e.getMessage());
+            return ResponseEntity.badRequest().body(
+                    ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
+            );
+        } catch (Exception e) {
+            log.error("문의 상세 조회 중 서버 오류 - inquiryId: {}, providerId: {}", inquiryId, userPrincipal.providerId(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
+            );
+        }
+    }
+
+    // 문의 등록
+    @PostMapping
+    @Operation(
+            summary = "1:1 문의 등록",
+            description = "새로운 1:1 문의를 등록합니다. 문의 유형, 제목, 내용은 필수이며, 주문 관련 문의인 경우 주문 ID를 포함할 수 있습니다. 파일 첨부는 별도 API에서 처리됩니다."
+    )
+    public ResponseEntity<ApiResponse<InquiryResponseDTO>> createInquiry(
+            @Parameter(hidden = true) @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @Parameter(description = "문의 등록 정보")
+            @Valid @ModelAttribute InquiryCreateRequestDTO request) {
+
+        try {
+            InquiryResponseDTO response = inquiryService.createInquiry(userPrincipal.providerId(), request);
+            log.info("문의 등록 완료 - inquiryId: {}, providerId: {}", response.inquiryId(), userPrincipal.providerId());
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                    ApiResponse.success(ResponseCode.CREATED, response)
+            );
+        } catch (IllegalArgumentException e) {
+            log.warn("문의 등록 실패 - providerId: {}, error: {}", userPrincipal.providerId(), e.getMessage());
+            return ResponseEntity.badRequest().body(
+                    ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
+            );
+        } catch (Exception e) {
+            log.error("문의 등록 중 서버 오류 - providerId: {}", userPrincipal.providerId(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
+            );
+        }
+    }
+}

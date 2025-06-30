@@ -513,11 +513,15 @@ CREATE TABLE inquiries (
                            title VARCHAR(255) NULL,
                            content TEXT NOT NULL,
                            status ENUM('pending', 'answered') NOT NULL DEFAULT 'pending',
+                           type ENUM('product', 'order', 'payment', 'delivery', 'return', 'account', 'etc') NOT NULL,
+                           receive_method ENUM('web', 'call', 'sms', 'none') NOT NULL DEFAULT 'web',
+                           urgent_level ENUM('high', 'medium', 'low') NOT NULL DEFAULT 'medium',
                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                            FOREIGN KEY (user_id) REFERENCES users(id),
                            FOREIGN KEY (parent_id) REFERENCES inquiries(id) ON DELETE SET NULL,
-                           FOREIGN KEY (admin_id) REFERENCES admins(id)
+                           FOREIGN KEY (admin_id) REFERENCES admins(id),
+                           FOREIGN KEY (order_id) REFERENCES  orders(id)
 );
 
 CREATE TABLE files (
