@@ -15,7 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.ZonedDateTime;
-import java.util.List;
+
 
 /**
  * 관리자 초대 서비스 구현체
@@ -29,12 +29,6 @@ public class AdminInvitationServiceImpl implements AdminInvitationService {
     private final PasswordEncoder passwordEncoder;
     private final AdminUtils adminUtils;
 
-    // 허용된 부서 목록 (ADMIN 제외)
-    private static final List<Department> ALLOWED_DEPARTMENTS = List.of(
-            Department.DEVELOPMENT,
-            Department.CUSTOMER_SERVICE,
-            Department.OPERATIONS
-    );
 
     @Override
     @JpaTransactional
@@ -78,9 +72,6 @@ public class AdminInvitationServiceImpl implements AdminInvitationService {
     private void validateDepartment(Department department) {
         if (department == Department.ADMIN) {
             throw new IllegalArgumentException("ADMIN 부서는 직접 등록할 수 없습니다. 시스템에서 자동으로 생성됩니다.");
-        }
-        if (!ALLOWED_DEPARTMENTS.contains(department)) {
-            throw new IllegalArgumentException("허용되지 않은 부서입니다. 사용 가능한 부서: " + ALLOWED_DEPARTMENTS);
         }
     }
 
