@@ -208,6 +208,9 @@ CREATE TABLE orders (
                         shipping_address VARCHAR(500),      -- 배송 주소
                         detail_address VARCHAR(200),        -- 상세 주소
                         delivery_note VARCHAR(500),         -- 배송 요청사항
+                        -- ===== 주문 내역 숨김 기능 추가 필드 =====
+                        is_hidden BOOLEAN NOT NULL DEFAULT FALSE,  -- 숨김 여부
+                        hidden_at DATETIME NULL,                   -- 숨김 처리 시각
                         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                         CONSTRAINT fk_orders_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
