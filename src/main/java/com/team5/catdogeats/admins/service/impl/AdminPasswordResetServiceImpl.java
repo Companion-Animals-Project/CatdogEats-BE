@@ -4,6 +4,7 @@ import com.team5.catdogeats.admins.domain.Admins;
 import com.team5.catdogeats.admins.domain.dto.*;
 import com.team5.catdogeats.admins.repository.AdminRepository;
 import com.team5.catdogeats.admins.service.AdminPasswordResetService;
+import com.team5.catdogeats.admins.service.RedisVerificationCodeService;
 import com.team5.catdogeats.admins.util.AdminUtils;
 import com.team5.catdogeats.global.config.JpaTransactional;
 import lombok.RequiredArgsConstructor;
@@ -12,10 +13,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.time.ZonedDateTime;
-
 /**
- * 관리자 비밀번호 초기화
+ * Redis 기반 관리자 비밀번호 초기화 서비스
+ * 인증코드를 Redis에서 관리하여 TTL로 자동 만료 처리
  */
 @Slf4j
 @Service
@@ -25,6 +25,7 @@ public class AdminPasswordResetServiceImpl implements AdminPasswordResetService 
     private final AdminRepository adminRepository;
     private final PasswordEncoder passwordEncoder;
     private final AdminUtils adminUtils;
+    private final RedisVerificationCodeService redisVerificationCodeService;
 
     @Value("${admin.super.email}")
     private String superAdminEmail;
@@ -35,13 +36,14 @@ public class AdminPasswordResetServiceImpl implements AdminPasswordResetService 
         // 1. 대상 관리자 조회 및 검증
         Admins targetAdmin = findAndValidateTargetAdmin(request);
 
-        // 2. 인증코드 생성 및 계정 비활성화
+        // 2. 인증코드 생성 및 Redis에 저장
         String verificationCode = adminUtils.generateVerificationCode();
-        ZonedDateTime expiry = adminUtils.calculateExpiryTime();
+        redisVerificationCodeService.saveVerificationCode(targetAdmin.getEmail(), verificationCode);
 
-        resetAdminAccount(targetAdmin, verificationCode, expiry);
+        // 3. 계정 비활성화
+        resetAdminAccount(targetAdmin);
 
-        // 3. 비밀번호 초기화 이메일 발송
+        // 4. 비밀번호 초기화 이메일 발송
         adminUtils.sendPasswordResetEmail(
                 targetAdmin.getEmail(),
                 targetAdmin.getName(),
@@ -55,21 +57,26 @@ public class AdminPasswordResetServiceImpl implements AdminPasswordResetService 
         return AdminPasswordResetResponseDTO.builder()
                 .email(targetAdmin.getEmail())
                 .name(targetAdmin.getName())
-                .verificationCodeExpiry(expiry)
-                .message("비밀번호 초기화 이메일이 발송되었습니다.")
+                .verificationCodeExpiry(redisVerificationCodeService.calculateExpiryTime())
+                .message("비밀번호 초기화 이메일이 발송되었습니다. 사용자가 인증 후 초기 비밀번호를 받아 변경할 수 있습니다.")
                 .build();
     }
 
     @Override
     @JpaTransactional
     public AdminVerificationResponseDTO verifyAndResetPassword(AdminPasswordResetVerificationDTO request) {
-        // 1. 관리자 조회 및 인증코드 검증
-        Admins admin = findAndValidateAdmin(request.email(), request.verificationCode());
+        // 1. 관리자 조회
+        Admins admin = findAdminByEmail(request.email());
 
-        // 2. 새 비밀번호 검증
+        // 2. Redis에서 비밀번호 재설정 인증코드 검증 및 삭제
+        if (!redisVerificationCodeService.verifyAndDeleteCode(request.email(), request.verificationCode())) {
+            throw new IllegalArgumentException("잘못된 인증코드이거나 만료된 인증코드입니다.");
+        }
+
+        // 3. 새 비밀번호 검증
         validatePasswordMatch(request.newPassword(), request.confirmPassword());
 
-        // 3. 비밀번호 변경 및 계정 활성화
+        // 4. 비밀번호 변경 및 계정 활성화
         resetPassword(admin, request.newPassword());
 
         log.info("비밀번호 초기화 완료: email={}", admin.getEmail());
@@ -105,35 +112,21 @@ public class AdminPasswordResetServiceImpl implements AdminPasswordResetService 
     }
 
     /**
-     * 관리자 계정 초기화 (비활성화 및 인증코드 설정)
+     * 이메일로 관리자 조회
      */
-    private void resetAdminAccount(Admins admin, String verificationCode, ZonedDateTime expiry) {
-        admin.setIsActive(false);
-        admin.setIsFirstLogin(true);
-        admin.setVerificationCode(verificationCode, expiry);
-        adminRepository.save(admin);
+    private Admins findAdminByEmail(String email) {
+        return adminRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이메일입니다."));
     }
 
     /**
-     * 관리자 조회 및 인증코드 검증
+     * 관리자 계정 초기화 (비활성화만, 비밀번호는 인증 후 새로 생성)
      */
-    private Admins findAndValidateAdmin(String email, String verificationCode) {
-        Admins admin = adminRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이메일입니다."));
-
-        // 인증코드 검증
-        if (admin.getVerificationCode() == null ||
-                !admin.getVerificationCode().equals(verificationCode)) {
-            throw new IllegalArgumentException("잘못된 인증코드입니다.");
-        }
-
-        // 인증코드 만료 확인
-        if (admin.getVerificationCodeExpiry() == null ||
-                admin.getVerificationCodeExpiry().isBefore(ZonedDateTime.now())) {
-            throw new IllegalStateException("인증코드가 만료되었습니다. 관리자에게 새로운 초기화를 요청하세요.");
-        }
-
-        return admin;
+    private void resetAdminAccount(Admins admin) {
+        admin.setIsActive(false);    // 비활성화
+        admin.setIsFirstLogin(true); // 첫 로그인 상태로 되돌림
+        // 비밀번호는 그대로 두고, 인증 후에 새로 생성
+        adminRepository.save(admin);
     }
 
     /**
@@ -152,7 +145,6 @@ public class AdminPasswordResetServiceImpl implements AdminPasswordResetService 
         admin.setPassword(passwordEncoder.encode(newPassword));
         admin.setIsActive(true);
         admin.setIsFirstLogin(false); // 비밀번호 재설정 완료로 간주
-        admin.setVerificationCode(null, null); // 인증코드 제거
         adminRepository.save(admin);
     }
 }

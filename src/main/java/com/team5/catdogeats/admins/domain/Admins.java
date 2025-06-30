@@ -49,17 +49,6 @@ public class Admins extends BaseEntity {
     private Boolean isActive = false;
 
     /**
-     * 인증코드 (6자리 숫자)
-     */
-    @Column(length = 6)
-    private String verificationCode;
-
-    /**
-     * 인증코드 만료 시간
-     */
-    private ZonedDateTime verificationCodeExpiry;
-
-    /**
      * 최초 로그인 여부 (비밀번호 변경 필요 체크)
      */
     @Column(nullable = false)
@@ -68,24 +57,7 @@ public class Admins extends BaseEntity {
 
 
     /**
-     * 인증코드 설정
-     */
-    public void setVerificationCode(String code, ZonedDateTime expiry) {
-        this.verificationCode = code;
-        this.verificationCodeExpiry = expiry;
-    }
-
-    /**
-     * 계정 활성화
-     */
-    public void activate() {
-        this.isActive = true;
-        this.verificationCode = null;
-        this.verificationCodeExpiry = null;
-    }
-
-    /**
-     * 첫 로그인 완료 처리 (비밀번호 변경 후 호출)
+     * 첫 로그인 완료 처리
      */
     public void completeFirstLogin() {
         this.isFirstLogin = false;
@@ -97,7 +69,6 @@ public class Admins extends BaseEntity {
      */
     public void changePassword(String newPassword) {
         this.password = newPassword;
-        this.isFirstLogin = false;
     }
 
 }

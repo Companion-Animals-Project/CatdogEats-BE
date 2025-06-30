@@ -230,54 +230,9 @@ class AdminVerificationServiceImplTest {
         verify(adminRepository, never()).save(any());
     }
 
-    @Test
-    @DisplayName("비밀번호 재설정 인증 성공")
-    void verifyAndResetPassword_Success() {
-        // Given
-        AdminPasswordResetVerificationDTO request = new AdminPasswordResetVerificationDTO(
-                "pending@test.com", "123456", "newPassword123", "newPassword123");
 
-        when(adminRepository.findByEmail("pending@test.com")).thenReturn(Optional.of(pendingAdmin));
-        when(passwordEncoder.encode("newPassword123")).thenReturn("encoded-new-password");
-        when(adminUtils.getLoginRedirectUrl()).thenReturn("http://localhost:8080/v1/admin/login");
 
-        // When
-        AdminVerificationResponseDTO response = verificationService.verifyAndResetPassword(request);
 
-        // Then
-        assertThat(response).isNotNull();
-        assertThat(response.email()).isEqualTo("pending@test.com");
-        assertThat(response.name()).isEqualTo("대기관리자");
-        assertThat(response.isVerified()).isTrue();
-        assertThat(response.initialPassword()).isNull();
-        assertThat(response.message()).contains("비밀번호가 성공적으로 재설정되었습니다");
-
-        // 관리자 상태 변경 확인
-        assertThat(pendingAdmin.getIsActive()).isTrue();
-        assertThat(pendingAdmin.getIsFirstLogin()).isFalse();
-        assertThat(pendingAdmin.getPassword()).isEqualTo("encoded-new-password");
-        assertThat(pendingAdmin.getVerificationCode()).isNull();
-        assertThat(pendingAdmin.getVerificationCodeExpiry()).isNull();
-
-        verify(adminRepository).save(pendingAdmin);
-    }
-
-    @Test
-    @DisplayName("비밀번호 재설정 실패 - 비밀번호 불일치")
-    void verifyAndResetPassword_Fail_PasswordMismatch() {
-        // Given
-        AdminPasswordResetVerificationDTO request = new AdminPasswordResetVerificationDTO(
-                "pending@test.com", "123456", "newPassword123", "differentPassword");
-
-        when(adminRepository.findByEmail("pending@test.com")).thenReturn(Optional.of(pendingAdmin));
-
-        // When & Then
-        assertThatThrownBy(() -> verificationService.verifyAndResetPassword(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("새 비밀번호와 확인 비밀번호가 일치하지 않습니다.");
-
-        verify(adminRepository, never()).save(any());
-    }
 
     @Test
     @DisplayName("인증코드 검증 - null 인증코드")

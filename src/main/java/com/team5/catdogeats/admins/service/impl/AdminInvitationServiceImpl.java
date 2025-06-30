@@ -7,6 +7,7 @@ import com.team5.catdogeats.admins.domain.dto.AdminInvitationRequestDTO;
 import com.team5.catdogeats.admins.domain.dto.AdminInvitationResponseDTO;
 import com.team5.catdogeats.admins.repository.AdminRepository;
 import com.team5.catdogeats.admins.service.AdminInvitationService;
+import com.team5.catdogeats.admins.service.RedisVerificationCodeService;
 import com.team5.catdogeats.admins.util.AdminUtils;
 import com.team5.catdogeats.global.config.JpaTransactional;
 import lombok.RequiredArgsConstructor;
@@ -14,11 +15,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.time.ZonedDateTime;
-
-
 /**
- * 관리자 초대 서비스 구현체
+ * Redis 기반 관리자 초대 서비스 구현체
+ * 인증코드를 DB가 아닌 Redis에 저장하여 TTL로 만료 관리
  */
 @Slf4j
 @Service
@@ -28,7 +27,7 @@ public class AdminInvitationServiceImpl implements AdminInvitationService {
     private final AdminRepository adminRepository;
     private final PasswordEncoder passwordEncoder;
     private final AdminUtils adminUtils;
-
+    private final RedisVerificationCodeService redisVerificationCodeService;
 
     @Override
     @JpaTransactional
@@ -39,12 +38,12 @@ public class AdminInvitationServiceImpl implements AdminInvitationService {
         // 2. 이메일 중복 검증
         validateEmailNotExists(request.email());
 
-        // 3. 인증코드 및 만료시간 생성
+        // 3. 인증코드 생성 및 Redis에 저장
         String verificationCode = adminUtils.generateVerificationCode();
-        ZonedDateTime expiry = adminUtils.calculateExpiryTime();
+        redisVerificationCodeService.saveVerificationCode(request.email(), verificationCode);
 
         // 4. 관리자 계정 생성
-        Admins admin = createPendingAdmin(request, verificationCode, expiry);
+        Admins admin = createPendingAdmin(request);
 
         // 5. 인증 이메일 발송
         adminUtils.sendInvitationEmail(
@@ -61,7 +60,7 @@ public class AdminInvitationServiceImpl implements AdminInvitationService {
                 .email(request.email())
                 .name(request.name())
                 .department(request.department())
-                .verificationCodeExpiry(expiry)
+                .verificationCodeExpiry(redisVerificationCodeService.calculateExpiryTime())
                 .message("인증 이메일이 발송되었습니다.")
                 .build();
     }
@@ -87,7 +86,7 @@ public class AdminInvitationServiceImpl implements AdminInvitationService {
     /**
      * 대기중인 관리자 계정 생성
      */
-    private Admins createPendingAdmin(AdminInvitationRequestDTO request, String verificationCode, ZonedDateTime expiry) {
+    private Admins createPendingAdmin(AdminInvitationRequestDTO request) {
         String tempPassword = adminUtils.generateInitialPassword();
 
         Admins admin = Admins.builder()
@@ -96,11 +95,11 @@ public class AdminInvitationServiceImpl implements AdminInvitationService {
                 .department(request.department())
                 .adminRole(AdminRole.ROLE_ADMIN)
                 .password(passwordEncoder.encode(tempPassword))
-                .isActive(false)
-                .isFirstLogin(true)
+                .isActive(false)  // 초대 시점에는 비활성
+                .isFirstLogin(true)  // 첫 로그인 상태
                 .build();
 
-        admin.setVerificationCode(verificationCode, expiry);
+
         return adminRepository.save(admin);
     }
 }

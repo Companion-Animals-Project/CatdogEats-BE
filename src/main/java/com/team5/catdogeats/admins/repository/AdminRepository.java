@@ -9,7 +9,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,17 +19,6 @@ public interface AdminRepository extends JpaRepository<Admins, String> {
      * 이메일로 관리자 조회
      */
     Optional<Admins> findByEmail(String email);
-
-
-    /**
-     * 부서별 관리자 목록 조회
-     */
-    List<Admins> findByDepartment(Department department);
-
-    /**
-     * 만료된 인증코드를 가진 관리자 목록 조회 (정리용)
-     */
-    List<Admins> findByVerificationCodeExpiryBefore(ZonedDateTime expiry);
 
     /**
      * 이메일 중복 체크
@@ -47,33 +35,17 @@ public interface AdminRepository extends JpaRepository<Admins, String> {
     Page<Admins> findByNameOrEmailContainingIgnoreCase(@Param("search") String search, Pageable pageable);
 
     /**
-     * ACTIVE: 활성화 + 첫 로그인 완료된 사용자
+     * ACTIVE: 활성화된 사용자 (이메일 인증 완료)
      */
-    @Query("SELECT a FROM Admins a WHERE a.isActive = true AND a.isFirstLogin = false ORDER BY a.createdAt DESC")
+    @Query("SELECT a FROM Admins a WHERE a.isActive = true ORDER BY a.createdAt DESC")
     Page<Admins> findActiveAdmins(Pageable pageable);
 
-    /**
-     * PENDING: 비활성화 + 인증코드 있음 (인증 대기중)
-     */
-    @Query("SELECT a FROM Admins a WHERE a.isActive = false AND a.verificationCode IS NOT NULL ORDER BY a.createdAt DESC")
-    Page<Admins> findPendingAdmins(Pageable pageable);
 
     /**
-     * INACTIVE: 비활성화된 사용자
+     * INACTIVE: 비활성화된 사용자 (이메일 인증 완료)
      */
-    @Query("SELECT a FROM Admins a WHERE " +
-            "(a.isActive = false AND a.verificationCode IS NULL) OR " +
-            "(a.isActive = true AND a.isFirstLogin = true) " +
-            "ORDER BY a.createdAt DESC")
+    @Query("SELECT a FROM Admins a WHERE a.isActive = false ORDER BY a.createdAt DESC")
     Page<Admins> findInactiveAdmins(Pageable pageable);
-
-
-    /**
-     * 부서별 필터링
-     */
-    @Query("SELECT a FROM Admins a WHERE a.department = :department ORDER BY a.createdAt DESC")
-    Page<Admins> findByDepartmentWithPagination(@Param("department") Department department, Pageable pageable);
-
 
     // ===== 복합 검색 메서드들 (검색어 + 상태 필터) =====
 
@@ -83,19 +55,10 @@ public interface AdminRepository extends JpaRepository<Admins, String> {
     @Query("SELECT a FROM Admins a WHERE " +
             "(LOWER(a.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
             "LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
-            "a.isActive = true AND a.isFirstLogin = false " +
+            "a.isActive = true " +
             "ORDER BY a.createdAt DESC")
     Page<Admins> findActiveAdminsBySearch(@Param("search") String search, Pageable pageable);
 
-    /**
-     * 검색어 + PENDING 상태 조합
-     */
-    @Query("SELECT a FROM Admins a WHERE " +
-            "(LOWER(a.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-            "LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
-            "a.isActive = false AND a.verificationCode IS NOT NULL " +
-            "ORDER BY a.createdAt DESC")
-    Page<Admins> findPendingAdminsBySearch(@Param("search") String search, Pageable pageable);
 
     /**
      * 검색어 + INACTIVE 상태 조합
@@ -103,45 +66,24 @@ public interface AdminRepository extends JpaRepository<Admins, String> {
     @Query("SELECT a FROM Admins a WHERE " +
             "(LOWER(a.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
             "LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
-            "((a.isActive = false AND a.verificationCode IS NULL) OR " +
-            "(a.isActive = true AND a.isFirstLogin = true)) " +
+            "a.isActive = false " +
             "ORDER BY a.createdAt DESC")
     Page<Admins> findInactiveAdminsBySearch(@Param("search") String search, Pageable pageable);
 
-    /**
-     * 검색어 + 부서 조합
-     */
-    @Query("SELECT a FROM Admins a WHERE " +
-            "(LOWER(a.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-            "LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
-            "a.department = :department " +
-            "ORDER BY a.createdAt DESC")
-    Page<Admins> findByDepartmentAndSearch(@Param("department") Department department,
-                                           @Param("search") String search,
-                                           Pageable pageable);
+
 
     // ===== 통계용 카운트 메서드들  =====
 
     /**
-     * 활성 사용자 수 (활성화 + 첫 로그인 완료)
+     * 활성 사용자 수 (isActive = true인 모든 사용자)
      */
-    @Query("SELECT COUNT(a) FROM Admins a WHERE a.isActive = true AND a.isFirstLogin = false")
+    @Query("SELECT COUNT(a) FROM Admins a WHERE a.isActive = true")
     long countActiveAdmins();
 
 
     /**
-     * 대기중 사용자 수 (비활성화 + 인증코드 있음) = 승인대기
+     * 전체 비활성 사용자 목록 조회 (isActive = false)
      */
-    @Query("SELECT COUNT(a) FROM Admins a WHERE a.isActive = false AND a.verificationCode IS NOT NULL")
-    long countPendingAdmins();
-
-    /**
-     * 비활성 사용자 수 (비활성화 또는 첫 로그인 안함) = 촛 ㄹ호
-     */
-    @Query("SELECT COUNT(a) FROM Admins a WHERE " +
-            "(a.isActive = false AND a.verificationCode IS NULL) OR " +
-            "(a.isActive = true AND a.isFirstLogin = true)")
-    long countInactiveAdmins();
-
+    @Query("SELECT a FROM Admins a WHERE a.isActive = false")
+    List<Admins> findAllInactiveAdmins();
 }
-

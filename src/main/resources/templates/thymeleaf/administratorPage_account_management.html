@@ -817,7 +817,7 @@
                                 <th>상태</th>
                                 <th>등록일</th>
                                 <th>최종 로그인</th>
-                                <th>작업</th>
+                                <th>비밀번호 초기화</th>
                             </tr>
                             </thead>
                             <tbody id="adminTableBody">
@@ -1052,23 +1052,23 @@
     function getAdminStatusInfo(admin) {
         let status, cssClass, style, icon, name;
 
-        // 3가지 상태로 단순화
-        if (admin.isActive && !admin.isFirstLogin) {
-            // 활성화 상태
+        // 간단한 상태 로직
+        if (admin.isActive) {
+            // 활성화 상태 (이메일 인증 완료 = 활성화)
             status = 'ACTIVE';
             cssClass = 'status-active';
             style = 'background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0;';
             icon = 'check_circle';
             name = '활성화';
         } else if (!admin.isActive && admin.verificationCode) {
-            // 승인대기 상태
+            // 인증코드 발송됨, 아직 인증 안함
             status = 'PENDING';
             cssClass = 'status-pending';
             style = 'background-color: #fef3c7; color: #d97706; border: 1px solid #fde68a;';
             icon = 'schedule';
             name = '승인대기';
         } else {
-            // 비활성화 상태
+            // 완전히 비활성화된 상태
             status = 'INACTIVE';
             cssClass = 'status-inactive';
             style = 'background-color: #fee2e2; color: #dc2626; border: 1px solid #fecaca;';

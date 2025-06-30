@@ -18,8 +18,5 @@ public interface AdminVerificationService {
      */
     String resendVerificationCode(String email);
 
-    /**
-     *  비밀번호 재설정을 위한 인증 및 재설정
-     */
-    AdminVerificationResponseDTO verifyAndResetPassword(AdminPasswordResetVerificationDTO request);
+
 }
