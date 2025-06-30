@@ -13,11 +13,11 @@ import com.team5.catdogeats.users.domain.dto.BuyerDTO;
 import com.team5.catdogeats.users.domain.mapping.Buyers;
 import com.team5.catdogeats.users.repository.BuyerRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
+import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 @Service
@@ -55,6 +55,29 @@ public class PetServiceImpl implements PetService {
 
         return petRepository.findByBuyer(buyer, pageable)
                 .map(PetResponseDto::fromEntity);
+    }
+
+    @Override
+    public Page<PetResponseDto> getMyPetsWithCursor(UserPrincipal userPrincipal, ZonedDateTime cursorUpdatedAt, int size) {
+        BuyerDTO buyerDTO = buyerRepository.findOnlyBuyerByProviderAndProviderId(userPrincipal.provider(), userPrincipal.providerId())
+                .orElseThrow(() -> new NoSuchElementException("해당 유저 정보를 찾을 수 없습니다."));
+
+        Pageable pageable = PageRequest.of(0, size, Sort.by(Sort.Direction.DESC, "updatedAt"));
+
+        List<Pets> pets;
+        if (cursorUpdatedAt == null) {
+            pets = petRepository.findByBuyerUserIdOrderByUpdatedAtDesc(buyerDTO.userId(), pageable);
+        } else {
+            pets = petRepository.findByBuyerUserIdAndUpdatedAtLessThanOrderByUpdatedAtDesc(
+                    buyerDTO.userId(), cursorUpdatedAt, pageable
+            );
+        }
+        List<PetResponseDto> dtos = pets.stream().map(PetResponseDto::fromEntity).toList();
+
+        // 프론트에서 사용할 cursorUpdatedAt 값 추출 (응답의 마지막 row의 updatedAt)
+        ZonedDateTime nextCursor = dtos.isEmpty() ? null : pets.get(dtos.size() - 1).getUpdatedAt();
+
+        return new PageImpl<>(dtos, pageable, -1);
     }
 
     @JpaTransactional

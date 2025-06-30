@@ -3,8 +3,8 @@ package com.team5.catdogeats.storage.controller;
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
-import com.team5.catdogeats.storage.domain.dto.ReviewImageUploadResponseDto;
-import com.team5.catdogeats.storage.service.ReviewImageService;
+import com.team5.catdogeats.storage.domain.dto.ProductImageUploadResponseDto;
+import com.team5.catdogeats.storage.service.ProductImageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,26 +20,26 @@ import java.util.NoSuchElementException;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/v1/buyers/reviews/images")
-@Tag(name = "ReviewImage", description = "리뷰 이미지 관련 API")
-public class ReviewImageController {
+@RequestMapping("/v1/sellers/products/images")
+@Tag(name = "ProductImage", description = "상품 이미지 관련 API")
+public class ProductImageController {
 
-    private final ReviewImageService reviewImageService;
+    private final ProductImageService productImageService;
 
-    // 리뷰 이미지 등록 (S3 업로드 + Images DB 저장 + reviews_images 매핑)
+    // 상품 이미지 등록 (S3 업로드 + Images DB 저장 + products_images 매핑)
     @Operation(
-            summary = "리뷰 이미지 업로드",
+            summary = "상품 이미지 업로드",
             description = "여러 장의 이미지를 한 번에 업로드합니다."
     )
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<List<ReviewImageUploadResponseDto>>> uploadReviewImage(
+    public ResponseEntity<ApiResponse<List<ProductImageUploadResponseDto>>> uploadProductImage(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @Parameter(description = "이미지를 업로드할 리뷰 id", required = true)
-            @RequestParam String reviewId,
+            @Parameter(description = "이미지를 업로드할 상품 id", required = true)
+            @RequestParam String productId,
             @Parameter(description = "업로드할 이미지 파일 리스트", required = true)
             @RequestPart("images") List<MultipartFile> images) {
         try {
-            List<ReviewImageUploadResponseDto> response = reviewImageService.uploadReviewImage(userPrincipal, reviewId, images);
+            List<ProductImageUploadResponseDto> response = productImageService.uploadProductImage(userPrincipal, productId, images);
             return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
         } catch (NoSuchElementException e) {
             return ResponseEntity
@@ -57,21 +57,21 @@ public class ReviewImageController {
     }
 
     @Operation(
-            summary = "리뷰 이미지 수정",
+            summary = "상품 이미지 수정",
             description = "여러 장의 이미지를 한 번에 수정합니다."
     )
     @PatchMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<List<ReviewImageUploadResponseDto>>> updateReviewImage(
+    public ResponseEntity<ApiResponse<List<ProductImageUploadResponseDto>>> updateProductImage(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @Parameter(description = "이미지를 수정할 리뷰 id", required = true)
-            @RequestParam String reviewId,
+            @Parameter(description = "이미지를 수정할 상품 id", required = true)
+            @RequestParam String productId,
             @Parameter(description = "수정할 이미지 ids", required = true)
             @RequestParam List<String> oldImageIds,
             @Parameter(description = "새로 업로드할 이미지 파일 리스트", required = true)
             @RequestPart List<MultipartFile> images
     ) {
         try {
-            List<ReviewImageUploadResponseDto> response = reviewImageService.updateReviewImage(userPrincipal, reviewId, oldImageIds, images);
+            List<ProductImageUploadResponseDto> response = productImageService.updateProductImage(userPrincipal, productId, oldImageIds, images);
             return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
         } catch (NoSuchElementException e) {
             return ResponseEntity
