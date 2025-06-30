@@ -5,7 +5,6 @@ import com.team5.catdogeats.global.config.JpaTransactional;
 import com.team5.catdogeats.reviews.domain.Reviews;
 import com.team5.catdogeats.reviews.repository.ReviewRepository;
 import com.team5.catdogeats.storage.domain.Images;
-import com.team5.catdogeats.storage.domain.dto.ReviewImageResponseDto;
 import com.team5.catdogeats.storage.domain.dto.ReviewImageUploadResponseDto;
 import com.team5.catdogeats.storage.domain.mapping.ReviewsImages;
 import com.team5.catdogeats.storage.repository.ImageRepository;

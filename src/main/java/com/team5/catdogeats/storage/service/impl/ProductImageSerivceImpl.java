@@ -5,7 +5,6 @@ import com.team5.catdogeats.global.config.JpaTransactional;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.storage.domain.Images;
-import com.team5.catdogeats.storage.domain.dto.ProductImageResponseDto;
 import com.team5.catdogeats.storage.domain.dto.ProductImageUploadResponseDto;
 import com.team5.catdogeats.storage.domain.mapping.ProductsImages;
 import com.team5.catdogeats.storage.repository.ImageRepository;

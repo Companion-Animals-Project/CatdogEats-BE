@@ -12,12 +12,4 @@ public interface ProductImageRepository extends JpaRepository<ProductsImages, St
     Optional<ProductsImages> findByProductsIdAndImagesId(String productId, String imageId);
 
     List<ProductsImages> findAllByProductsId(String productId);
-
-    @Query("""
-        select ri
-        from ProductsImages ri
-        join fetch ri.images
-        where ri.products.id = :productId
-    """)
-    List<ProductsImages> findAllByProductsIdWithImages(@Param("productId") String productId);
 }
