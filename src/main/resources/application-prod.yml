@@ -29,12 +29,6 @@ spring:
           charset: UTF-8
     default-encoding: UTF-8
 
-  # 스케줄링 활성화
-  task:
-    scheduling:
-      enabled: true
-      pool:
-        size: 2
 
   # 데이터베이스 연결 설정
   datasource: # 여러 DBaaS에서 가져오기
