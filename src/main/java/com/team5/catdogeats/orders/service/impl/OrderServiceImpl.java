@@ -8,6 +8,7 @@ import com.team5.catdogeats.orders.dto.common.DetailedOrderItemInfo;
 import com.team5.catdogeats.orders.dto.common.OrderItemInfo;
 import com.team5.catdogeats.orders.dto.request.OrderCreateRequest;
 import com.team5.catdogeats.orders.dto.response.OrderCreateResponse;
+import com.team5.catdogeats.orders.dto.response.OrderDeleteResponse;
 import com.team5.catdogeats.orders.dto.response.OrderDetailResponse;
 import com.team5.catdogeats.orders.event.OrderCreatedEvent;
 import com.team5.catdogeats.orders.repository.OrderRepository;
@@ -263,7 +264,55 @@ public class OrderServiceImpl implements OrderService {
         );
     }
 
-    // ===== 기존 메서드들 (수정 최소화) =====
+    /**
+     * 주문 내역 삭제 (논리적 삭제 방식) - 단일 주문 처리
+     * 주문 상세 페이지에서 사용되는 단일 주문 삭제 기능입니다.
+     */
+    @Override
+    @JpaTransactional
+    public OrderDeleteResponse deleteOrder(UserPrincipal userPrincipal, Long orderNumber) {
+        log.info("주문 내역 삭제 요청 - provider: {}, providerId: {}, orderNumber: {}",
+                userPrincipal.provider(), userPrincipal.providerId(), orderNumber);
+
+        try {
+            // 1. 구매자 검증
+            BuyerDTO buyer = findBuyerByPrincipal(userPrincipal);
+            Users user = userRepository.findById(buyer.userId())
+                    .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다"));
+
+            // 2. 주문 조회 및 소유권 검증
+            Orders order = orderRepository.findOrderDetailByUserAndOrderNumber(user, orderNumber)
+                    .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없거나 접근 권한이 없습니다"));
+
+            // 3. 이미 숨겨진 주문인지 확인
+            if (order.isOrderHidden()) {
+                log.warn("이미 삭제된 주문 삭제 시도 - orderNumber: {}", orderNumber);
+                throw new IllegalArgumentException("이미 삭제된 주문 내역입니다");
+            }
+
+            // 4. 주문 숨김 처리
+            order.hideOrder();  // 엔티티의 편의 메서드 사용
+            Orders savedOrder = orderRepository.save(order);
+
+            log.info("주문 내역 삭제 완료 - orderNumber: {}, orderId: {}, hiddenAt: {}",
+                    savedOrder.getOrderNumber(), savedOrder.getId(), savedOrder.getHiddenAt());
+
+            // 5. 성공 응답 반환
+            return OrderDeleteResponse.success(
+                    savedOrder.getOrderNumber(),
+                    savedOrder.getId(),
+                    savedOrder.getHiddenAt()
+            );
+
+        } catch (NoSuchElementException | IllegalArgumentException e) {
+            log.warn("주문 내역 삭제 실패 - orderNumber: {}, reason: {}", orderNumber, e.getMessage());
+            return OrderDeleteResponse.failure(orderNumber, e.getMessage());
+
+        } catch (Exception e) {
+            log.error("주문 내역 삭제 중 예상치 못한 오류 발생 - orderNumber: {}", orderNumber, e);
+            return OrderDeleteResponse.failure(orderNumber, "주문 내역 삭제 중 서버 오류가 발생했습니다");
+        }
+    }
 
     /**
      * UserPrincipal로 구매자 조회 및 검증 (BuyerRepository 활용)
