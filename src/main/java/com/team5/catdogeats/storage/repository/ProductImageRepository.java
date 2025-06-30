@@ -1,6 +1,5 @@
 package com.team5.catdogeats.storage.repository;
 
-import com.team5.catdogeats.storage.domain.dto.ProductImageResponseDto;
 import com.team5.catdogeats.storage.domain.mapping.ProductsImages;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

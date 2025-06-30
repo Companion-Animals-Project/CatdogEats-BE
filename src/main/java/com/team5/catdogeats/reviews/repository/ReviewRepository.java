@@ -11,8 +11,6 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface ReviewRepository extends JpaRepository<Reviews, String> {
-    Page<Reviews> findByBuyer(Buyers buyer, Pageable pageable);
-
     void deleteById(String reviewId);
 
     // 전체 평균/갯수
