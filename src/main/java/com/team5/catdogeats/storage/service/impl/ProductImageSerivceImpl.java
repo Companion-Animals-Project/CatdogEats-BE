@@ -100,22 +100,6 @@ public class ProductImageSerivceImpl implements ProductImageService {
 
     @JpaTransactional
     @Override
-    public List<ProductImageResponseDto> getProductImagesByProductId(String productId) {
-        Products product = productRepository.findById(productId)
-                .orElseThrow(() -> new NoSuchElementException("해당 아이템 정보를 찾을 수 없습니다."));
-
-        List<ProductsImages> mappings = productImageRepository.findAllByProductsIdWithImages(productId);
-        
-        return mappings.stream()
-                .map(mapping -> new ProductImageResponseDto(
-                        mapping.getImages().getId(),
-                        mapping.getImages().getImageUrl()
-                ))
-                .toList();
-    }
-
-    @JpaTransactional
-    @Override
     public void deleteProductImage(String productId, String imageId) {
         ProductsImages mapping = productImageRepository.findByProductsIdAndImagesId(productId, imageId)
                 .orElseThrow(() -> new NoSuchElementException("해당 매핑 데이터 없음"));

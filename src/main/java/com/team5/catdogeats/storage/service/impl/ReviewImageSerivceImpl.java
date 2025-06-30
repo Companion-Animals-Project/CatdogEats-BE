@@ -97,22 +97,6 @@ public class ReviewImageSerivceImpl implements ReviewImageService {
 
     @JpaTransactional
     @Override
-    public List<ReviewImageResponseDto> getReviewImagesByReviewId(String reviewId) {
-        Reviews review = reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new NoSuchElementException("해당 리뷰 없음"));
-
-        List<ReviewsImages> mappings = reviewImageRepository.findAllByReviewsIdWithImages(reviewId);
-        
-        return mappings.stream()
-                .map(mapping -> new ReviewImageResponseDto(
-                        mapping.getImages().getId(),
-                        mapping.getImages().getImageUrl()
-                ))
-                .toList();
-    }
-
-    @JpaTransactional
-    @Override
     public void deleteReviewImage(String reviewId, String imageId) {
         ReviewsImages mapping = reviewImageRepository.findByReviewsIdAndImagesId(reviewId, imageId)
                 .orElseThrow(() -> new NoSuchElementException("해당 매핑 데이터 없음"));

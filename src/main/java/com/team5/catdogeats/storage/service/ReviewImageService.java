@@ -12,5 +12,5 @@ public interface ReviewImageService {
     List<ReviewImageUploadResponseDto> uploadReviewImage(UserPrincipal userPrincipal, String reviewId, List<MultipartFile> images) throws IOException;
     void deleteReviewImage(String reviewId, String imageId);
     List<ReviewImageUploadResponseDto> updateReviewImage(UserPrincipal userPrincipal, String reviewId, List<String> oldImageIds, List<MultipartFile> images) throws IOException;
-    List<ReviewImageResponseDto> getReviewImagesByReviewId(String reviewId);
+
 }
