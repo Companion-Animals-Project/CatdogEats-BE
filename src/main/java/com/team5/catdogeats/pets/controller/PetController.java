@@ -17,6 +17,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.time.ZonedDateTime;
 import java.util.NoSuchElementException;
 
 @RestController
@@ -65,6 +66,36 @@ public class PetController {
                     pets.isLast()
             );
             return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, petPageResponse));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity
+                    .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "내 펫 목록 조회 (스크롤)", description = "프론트에서 응답의 nextCursor값을 다음 요청의 cursorCreatedAt으로 사용하는 로직 추가하기")
+    @GetMapping("/pet/curost")
+    public ResponseEntity<ApiResponse<CursorPetResponseDto>> getMyPetsWithCursor(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestParam(required = false) ZonedDateTime cursorUpdatedAt,
+            @RequestParam(defaultValue = "4") int size) {
+        try {
+            Page<PetResponseDto> page = petService.getMyPetsWithCursor(userPrincipal, cursorUpdatedAt, size);
+
+            ZonedDateTime nextCursor = page.getContent().isEmpty()
+                    ? null
+                    : page.getContent().get(page.getContent().size() - 1).updatedAt();
+
+            boolean hasNext = page.getContent().size() == size;
+
+            CursorPetResponseDto response = new CursorPetResponseDto(page.getContent(), nextCursor, hasNext);
+
+
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
