@@ -68,14 +68,57 @@ public interface AdminRepository extends JpaRepository<Admins, String> {
     Page<Admins> findInactiveAdmins(Pageable pageable);
 
 
-
-    // ===== 복합 검색: 검색어 + 부서 =====
-
     /**
      * 부서별 필터링
      */
     @Query("SELECT a FROM Admins a WHERE a.department = :department ORDER BY a.createdAt DESC")
-    Page<Admins> findByDepartment(Department department, Pageable pageable);
+    Page<Admins> findByDepartmentWithPagination(@Param("department") Department department, Pageable pageable);
+
+
+    // ===== 복합 검색 메서드들 (검색어 + 상태 필터) =====
+
+    /**
+     * 검색어 + ACTIVE 상태 조합
+     */
+    @Query("SELECT a FROM Admins a WHERE " +
+            "(LOWER(a.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+            "a.isActive = true AND a.isFirstLogin = false " +
+            "ORDER BY a.createdAt DESC")
+    Page<Admins> findActiveAdminsBySearch(@Param("search") String search, Pageable pageable);
+
+    /**
+     * 검색어 + PENDING 상태 조합
+     */
+    @Query("SELECT a FROM Admins a WHERE " +
+            "(LOWER(a.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+            "a.isActive = false AND a.verificationCode IS NOT NULL " +
+            "ORDER BY a.createdAt DESC")
+    Page<Admins> findPendingAdminsBySearch(@Param("search") String search, Pageable pageable);
+
+    /**
+     * 검색어 + INACTIVE 상태 조합
+     */
+    @Query("SELECT a FROM Admins a WHERE " +
+            "(LOWER(a.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+            "((a.isActive = false AND a.verificationCode IS NULL) OR " +
+            "(a.isActive = true AND a.isFirstLogin = true)) " +
+            "ORDER BY a.createdAt DESC")
+    Page<Admins> findInactiveAdminsBySearch(@Param("search") String search, Pageable pageable);
+
+    /**
+     * 검색어 + 부서 조합
+     */
+    @Query("SELECT a FROM Admins a WHERE " +
+            "(LOWER(a.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(a.email) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+            "a.department = :department " +
+            "ORDER BY a.createdAt DESC")
+    Page<Admins> findByDepartmentAndSearch(@Param("department") Department department,
+                                           @Param("search") String search,
+                                           Pageable pageable);
 
     // ===== 통계용 카운트 메서드들  =====
 
