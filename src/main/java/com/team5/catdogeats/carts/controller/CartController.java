@@ -5,7 +5,7 @@ import com.team5.catdogeats.carts.dto.request.AddCartItemRequest;
 import com.team5.catdogeats.carts.dto.request.UpdateCartItemRequest;
 import com.team5.catdogeats.carts.dto.response.CartResponse;
 import com.team5.catdogeats.carts.service.CartService;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -36,7 +36,7 @@ public class CartController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "장바구니를 찾을 수 없음")
     })
     @GetMapping
-    public ResponseEntity<ApiResponse<CartResponse>> getCartItems(
+    public ResponseEntity<APIResponse<CartResponse>> getCartItems(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
         // 인증 체크
@@ -49,7 +49,7 @@ public class CartController {
         log.info("장바구니 조회 완료 - provider: {}, providerId: {}, 총 상품 수: {}",
                 userPrincipal.provider(), userPrincipal.providerId(), cartResponse.getTotalItemCount());
 
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.CART_SUCCESS, cartResponse));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.CART_SUCCESS, cartResponse));
     }
 
     @Operation(
@@ -63,7 +63,7 @@ public class CartController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "상품을 찾을 수 없음")
     })
     @PostMapping
-    public ResponseEntity<ApiResponse<CartResponse>> addCartItem(
+    public ResponseEntity<APIResponse<CartResponse>> addCartItem(
             @Valid @RequestBody AddCartItemRequest request,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
@@ -78,7 +78,7 @@ public class CartController {
                 userPrincipal.provider(), userPrincipal.providerId(),
                 request.getProductId(), request.getQuantity());
 
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.CART_ITEM_ADDED, cartResponse));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.CART_ITEM_ADDED, cartResponse));
     }
 
     @Operation(
@@ -86,7 +86,7 @@ public class CartController {
             description = "장바구니에 있는 특정 상품의 수량을 수정합니다."
     )
     @PatchMapping("/{cartItemId}")
-    public ResponseEntity<ApiResponse<CartResponse>> updateCartItem(
+    public ResponseEntity<APIResponse<CartResponse>> updateCartItem(
             @PathVariable String cartItemId,
             @Valid @RequestBody UpdateCartItemRequest request,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
@@ -102,7 +102,7 @@ public class CartController {
                 userPrincipal.provider(), userPrincipal.providerId(),
                 cartItemId, request.getQuantity());
 
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.CART_ITEM_UPDATED, cartResponse));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.CART_ITEM_UPDATED, cartResponse));
     }
 
     @Operation(
@@ -110,7 +110,7 @@ public class CartController {
             description = "장바구니에서 특정 상품을 삭제합니다."
     )
     @DeleteMapping("/{cartItemId}")
-    public ResponseEntity<ApiResponse<Void>> removeCartItem(
+    public ResponseEntity<APIResponse<Void>> removeCartItem(
             @PathVariable String cartItemId,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
@@ -124,7 +124,7 @@ public class CartController {
         log.info("장바구니 상품 삭제 완료 - provider: {}, providerId: {}, cartItemId: {}",
                 userPrincipal.provider(), userPrincipal.providerId(), cartItemId);
 
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.CART_ITEM_REMOVED));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.CART_ITEM_REMOVED));
     }
 
     @Operation(
@@ -132,7 +132,7 @@ public class CartController {
             description = "장바구니의 모든 상품을 삭제합니다."
     )
     @DeleteMapping
-    public ResponseEntity<ApiResponse<Void>> clearCart(
+    public ResponseEntity<APIResponse<Void>> clearCart(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
         // 인증 체크
@@ -145,6 +145,6 @@ public class CartController {
         log.info("장바구니 전체 비우기 완료 - provider: {}, providerId: {}",
                 userPrincipal.provider(), userPrincipal.providerId());
 
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.CART_CLEARED));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.CART_CLEARED));
     }
 }

@@ -214,18 +214,6 @@ public class CartServiceImpl implements CartService {
     }
 
     private CartItemResponse convertToCartItemResponse(CartItems cartItem) {
-        Products product = cartItem.getProduct();
-        Long totalPrice = product.getPrice() * cartItem.getQuantity();
-
-        return CartItemResponse.builder()
-                .id(cartItem.getId())
-                .productId(product.getId())
-                .productName(product.getTitle()) // Products 엔티티의 실제 필드명 사용
-                .productImage("") // 이미지는 나중에 S3 로직 완성 후 추가
-                .productPrice(product.getPrice())
-                .quantity(cartItem.getQuantity())
-                .totalPrice(totalPrice)
-                .addedAt(cartItem.getAddedAt())
-                .build();
+        return CartItemResponse.from(cartItem);
     }
 }
