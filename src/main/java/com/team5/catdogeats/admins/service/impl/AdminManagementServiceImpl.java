@@ -158,7 +158,7 @@ public class AdminManagementServiceImpl implements AdminManagementService {
                 .isFirstLogin(admin.getIsFirstLogin())
                 .verificationCode(admin.getVerificationCode())
                 .verificationCodeExpiry(admin.getVerificationCodeExpiry())
-                .lastLoginAt(admin.getLastLoginAt())
+                .lastLoginAt(admin.getUpdatedAt())
                 .createdAt(admin.getCreatedAt())
                 .build();
     }

@@ -66,10 +66,6 @@ public class Admins extends BaseEntity {
     @Builder.Default
     private Boolean isFirstLogin = true;
 
-    /**
-     * 마지막 로그인 시간
-     */
-    private ZonedDateTime lastLoginAt;
 
     /**
      * 인증코드 설정
@@ -88,8 +84,6 @@ public class Admins extends BaseEntity {
         this.verificationCodeExpiry = null;
     }
 
-
-
     /**
      * 첫 로그인 완료 처리 (비밀번호 변경 후 호출)
      */
@@ -97,12 +91,6 @@ public class Admins extends BaseEntity {
         this.isFirstLogin = false;
     }
 
-    /**
-     * 로그인 시간만 업데이트 (첫 로그인 상태는 변경하지 않음)
-     */
-    public void updateLastLoginTime() {
-        this.lastLoginAt = ZonedDateTime.now();
-    }
 
     /**
      * 비밀번호 변경

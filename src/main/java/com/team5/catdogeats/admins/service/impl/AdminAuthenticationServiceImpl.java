@@ -56,7 +56,6 @@ public class AdminAuthenticationServiceImpl implements AdminAuthenticationServic
         boolean isFirstLogin = admin.getIsFirstLogin();
 
         // 5. 로그인 시간만 업데이트 (첫 로그인 상태는 유지)
-        admin.updateLastLoginTime(); // ← 변경: isFirstLogin을 건드리지 않는 메서드 사용
         adminRepository.save(admin);
 
 
@@ -105,7 +104,7 @@ public class AdminAuthenticationServiceImpl implements AdminAuthenticationServic
                 .name(admin.getName())
                 .department(admin.getDepartment())
                 .isFirstLogin(isFirstLogin)
-                .lastLoginAt(admin.getLastLoginAt())
+                .lastLoginAt(admin.getUpdatedAt())
                 .redirectUrl(admin.getIsFirstLogin() ? "/v1/admin/change-password" : "/v1/admin/dashboard")
                 .message("로그인 성공")
                 .build();
