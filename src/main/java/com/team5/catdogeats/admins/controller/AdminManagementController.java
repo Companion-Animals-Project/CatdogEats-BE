@@ -2,10 +2,7 @@ package com.team5.catdogeats.admins.controller;
 
 import com.team5.catdogeats.admins.domain.dto.*;
 import com.team5.catdogeats.admins.domain.enums.Department;
-import com.team5.catdogeats.admins.service.AdminInvitationService;
-import com.team5.catdogeats.admins.service.AdminManagementService;
-import com.team5.catdogeats.admins.service.AdminPasswordResetService;
-import com.team5.catdogeats.admins.service.AdminVerificationService;
+import com.team5.catdogeats.admins.service.*;
 import com.team5.catdogeats.admins.util.AdminControllerUtils;
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
@@ -36,6 +33,7 @@ public class AdminManagementController {
     private final AdminPasswordResetService passwordResetService;
     private final AdminControllerUtils controllerUtils;
     private final AdminManagementService managementService;
+    private final AdminSoftDeleteService softDeleteService;
 
     @Value("${admin.super.email}")
     private String superAdminEmail;
@@ -182,4 +180,57 @@ public class AdminManagementController {
         AdminVerificationResponseDTO response = passwordResetService.verifyAndResetPassword(request);
         return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
     }
+
+
+    /**
+     * 관리자 퇴사 처리 (ADMIN 부서만 접근 가능)
+     */
+    @PostMapping("/accounts/{adminEmail}/soft-delete")
+    @ResponseBody
+    @Operation(summary = "관리자 퇴사 처리", description = "관리자를 소프트 딜리트 처리합니다.")
+    public ResponseEntity<ApiResponse<AdminSoftDeleteResponseDTO>> softDeleteAdmin(
+            @PathVariable String adminEmail,
+            @RequestParam(required = false) String reason,
+            HttpSession session) {
+
+        // ADMIN 부서 권한 확인 (기존 비밀번호 초기화와 동일)
+        AdminSessionInfo sessionInfo = controllerUtils.requireAdminDepartment(session);
+
+        AdminSoftDeleteRequestDTO request = new AdminSoftDeleteRequestDTO(
+                adminEmail,
+                sessionInfo.getEmail(),
+                reason
+        );
+
+        AdminSoftDeleteResponseDTO response = softDeleteService.softDeleteAdmin(request);
+
+        log.info("관리자 퇴사 처리 요청: target={}, requestedBy={}",
+                adminEmail, sessionInfo.getEmail());
+
+        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+    }
+
+
+    /**
+     * 관리자 퇴사 취소 (복구) (ADMIN 부서만 접근 가능)
+     */
+    @PostMapping("/accounts/{adminEmail}/restore")
+    @ResponseBody
+    @Operation(summary = "관리자 퇴사 취소", description = "퇴사 처리된 관리자를 복구합니다.")
+    public ResponseEntity<ApiResponse<AdminSoftDeleteResponseDTO>> restoreAdmin(
+            @PathVariable String adminEmail,
+            HttpSession session) {
+
+        // ADMIN 부서 권한 확인
+        AdminSessionInfo sessionInfo = controllerUtils.requireAdminDepartment(session);
+
+        AdminSoftDeleteResponseDTO response = softDeleteService.undoSoftDelete(adminEmail);
+
+        log.info("관리자 퇴사 취소 요청: target={}, requestedBy={}",
+                adminEmail, sessionInfo.getEmail());
+
+        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+    }
+
+
 }

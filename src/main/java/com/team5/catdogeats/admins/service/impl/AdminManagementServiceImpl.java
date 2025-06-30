@@ -85,14 +85,14 @@ public class AdminManagementServiceImpl implements AdminManagementService {
 
     @Override
     public AdminStatsDTO calculateAdminStats() {
-        long totalCount = adminRepository.count();
+        long totalCount = adminRepository.count(); // 퇴사자 제외 전체
         long activeCount = adminRepository.countActiveAdmins(); // isActive = true
+        long deletedCount = adminRepository.countDeletedAdmins(); // 퇴사자 수 추가
 
         List<Admins> inactiveAdmins = adminRepository.findAllInactiveAdmins(); // isActive = false
 
         long pendingCount = 0;
         for (Admins admin : inactiveAdmins) {
-            // Redis에서 인증코드 존재 여부만 확인
             if (redisVerificationCodeService.hasVerificationCode(admin.getEmail())) {
                 pendingCount++;
             }
@@ -100,14 +100,15 @@ public class AdminManagementServiceImpl implements AdminManagementService {
 
         long inactiveCount = inactiveAdmins.size() - pendingCount;
 
-        log.debug("통계 - 전체: {}, 활성: {}, 대기: {}, 비활성: {}",
-                totalCount, activeCount, pendingCount, inactiveCount);
+        log.debug("통계 - 전체: {}, 활성: {}, 대기: {}, 비활성: {}, 퇴사: {}",
+                totalCount, activeCount, pendingCount, inactiveCount, deletedCount);
 
         return AdminStatsDTO.builder()
                 .totalCount(totalCount)
                 .activeCount(activeCount)
                 .pendingCount(pendingCount)
                 .inactiveCount(inactiveCount)
+                .deletedCount(deletedCount)
                 .build();
     }
 
@@ -118,8 +119,8 @@ public class AdminManagementServiceImpl implements AdminManagementService {
     private Page<Admins> getAdminPageBySearchAndStatus(String search, String status, Pageable pageable) {
         return switch (status.toLowerCase()) {
             case "active" -> adminRepository.findActiveAdminsBySearch(search, pageable);
+            case "deleted" -> adminRepository.findDeletedAdminsBySearch(search, pageable); // 퇴사자 검색 추가
             case "pending", "inactive" -> {
-                // isActive = false인 계정들을 가져와서 서비스에서 Redis로 분류 (인증코드 있으면 pending, 없으면 inactive)
                 Page<Admins> inactiveAdmins = adminRepository.findInactiveAdminsBySearch(search, pageable);
                 yield filterByRedisStatus(inactiveAdmins, status);
             }
@@ -133,6 +134,7 @@ public class AdminManagementServiceImpl implements AdminManagementService {
     private Page<Admins> getAdminPageByStatus(String status, Pageable pageable) {
         return switch (status.toLowerCase()) {
             case "active" -> adminRepository.findActiveAdmins(pageable);
+            case "deleted" -> adminRepository.findDeletedAdmins(pageable);
             case "pending", "inactive" -> {
                 Page<Admins> inactiveAdmins = adminRepository.findInactiveAdmins(pageable);
                 yield filterByRedisStatus(inactiveAdmins, status);
@@ -202,10 +204,13 @@ public class AdminManagementServiceImpl implements AdminManagementService {
                 .department(admin.getDepartment())
                 .isActive(admin.getIsActive())
                 .isFirstLogin(admin.getIsFirstLogin())
+                .isDeleted(admin.getIsDeleted())
                 .verificationCode(verificationCode) // Redis에서 조회한 정보
                 .verificationCodeExpiry(verificationCodeExpiry) // Redis TTL 기반 만료시간
                 .lastLoginAt(admin.getUpdatedAt())
                 .createdAt(admin.getCreatedAt())
+                .deletedAt(admin.getDeletedAt())
+                .deleteReason(admin.getDeleteReason())
                 .build();
     }
 }

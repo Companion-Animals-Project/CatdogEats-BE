@@ -16,8 +16,11 @@ public record AdminInfoResponseDTO(
         Department department,
         boolean isActive,
         boolean isFirstLogin,
+        Boolean isDeleted,
         String verificationCode,
         ZonedDateTime verificationCodeExpiry,
         ZonedDateTime lastLoginAt,
-        ZonedDateTime createdAt
+        ZonedDateTime createdAt,
+        ZonedDateTime deletedAt,
+        String deleteReason
 ) {}

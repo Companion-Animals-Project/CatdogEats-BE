@@ -32,6 +32,10 @@
             color: #7d6e63;
         }
 
+        .deleted-date {
+            color: #dc2626;
+            font-weight: 500;
+        }
         .sidebar {
             background-color: #fffdfb;
             border-right: 1px solid #f0ebe5;
@@ -60,6 +64,23 @@
         .sidebar-link.disabled:hover {
             background-color: transparent !important;
         }
+
+
+        .action-delete {
+            background-color: #fee2e2;
+            color: #dc2626;
+        }
+
+        .action-delete:hover {
+            background-color: #fecaca;
+            color: #b91c1c;
+        }
+
+        .text-gray-400 {
+            color: #9ca3af;
+            font-size: 0.875rem;
+        }
+
 
         .coming-soon-badge {
             position: absolute;
@@ -167,6 +188,12 @@
 
         .btn-danger:hover {
             background-color: #dc2626;
+        }
+
+        .status-deleted {
+            background-color: #f3f4f6;
+            color: #6b7280;
+            border: 1px solid #d1d5db;
         }
 
         .stats-grid {
@@ -805,6 +832,7 @@
                         <button class="filter-tab" onclick="filterByStatus('active')" data-status="active">활성화 (-)</button>
                         <button class="filter-tab" onclick="filterByStatus('pending')" data-status="pending">승인대기 (-)</button>
                         <button class="filter-tab" onclick="filterByStatus('inactive')" data-status="inactive">비활성화 (-)</button>
+                        <button class="filter-tab" onclick="filterByStatus('deleted')" data-status="deleted">퇴사 (-)</button>
                     </div>
 
                     <!-- 관리자 테이블 -->
@@ -817,7 +845,7 @@
                                 <th>상태</th>
                                 <th>등록일</th>
                                 <th>최종 로그인</th>
-                                <th>비밀번호 초기화</th>
+                                <th>관리</th>
                             </tr>
                             </thead>
                             <tbody id="adminTableBody">
@@ -862,9 +890,7 @@
     // 페이지 로드 시 초기화
     document.addEventListener('DOMContentLoaded', function() {
         console.log('페이지 로드 시작');
-        initializeSearchInput(); // 검색 입력 초기화
-        loadAdminList();
-        initializeSidebar();
+        initializePage(); // 기존 함수들을 하나로 통합
     });
 
     // 관리자 목록 로드
@@ -922,6 +948,13 @@
 
     // 비밀번호 초기화 - 환경변수 사용
     async function resetAdminPassword(adminEmail, adminName) {
+
+        const adminInfo = await getCurrentAdminInfo();
+        if (!adminInfo || adminInfo.department !== 'ADMIN') {
+            showAlert('비밀번호 초기화는 관리팀(ADMIN) 권한이 필요합니다.', 'error');
+            return;
+        }
+
         // 환경변수로 받아온 슈퍼관리자 이메일과 비교
         if (adminEmail === SUPER_ADMIN_EMAIL) {
             showAlert('슈퍼관리자 계정은 비밀번호를 초기화할 수 없습니다.', 'error');
@@ -981,9 +1014,11 @@
         document.getElementById('emptyState').style.display = 'none';
         document.querySelector('.admin-table').style.display = 'table';
 
+        // 테이블 헤더 동적 변경
+        updateTableHeaders();
+
         tbody.innerHTML = admins.map(admin => {
             const statusInfo = getAdminStatusInfo(admin);
-            console.log(`관리자 ${admin.email} 상태:`, statusInfo);
 
             return `
         <tr>
@@ -995,6 +1030,12 @@
                     <div>
                         <div class="font-semibold text-gray-900">${admin.name}</div>
                         <div class="text-gray-500 text-sm">${admin.email}</div>
+                        ${admin.isDeleted && admin.deleteReason ? `
+                            <div class="text-xs text-red-500 mt-1">
+                                <span class="material-icons-outlined text-xs">info</span>
+                                사유: ${admin.deleteReason}
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             </td>
@@ -1006,16 +1047,10 @@
                 </span>
             </td>
             <td>${formatDate(admin.createdAt)}</td>
-            <td>${admin.lastLoginAt ? formatDateTime(admin.lastLoginAt) : '-'}</td>
+            <td>${getLastColumnContent(admin)}</td>
             <td>
                 <div class="action-buttons">
-                    ${admin.email !== SUPER_ADMIN_EMAIL ? `
-                        <button class="action-btn action-reset" onclick="resetAdminPassword('${admin.email}', '${admin.name}')" title="비밀번호 초기화">
-                            <span class="material-icons-outlined text-sm">lock_reset</span>
-                        </button>
-                    ` : `
-                        <span class="text-gray-400 text-sm">관리 불가</span>
-                    `}
+                    ${renderActionButtons(admin)}
                 </div>
             </td>
         </tr>
@@ -1023,6 +1058,52 @@
         }).join('');
 
         renderPagination(data);
+    }
+
+    function showDeleteReason(adminEmail, adminName, reason, deletedAt) {
+        const formattedDate = formatDateTime(deletedAt);
+        const reasonText = reason || '사유 없음';
+
+        alert(`${adminName}님 퇴사 정보\n\n퇴사일: ${formattedDate}\n퇴사 사유: ${reasonText}`);
+    }
+
+
+
+
+
+    function renderActionButtons(admin) {
+        // 슈퍼관리자는 관리 불가
+        if (admin.email === SUPER_ADMIN_EMAIL) {
+            return `<span class="text-gray-400 text-sm">관리 불가</span>`;
+        }
+
+        // 현재 사용자가 ADMIN 부서인지 확인
+        const isAdminDepartment = currentAdminInfo && currentAdminInfo.department === 'ADMIN';
+
+        if (!isAdminDepartment) {
+            return `<span class="text-gray-400 text-sm">권한 없음</span>`;
+        }
+
+        if (admin.isDeleted) {
+            // 퇴사자 - 복구 버튼만 표시
+            return `
+            <button class="action-btn action-restore" onclick="restoreAdmin('${admin.email}', '${admin.name}')" title="퇴사 취소">
+                <span class="material-icons-outlined text-sm">restore</span>
+            </button>
+        `;
+        } else {
+            // 일반 관리자 - 비밀번호 초기화 + 퇴사 처리
+            return `
+            <div class="flex gap-1">
+                <button class="action-btn action-reset" onclick="resetAdminPassword('${admin.email}', '${admin.name}')" title="비밀번호 초기화">
+                    <span class="material-icons-outlined text-sm">lock_reset</span>
+                </button>
+                <button class="action-btn action-delete" onclick="softDeleteAdmin('${admin.email}', '${admin.name}')" title="퇴사 처리">
+                    <span class="material-icons-outlined text-sm">person_remove</span>
+                </button>
+            </div>
+        `;
+        }
     }
 
     // 통계 업데이트
@@ -1033,7 +1114,24 @@
         document.getElementById('pendingAdmins').textContent = stats.pendingCount || 0;
         document.getElementById('inactiveAdmins').textContent = stats.inactiveCount || 0;
     }
+    function updateTableHeaders() {
+        const lastColumnHeader = document.querySelector('.admin-table thead tr th:nth-child(5)');
 
+        if (currentStatus === 'deleted') {
+            lastColumnHeader.textContent = '퇴사일';
+        } else {
+            lastColumnHeader.textContent = '최종 로그인';
+        }
+    }
+
+    function getLastColumnContent(admin) {
+        if (currentStatus === 'deleted' && admin.isDeleted) {
+            const deletedDate = admin.deletedAt ? formatDateTime(admin.deletedAt) : '-';
+            return `<span class="deleted-date">${deletedDate}</span>`;
+        } else {
+            return admin.lastLoginAt ? formatDateTime(admin.lastLoginAt) : '-';
+        }
+    }
     // 필터 탭 업데이트
     function updateFilterTabs(stats) {
         console.log('필터 탭 업데이트:', stats);
@@ -1041,34 +1139,42 @@
         const activeTab = document.querySelector('[data-status="active"]');
         const pendingTab = document.querySelector('[data-status="pending"]');
         const inactiveTab = document.querySelector('[data-status="inactive"]');
+        const deletedTab = document.querySelector('[data-status="deleted"]');
 
         if (allTab) allTab.textContent = `전체 (${stats.totalCount || 0})`;
         if (activeTab) activeTab.textContent = `활성화 (${stats.activeCount || 0})`;
         if (pendingTab) pendingTab.textContent = `승인대기 (${stats.pendingCount || 0})`;
         if (inactiveTab) inactiveTab.textContent = `비활성화 (${stats.inactiveCount || 0})`;
+        if (deletedTab) deletedTab.textContent = `퇴사 (${stats.deletedCount || 0})`;
     }
 
     // 관리자 상태 정보 계산 (3가지 상태)
     function getAdminStatusInfo(admin) {
         let status, cssClass, style, icon, name;
 
-        // 간단한 상태 로직
-        if (admin.isActive) {
-            // 활성화 상태 (이메일 인증 완료 = 활성화)
+        if (admin.isDeleted) {
+            // 퇴사 상태
+            status = 'DELETED';
+            cssClass = 'status-deleted';
+            style = 'background-color: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db;';
+            icon = 'person_off';
+            name = '퇴사';
+        } else if (admin.isActive) {
+            // 활성화 상태
             status = 'ACTIVE';
             cssClass = 'status-active';
             style = 'background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0;';
             icon = 'check_circle';
             name = '활성화';
         } else if (!admin.isActive && admin.verificationCode) {
-            // 인증코드 발송됨, 아직 인증 안함
+            // 인증 대기 상태
             status = 'PENDING';
             cssClass = 'status-pending';
             style = 'background-color: #fef3c7; color: #d97706; border: 1px solid #fde68a;';
             icon = 'schedule';
             name = '승인대기';
         } else {
-            // 완전히 비활성화된 상태
+            // 비활성화 상태
             status = 'INACTIVE';
             cssClass = 'status-inactive';
             style = 'background-color: #fee2e2; color: #dc2626; border: 1px solid #fecaca;';
@@ -1137,6 +1243,47 @@
         pagination.innerHTML = paginationHTML;
     }
 
+    // 퇴사 취소  함수
+    async function restoreAdmin(adminEmail, adminName) {
+        // 권한 확인
+        const adminInfo = await getCurrentAdminInfo();
+        if (!adminInfo || adminInfo.department !== 'ADMIN') {
+            showAlert('퇴사 취소는 관리팀(ADMIN) 권한이 필요합니다.', 'error');
+            return;
+        }
+
+        const confirmed = confirm(
+            `${adminName}님의 퇴사 처리를 취소하시겠습니까?\n\n` +
+            `• 해당 계정이 복구됩니다\n` +
+            `• 로그인이 가능해집니다\n` +
+            `• 계정 상태는 비활성화로 설정됩니다`
+        );
+
+        if (!confirmed) return;
+
+        try {
+            const response = await fetch(`/v1/admin/accounts/${encodeURIComponent(adminEmail)}/restore`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                showAlert(`${adminName}님의 퇴사 처리가 성공적으로 취소되었습니다.`, 'success');
+                loadAdminList();
+            } else {
+                showAlert(result.message || '퇴사 취소에 실패했습니다.', 'error');
+            }
+
+        } catch (error) {
+            console.error('퇴사 취소 중 오류:', error);
+            showAlert('서버 연결에 문제가 발생했습니다.', 'error');
+        }
+    }
+
     // 페이지 이동
     function goToPage(page) {
         if (page < 0) return;
@@ -1148,6 +1295,8 @@
     // 상태별 필터링
     function filterByStatus(status) {
         console.log('상태 필터링:', status);
+        console.log('현재 상태:', currentStatus, '-> 새 상태:', status);
+
         currentStatus = status;
         currentPage = 0;
 
@@ -1158,6 +1307,7 @@
         const targetTab = document.querySelector(`[data-status="${status}"]`);
         if (targetTab) {
             targetTab.classList.add('active');
+            console.log('활성 탭 변경됨:', targetTab.textContent);
         }
 
         loadAdminList();
@@ -1362,6 +1512,60 @@
     function showComingSoon(featureName) {
         alert(`${featureName} 기능은 현재 개발 중입니다. 곧 업데이트될 예정입니다.`);
     }
+    async function softDeleteAdmin(adminEmail, adminName) {
+        // 현재 사용자가 ADMIN 부서인지 확인
+        const adminInfo = await getCurrentAdminInfo();
+        if (!adminInfo || adminInfo.department !== 'ADMIN') {
+            showAlert('퇴사 처리는 관리팀(ADMIN) 권한이 필요합니다.', 'error');
+            return;
+        }
+
+        const reason = prompt(`${adminName}님의 퇴사 처리 사유를 입력해주세요 (선택사항):`);
+
+        const confirmed = confirm(
+            `${adminName}님을 퇴사 처리하시겠습니까?\n\n` +
+            `• 로그인이 불가능해집니다\n` +
+            `• 데이터는 보존되며 복구 가능합니다`
+        );
+
+        if (!confirmed) return;
+
+        try {
+            const params = new URLSearchParams();
+            if (reason && reason.trim()) {
+                params.append('reason', reason.trim());
+            }
+
+            const response = await fetch(`/v1/admin/accounts/${encodeURIComponent(adminEmail)}/soft-delete?${params}`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                showAlert(`${adminName}님이 성공적으로 퇴사 처리되었습니다.`, 'success');
+                loadAdminList();
+            } else {
+                showAlert(result.message || '퇴사 처리에 실패했습니다.', 'error');
+            }
+
+        } catch (error) {
+            console.error('퇴사 처리 중 오류:', error);
+            showAlert('서버 연결에 문제가 발생했습니다.', 'error');
+        }
+    }
+
+    async function initializePage() {
+        currentAdminInfo = await getCurrentAdminInfo();
+        console.log('현재 관리자 정보:', currentAdminInfo);
+        initializeSearchInput();
+        loadAdminList();
+        initializeSidebar();
+    }
+
 </script>
 </body>
 </html>

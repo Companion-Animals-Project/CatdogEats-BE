@@ -41,19 +41,29 @@ public class Admins extends BaseEntity {
     @Column(nullable = false)
     private Department department;
 
-    /**
-     * 계정 활성화 상태 (인증코드 확인 완료 여부)
-     */
+
     @Column(nullable = false)
     @Builder.Default
     private Boolean isActive = false;
 
-    /**
-     * 최초 로그인 여부 (비밀번호 변경 필요 체크)
-     */
+
     @Column(nullable = false)
     @Builder.Default
     private Boolean isFirstLogin = true;
+
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean isDeleted = false;
+
+
+    @Column(length = 100)
+    private String deleteReason;
+
+    @Column
+    private ZonedDateTime deletedAt;
+
+
 
 
     /**
@@ -69,6 +79,26 @@ public class Admins extends BaseEntity {
      */
     public void changePassword(String newPassword) {
         this.password = newPassword;
+    }
+
+
+    /**
+     * 퇴사 처리
+     */
+    public void softDelete(String reason) {
+        this.isDeleted = true;
+        this.deletedAt = ZonedDateTime.now();
+        this.deleteReason = reason;
+        this.isActive = false; // 퇴사시 비활성화
+    }
+
+    /**
+     * 퇴사 취소 (복구)
+     */
+    public void undoSoftDelete() {
+        this.isDeleted = false;
+        this.deletedAt = null;
+        this.deleteReason = null;
     }
 
 }

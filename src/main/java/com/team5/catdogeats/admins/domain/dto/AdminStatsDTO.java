@@ -10,6 +10,7 @@ public record AdminStatsDTO(
         long totalCount,
         long activeCount,
         long pendingCount,
-        long inactiveCount
+        long inactiveCount,
+        long deletedCount
 ) {
 }
