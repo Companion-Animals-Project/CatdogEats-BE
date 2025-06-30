@@ -28,4 +28,11 @@ public interface CartItemRepository extends JpaRepository<CartItems, String> {
     // 사용자 ID + 장바구니 아이템 ID -> 해당 사용자의 장바구니 아이템 조회
     Optional<CartItems> findByIdAndUserId(@Param("cartItemId") String cartItemId,
                                           @Param("userId") String userId);
+
+    // 사용자의 장바구니에 담긴 상품 정보들 조회 - 카테고리 분석 + 중복 상품 제외
+    @Query("SELECT ci FROM CartItems ci " +
+            "JOIN FETCH ci.product p " +
+            "JOIN ci.carts c " +
+            "WHERE c.user.id = :userId")
+    List<CartItems> findCartItemsWithProductByUserId(@Param("userId") String userId);
 }
