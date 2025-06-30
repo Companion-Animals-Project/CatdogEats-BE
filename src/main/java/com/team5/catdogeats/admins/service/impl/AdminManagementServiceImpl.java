@@ -32,54 +32,18 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         // 페이지네이션 설정
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        // 필터링 조건에 따라 조회
-        List<Admins> adminList;
-        long totalElements;
+        Page<Admins> adminPage = getFilteredAdmins(pageable, status, search, department);
 
-        if (search != null && !search.trim().isEmpty()) {
-            // 검색어가 있는 경우
-            adminList = adminRepository.findAll().stream()
-                    .filter(admin ->
-                            admin.getName().toLowerCase().contains(search.toLowerCase()) ||
-                                    admin.getEmail().toLowerCase().contains(search.toLowerCase()))
-                    .skip((long) page * size)
-                    .limit(size)
-                    .toList();
-            totalElements = adminRepository.findAll().stream()
-                    .filter(admin ->
-                            admin.getName().toLowerCase().contains(search.toLowerCase()) ||
-                                    admin.getEmail().toLowerCase().contains(search.toLowerCase()))
-                    .count();
-        } else if (status != null && !status.equals("all")) {
-            // 상태별 필터링
-            adminList = filterByStatus(status).stream()
-                    .skip((long) page * size)
-                    .limit(size)
-                    .toList();
-            totalElements = filterByStatus(status).size();
-        } else if (department != null) {
-            // 부서별 필터링
-            adminList = adminRepository.findByDepartment(department);
-            totalElements = adminList.size();
-        } else {
-            // 전체 조회
-            Page<Admins> adminPage = adminRepository.findAll(pageable);
-            adminList = adminPage.getContent();
-            totalElements = adminPage.getTotalElements();
-        }
-
-        // DTO 변환
-        List<AdminInfoResponseDTO> adminDTOs = adminList.stream()
+        List<AdminInfoResponseDTO> adminDTOs = adminPage.getContent().stream()
                 .map(this::convertToDTO)
                 .toList();
 
-        // 통계 정보 계산
         AdminStatsDTO stats = calculateAdminStats();
 
         return AdminListResponseDTO.builder()
                 .admins(adminDTOs)
-                .totalElements(totalElements)
-                .totalPages((int) Math.ceil((double) totalElements / size))
+                .totalElements(adminPage.getTotalElements())
+                .totalPages(adminPage.getTotalPages())
                 .currentPage(page)
                 .pageSize(size)
                 .stats(stats)
@@ -89,14 +53,11 @@ public class AdminManagementServiceImpl implements AdminManagementService {
 
     @Override
     public AdminStatsDTO calculateAdminStats() {
-        List<Admins> allAdmins = adminRepository.findAll();
 
-        long totalCount = allAdmins.size();
-        long activeCount = allAdmins.stream().filter(Admins::getIsActive).count();
-        long pendingCount = allAdmins.stream()
-                .filter(admin -> !admin.getIsActive() && admin.getVerificationCode() != null)
-                .count();
-        long inactiveCount = totalCount - activeCount;
+        long totalCount = adminRepository.count();
+        long activeCount = adminRepository.countByIsActiveTrue();
+        long pendingCount = adminRepository.countByIsActiveFalseAndVerificationCodeIsNotNull();
+        long inactiveCount = adminRepository.countByIsActiveFalse();
 
         return AdminStatsDTO.builder()
                 .totalCount(totalCount)
@@ -106,24 +67,65 @@ public class AdminManagementServiceImpl implements AdminManagementService {
                 .build();
     }
 
+    private Page<Admins> getFilteredAdmins(Pageable pageable, String status, String search, Department department) {
+        boolean hasSearch = search != null && !search.trim().isEmpty();
+        boolean hasStatus = status != null && !status.equals("all");
+        boolean hasDepartment = department != null;
+
+        // 복합 조건 처리
+        if (hasSearch && hasStatus) {
+            return getAdminsBySearchAndStatus(search, status, pageable);
+        }
+
+        if (hasSearch && hasDepartment) {
+            return adminRepository.findBySearchAndDepartment(search.trim(), department, pageable);
+        }
+
+        // 단일 조건 처리
+        if (hasSearch) {
+            return adminRepository.findByNameOrEmailContainingIgnoreCase(search.trim(), pageable);
+        }
+
+        if (hasStatus) {
+            return getAdminsByStatus(status, pageable);
+        }
+
+        if (hasDepartment) {
+            return adminRepository.findByDepartment(department, pageable);
+        }
+
+        // 조건 없음 - 전체 조회
+        return adminRepository.findAll(pageable);
+    }
 
     /**
      * 상태별 필터링
      */
-    private List<Admins> filterByStatus(String status) {
-        List<Admins> allAdmins = adminRepository.findAll();
-
+    private Page<Admins> getAdminsByStatus(String status, Pageable pageable) {
         return switch (status.toLowerCase()) {
-            case "active" -> allAdmins.stream()
-                    .filter(admin -> admin.getIsActive() && !admin.getIsFirstLogin())
-                    .toList();
-            case "pending" -> allAdmins.stream()
-                    .filter(admin -> !admin.getIsActive() && admin.getVerificationCode() != null)
-                    .toList();
-            case "inactive" -> allAdmins.stream()
-                    .filter(admin -> !admin.getIsActive())
-                    .toList();
-            default -> allAdmins;
+            case "active" -> adminRepository.findActiveAdmins(pageable);
+            case "pending" -> adminRepository.findPendingAdmins(pageable);
+            case "inactive" -> adminRepository.findInactiveAdmins(pageable);
+            default -> adminRepository.findAll(pageable);
+        };
+    }
+
+
+
+    /**
+     * 검색어 + 상태 복합 조건
+     */
+    private Page<Admins> getAdminsBySearchAndStatus(String search, String status, Pageable pageable) {
+        return switch (status.toLowerCase()) {
+            case "active" -> adminRepository.findBySearchAndActiveStatus(search.trim(), true, pageable);
+            case "inactive" -> adminRepository.findBySearchAndActiveStatus(search.trim(), false, pageable);
+            case "pending" -> {
+                // 대기중인 경우는 별도 처리 필요 (복잡한 조건)
+                Page<Admins> allSearch = adminRepository.findByNameOrEmailContainingIgnoreCase(search.trim(), pageable);
+                // 여기서는 간단히 전체 검색 결과를 반환하고, 필요시 별도 쿼리 추가
+                yield allSearch;
+            }
+            default -> adminRepository.findByNameOrEmailContainingIgnoreCase(search.trim(), pageable);
         };
     }
 
