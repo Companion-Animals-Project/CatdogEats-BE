@@ -183,18 +183,6 @@ public class AdminManagementServiceImpl implements AdminManagementService {
                     verificationCodeExpiry = ZonedDateTime.now().plusSeconds(ttlSeconds);
                 }
             }
-
-            // 비밀번호 재설정 코드도 확인
-            if (verificationCode == null) {
-                boolean hasResetCode = redisVerificationCodeService.hasVerificationCode(admin.getEmail());
-                if (hasResetCode) {
-                    long ttlSeconds = redisVerificationCodeService.getVerificationCodeTTL(admin.getEmail());
-                    if (ttlSeconds > 0) {
-                        verificationCode = "RESET"; // 비밀번호 재설정 코드임을 표시
-                        verificationCodeExpiry = ZonedDateTime.now().plusSeconds(ttlSeconds);
-                    }
-                }
-            }
         }
 
         return AdminInfoResponseDTO.builder()
