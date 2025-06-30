@@ -9,7 +9,6 @@ import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +22,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "장바구니", description = "장바구니 관리 API")
-@SecurityRequirement(name = "Bearer Authentication")
 public class CartController {
 
     private final CartService cartService;
@@ -37,10 +35,14 @@ public class CartController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "장바구니를 찾을 수 없음")
     })
-    // 장바구니 목록 조회
     @GetMapping
     public ResponseEntity<ApiResponse<CartResponse>> getCartItems(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        // 인증 체크
+        if (userPrincipal == null) {
+            throw new SecurityException("인증이 필요합니다.");
+        }
 
         CartResponse cartResponse = cartService.getCartByUserPrincipal(userPrincipal);
 
@@ -65,6 +67,11 @@ public class CartController {
             @Valid @RequestBody AddCartItemRequest request,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
+        // 인증 체크
+        if (userPrincipal == null) {
+            throw new SecurityException("인증이 필요합니다.");
+        }
+
         CartResponse cartResponse = cartService.addItemToCart(userPrincipal, request);
 
         log.info("장바구니 상품 추가 완료 - provider: {}, providerId: {}, productId: {}, quantity: {}",
@@ -84,6 +91,11 @@ public class CartController {
             @Valid @RequestBody UpdateCartItemRequest request,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
+        // 인증 체크
+        if (userPrincipal == null) {
+            throw new SecurityException("인증이 필요합니다.");
+        }
+
         CartResponse cartResponse = cartService.updateCartItem(userPrincipal, cartItemId, request);
 
         log.info("장바구니 상품 수량 수정 완료 - provider: {}, providerId: {}, cartItemId: {}, newQuantity: {}",
@@ -102,6 +114,11 @@ public class CartController {
             @PathVariable String cartItemId,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
+        // 인증 체크
+        if (userPrincipal == null) {
+            throw new SecurityException("인증이 필요합니다.");
+        }
+
         cartService.removeCartItem(userPrincipal, cartItemId);
 
         log.info("장바구니 상품 삭제 완료 - provider: {}, providerId: {}, cartItemId: {}",
@@ -117,6 +134,11 @@ public class CartController {
     @DeleteMapping
     public ResponseEntity<ApiResponse<Void>> clearCart(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        // 인증 체크
+        if (userPrincipal == null) {
+            throw new SecurityException("인증이 필요합니다.");
+        }
 
         cartService.clearCart(userPrincipal);
 
