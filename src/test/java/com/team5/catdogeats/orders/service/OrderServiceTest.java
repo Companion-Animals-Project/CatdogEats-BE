@@ -156,7 +156,7 @@ class OrderServiceTest {
                 .orderNumber(20250625123456789L)
                 .user(user)
                 .orderStatus(OrderStatus.PAYMENT_PENDING)
-                .totalPrice(51_000L)  // 15% 할인 적용된 금액 (60,000 * 0.85)
+                .totalPrice(54_000L)  // 15% 할인 + 배송비 (60,000 * 0.85 + 3,000 = 54,000)
                 .build();
 
         // 응답 데이터
@@ -164,7 +164,7 @@ class OrderServiceTest {
                 .orderId("order123")
                 .orderNumber(20250625123456789L)
                 .orderStatus(OrderStatus.PAYMENT_PENDING)
-                .totalPrice(51_000L)
+                .totalPrice(54_000L)  // 배송비 포함
                 .build();
 
         // 주문 상세 조회용 상품
@@ -229,7 +229,7 @@ class OrderServiceTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response.getOrderId()).isEqualTo("order123");
-        assertThat(response.getTotalPrice()).isEqualTo(51_000L);  // 15% 할인 적용
+        assertThat(response.getTotalPrice()).isEqualTo(54_000L);  // 15% 할인 + 배송비
 
         // 이벤트 발행 검증 (쿠폰 할인 정보 포함)
         ArgumentCaptor<OrderCreatedEvent> eventCaptor = ArgumentCaptor.forClass(OrderCreatedEvent.class);
@@ -238,12 +238,12 @@ class OrderServiceTest {
         OrderCreatedEvent capturedEvent = eventCaptor.getValue();
         assertThat(capturedEvent.getOriginalTotalPrice()).isEqualTo(60_000L);  // 원가
         assertThat(capturedEvent.getCouponDiscountRate()).isEqualTo(15.0);    // 할인률
-        assertThat(capturedEvent.getFinalTotalPrice()).isEqualTo(51_000L);    // 최종 가격
-        assertThat(capturedEvent.getTotalPrice()).isEqualTo(51_000L);         // 하위 호환성 메서드
+        assertThat(capturedEvent.getFinalTotalPrice()).isEqualTo(54_000L);    // 배송비 포함 최종 가격
+        assertThat(capturedEvent.getTotalPrice()).isEqualTo(54_000L);         // 하위 호환성 메서드
         assertThat(capturedEvent.isCouponApplied()).isTrue();
 
-        // 할인 금액 계산 검증
-        Long expectedDiscountAmount = 60_000L - 51_000L;
+        // 할인 금액 계산 검증 (상품 할인만, 배송비 제외)
+        Long expectedDiscountAmount = (60_000L * 15) / 100;  // 9,000원 할인
         assertThat(expectedDiscountAmount).isEqualTo(9_000L);
     }
 
@@ -256,14 +256,14 @@ class OrderServiceTest {
                 .orderNumber(20250625123456790L)
                 .user(user)
                 .orderStatus(OrderStatus.PAYMENT_PENDING)
-                .totalPrice(25_000L)  // 할인 없음
+                .totalPrice(28_000L)  // 배송비 포함 (25,000 + 3,000)
                 .build();
 
         OrderCreateResponse responseWithoutDiscount = OrderCreateResponse.builder()
                 .orderId("order456")
                 .orderNumber(20250625123456790L)
                 .orderStatus(OrderStatus.PAYMENT_PENDING)
-                .totalPrice(25_000L)
+                .totalPrice(28_000L)  // 배송비 포함
                 .build();
 
         given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "google123"))
@@ -280,7 +280,7 @@ class OrderServiceTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response.getOrderId()).isEqualTo("order456");
-        assertThat(response.getTotalPrice()).isEqualTo(25_000L);  // 할인 없음
+        assertThat(response.getTotalPrice()).isEqualTo(28_000L);  // 배송비 포함
 
         // 이벤트 발행 검증 (할인 없음)
         ArgumentCaptor<OrderCreatedEvent> eventCaptor = ArgumentCaptor.forClass(OrderCreatedEvent.class);
@@ -289,8 +289,8 @@ class OrderServiceTest {
         OrderCreatedEvent capturedEvent = eventCaptor.getValue();
         assertThat(capturedEvent.getOriginalTotalPrice()).isEqualTo(25_000L);  // 원가
         assertThat(capturedEvent.getCouponDiscountRate()).isNull();            // 할인률 없음
-        assertThat(capturedEvent.getFinalTotalPrice()).isEqualTo(25_000L);     // 최종 가격
-        assertThat(capturedEvent.getTotalPrice()).isEqualTo(25_000L);          // 하위 호환성 메서드
+        assertThat(capturedEvent.getFinalTotalPrice()).isEqualTo(28_000L);     // 배송비 포함 최종 가격
+        assertThat(capturedEvent.getTotalPrice()).isEqualTo(28_000L);          // 하위 호환성 메서드
         assertThat(capturedEvent.isCouponApplied()).isFalse();
     }
 
@@ -309,7 +309,7 @@ class OrderServiceTest {
                 .orderNumber(20250625123456791L)
                 .user(user)
                 .orderStatus(OrderStatus.PAYMENT_PENDING)
-                .totalPrice(1L)  // 최소 결제 금액 1원
+                .totalPrice(1L)  // 최소 결제 금액 1원 (100% 할인 + 최소 결제 보장)
                 .build();
 
         // 이 테스트 케이스에 맞는 mockResponse를 생성합니다.
