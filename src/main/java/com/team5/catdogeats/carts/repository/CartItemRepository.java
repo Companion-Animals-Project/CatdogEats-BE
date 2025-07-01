@@ -22,6 +22,7 @@ public interface CartItemRepository extends JpaRepository<CartItems, String> {
 
     long countByCartsId(String cartId);
 
+    // 장바구니 제품추천
     @Query("SELECT ci FROM CartItems ci " +
             "JOIN ci.carts c " +
             "WHERE ci.id = :cartItemId AND c.user.id = :userId")
@@ -35,4 +36,8 @@ public interface CartItemRepository extends JpaRepository<CartItems, String> {
             "JOIN ci.carts c " +
             "WHERE c.user.id = :userId")
     List<CartItems> findCartItemsWithProductByUserId(@Param("userId") String userId);
+
+    // 결제시 장바구니 제품 삭제
+    // 장바구니에서 상품 조회결제 완료 시 해당 상품 장바구니에서 삭제
+    List<CartItems> findByCartsIdAndProductIdIn(String cartId, List<String> productIds);
 }

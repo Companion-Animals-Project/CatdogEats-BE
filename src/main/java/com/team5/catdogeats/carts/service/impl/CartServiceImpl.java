@@ -216,4 +216,54 @@ public class CartServiceImpl implements CartService {
     private CartItemResponse convertToCartItemResponse(CartItems cartItem) {
         return CartItemResponse.from(cartItem);
     }
+
+    // 결제 완료 후 구매상품 장바구니에서 삭제 - 이벤트 기반 비동기 처리, 결제 영향x
+    @Override
+    @JpaTransactional
+    public void clearPurchasedItemsFromCart(String userId, List<String> purchasedProductIds) {
+        log.info("결제 완료 후 구매 상품들만 장바구니에서 삭제 시작 - userId: {}, 구매 상품 수: {}",
+                userId, purchasedProductIds != null ? purchasedProductIds.size() : 0);
+
+        // 입력값 검증
+        if (purchasedProductIds == null || purchasedProductIds.isEmpty()) {
+            log.warn("구매 상품 목록이 비어있음 - userId: {}", userId);
+            return;
+        }
+
+        try {
+            // 장바구니 조회 후 상품들 삭제
+            Carts cart = cartRepository.findByUserId(userId).orElse(null);
+            if (cart == null) {
+                log.info("장바구니가 존재하지 않음 - userId: {}", userId);
+                return;
+            }
+
+            // 구매한 상품들만 장바구니에서 조회
+            List<CartItems> itemsToDelete = cartItemRepository
+                    .findByCartsIdAndProductIdIn(cart.getId(), purchasedProductIds);
+
+            if (itemsToDelete.isEmpty()) {
+                log.info("삭제할 장바구니 상품이 없음 - userId: {}, cartId: {}", userId, cart.getId());
+                return;
+            }
+
+            // 삭제 전 로깅 (디버깅 및 모니터링용)
+            List<String> deletedProductNames = itemsToDelete.stream()
+                    .map(item -> item.getProduct().getTitle())
+                    .collect(Collectors.toList());
+
+            // 구매한 상품 삭제
+            cartItemRepository.deleteAll(itemsToDelete);
+
+            log.info("구매 상품들 장바구니에서 삭제 완료 - userId: {}, 삭제된 상품 수: {}, 상품들: {}",
+                    userId, itemsToDelete.size(), deletedProductNames);
+
+        } catch (Exception e) {
+            log.error("구매 상품 장바구니 정리 실패 - userId: {}, purchasedProductIds: {}",
+                    userId, purchasedProductIds, e);
+
+            // 예외를 다시 던져서 이벤트 리스너에서 실패 처리
+            throw new RuntimeException("장바구니 정리 실패: " + e.getMessage(), e);
+        }
+    }
 }

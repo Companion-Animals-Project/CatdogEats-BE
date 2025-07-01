@@ -3,6 +3,7 @@ package com.team5.catdogeats.payments.service.impl;
 import com.team5.catdogeats.global.config.JpaTransactional;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
+import com.team5.catdogeats.orders.repository.OrderItemRepository;
 import com.team5.catdogeats.orders.repository.OrderRepository;
 import com.team5.catdogeats.payments.client.TossPaymentsClient;
 import com.team5.catdogeats.payments.domain.Payments;
@@ -10,16 +11,20 @@ import com.team5.catdogeats.payments.domain.enums.PaymentStatus;
 import com.team5.catdogeats.payments.dto.request.TossPaymentConfirmRequest;
 import com.team5.catdogeats.payments.dto.response.PaymentConfirmResponse;
 import com.team5.catdogeats.payments.dto.response.TossPaymentConfirmResponse;
+import com.team5.catdogeats.payments.event.PaymentCompletedEvent;
 import com.team5.catdogeats.payments.repository.PaymentRepository;
 import com.team5.catdogeats.payments.service.PaymentService;
 import com.team5.catdogeats.products.service.ProductStockManager;
 import com.team5.catdogeats.products.service.StockReservationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 
 // 결제 처리 서비스 구현체 (타입 수정됨)
 // Orders 엔티티의 ID 타입이 String으로 변경됨에 따라 관련 메서드들을 수정하였습니다.
@@ -35,6 +40,10 @@ public class PaymentServiceImpl implements PaymentService {
     private final StockReservationService stockReservationService;
     private final ProductStockManager productStockManager;
     private final TossPaymentsClient tossPaymentsClient;
+
+    // 장바구니에서 구매제품 삭제
+    private final ApplicationEventPublisher eventPublisher;
+    private final OrderItemRepository orderItemRepository;
 
     @Override
     @JpaTransactional
@@ -58,6 +67,34 @@ public class PaymentServiceImpl implements PaymentService {
 
         stockReservationService.confirmReservations(orderId);
         productStockManager.decrementStockForConfirmedReservations(orderId); // 수정
+
+        // 결제 완료 이벤트 발행 (구매 상품 정보 포함)
+        try {
+            // 구매한 상품 ID 목록 조회
+            List<String> purchasedProductIds = orderItemRepository.findByOrdersId(orderId)
+                    .stream()
+                    .map(orderItem -> orderItem.getProducts().getId())
+                    .collect(Collectors.toList());
+
+            // 이벤트 생성 및 발행
+            PaymentCompletedEvent event = PaymentCompletedEvent.builder()
+                    .paymentId(payment.getId())
+                    .orderId(order.getId())
+                    .userId(order.getUser().getId())
+                    .purchasedProductIds(purchasedProductIds)
+                    .totalAmount(payment.getAmount())
+                    .completedAt(payment.getPaidAt())
+                    .build();
+
+            eventPublisher.publishEvent(event);
+            log.info("결제 완료 이벤트 발행 완료 (구매 상품 {}개): {}",
+                    purchasedProductIds.size(), event);
+
+        } catch (Exception e) {
+            // 이벤트 발행 실패가 결제에 영향을 주지 않도록 예외 처리
+            log.error("결제 완료 이벤트 발행 실패 - paymentId: {}, orderId: {}, error: {}",
+                    payment.getId(), order.getId(), e.getMessage(), e);
+        }
 
         log.info("결제 승인 완료: orderId={}, paymentId={}, tossPaymentKey={}",
                 orderId, payment.getId(), tossResponse.getPaymentKey());
