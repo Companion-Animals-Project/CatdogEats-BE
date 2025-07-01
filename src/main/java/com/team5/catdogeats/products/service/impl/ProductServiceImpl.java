@@ -1,5 +1,7 @@
 package com.team5.catdogeats.products.service.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.config.JpaTransactional;
 import com.team5.catdogeats.pets.domain.enums.PetCategory;
@@ -103,15 +105,46 @@ public class ProductServiceImpl implements ProductService {
         String productCategoryStr = productCategory != null ? productCategory.name() : null;
 
         return switch (sortBy) {
-            case PRICE -> productRepository.findAllByOrderByPriceDesc(petCategoryStr, productCategoryStr, pageable);
+            case PRICE ->
+                    productRepository.findAllByOrderByPriceDesc(petCategoryStr, productCategoryStr, pageable);
             case AVERAGE_STAR ->
                     productRepository.findAllByOrderByAverageStarDesc(petCategoryStr, productCategoryStr, pageable);
-            default -> productRepository.findAllByOrderByCreatedAtDesc(petCategoryStr, productCategoryStr, pageable);
+            default ->
+                    productRepository.findAllByOrderByCreatedAtDesc(petCategoryStr, productCategoryStr, pageable);
         };
     }
 
+    // 상품 상세 조회 서비스 로직
+    @Override
+    public ProductDetailResponseDto getProductDetail(Long productNumber) {
 
-    // 상품 상세 조회 서비스 로직 구현하기
+        ProductDetailProjection projection = productRepository.findProductDetailByProductNumber(productNumber);
+        if (projection == null) throw new NoSuchElementException("해당 상품 정보를 찾을 수 없습니다.");
+
+        List<String> images = new ArrayList<>();
+        String imagesJson = projection.getImages();
+        if (imagesJson != null && !imagesJson.isBlank()) {
+            try {
+                images = new ObjectMapper().readValue(imagesJson, new TypeReference<List<String>>() {});
+            } catch (Exception e) {
+                // 파싱 실패시 빈 리스트로 둠
+            }
+        }
+
+        return new ProductDetailResponseDto(
+                projection.getTitle(),
+                projection.getSubTitle(),
+                projection.getProductInfo(),
+                projection.getContents(),
+                projection.getIsDiscounted() != null && projection.getIsDiscounted(),
+                projection.getDiscountRate(),
+                projection.getPrice(),
+                images,
+                projection.getVendorName(),
+                projection.getAverageStar(),
+                projection.getReviewCount() != null ? projection.getReviewCount() : 0
+        );
+    }
 
 
     /**
