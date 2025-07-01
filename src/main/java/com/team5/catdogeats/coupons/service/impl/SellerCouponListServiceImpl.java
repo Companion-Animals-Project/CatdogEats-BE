@@ -30,6 +30,7 @@ public class SellerCouponListServiceImpl implements SellerCouponListService {
     }
 
     @Override
+    @MybatisTransactional(readOnly = true)
     public List<SellerCouponListResponseDTO> getSellerCouponsWithVendorName(String vendorName, int page, int size) {
         int offset = page * size;
         return couponMapper.findCouponsByVendorName(

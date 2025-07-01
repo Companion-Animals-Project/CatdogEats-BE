@@ -5,6 +5,7 @@ import com.team5.catdogeats.coupons.domain.dto.SellerCouponListResponseDTO;
 import com.team5.catdogeats.coupons.domain.dto.SellerCreateCouponRequestDTO;
 import com.team5.catdogeats.coupons.domain.dto.SellerDeleteCouponRequestDTO;
 import com.team5.catdogeats.coupons.domain.dto.SellerModifyCouponRequestDTO;
+import com.team5.catdogeats.coupons.exception.DuplicateCouponException;
 import com.team5.catdogeats.coupons.service.SellerCouponListService;
 import com.team5.catdogeats.coupons.service.SellerCouponService;
 import com.team5.catdogeats.coupons.service.SellerUpdateCouponService;
@@ -76,7 +77,7 @@ public class SellerCouponController {
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
 
-        } catch (IllegalStateException e) {
+        } catch (DuplicateCouponException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ResponseCode.DUPLICATE_COUPON_CODE));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));

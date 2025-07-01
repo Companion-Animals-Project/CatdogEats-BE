@@ -5,15 +5,16 @@ import com.team5.catdogeats.coupons.domain.Coupons;
 import com.team5.catdogeats.coupons.domain.dto.SellerCreateCouponRequestDTO;
 import com.team5.catdogeats.coupons.domain.enums.DiscountType;
 import com.team5.catdogeats.coupons.domain.mapping.SellerCoupons;
+import com.team5.catdogeats.coupons.exception.DuplicateCouponException;
 import com.team5.catdogeats.coupons.repository.CouponRepository;
 import com.team5.catdogeats.coupons.repository.SellerCouponRepository;
 import com.team5.catdogeats.coupons.service.SellerCouponService;
+import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.users.domain.dto.SellerDTO;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
 import com.team5.catdogeats.users.repository.SellersRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.util.NoSuchElementException;
@@ -27,24 +28,34 @@ public class SellerCouponServiceImpl implements SellerCouponService {
     private final SellersRepository sellersRepository;
 
     @Override
+    @JpaTransactional
     public void createCoupon(UserPrincipal userPrincipal, SellerCreateCouponRequestDTO dto) {
         try {
             validate(dto);
+            SellerDTO sellerDTO = sellersRepository.findSellerDtoByProviderAndProviderId(
+                    userPrincipal.provider(), userPrincipal.providerId())
+                    .orElseThrow(() -> new NoSuchElementException("판매자 없음"));
 
-            SellerDTO sellerDTO = sellersRepository.findSellerDtoByProviderAndProviderId(userPrincipal.provider(), userPrincipal.providerId())
-                    .orElseThrow(() -> new NoSuchElementException("Seller not found"));
             Sellers seller = SellerDTO.toEntity(sellerDTO);
+
+            sellerCouponRepository.findByCodeAndSellers(dto.code(), seller)
+                    .ifPresent(c -> {
+                        throw new DuplicateCouponException("이미 등록된 쿠폰입니다.");
+                    });
+
             Coupons coupon = couponRepository.save(SellerCreateCouponRequestDTO.buildDTO(dto));
+
             SellerCoupons sellerCoupon = SellerCoupons.builder()
-                    .sellers(seller)
                     .coupons(coupon)
+                    .sellers(seller)
                     .build();
+
             sellerCouponRepository.save(sellerCoupon);
-        } catch (DataIntegrityViolationException e) {
-            throw new IllegalStateException("Coupon already exists" + dto.code());
-        } catch (Exception e) {
-            log.error("Error creating coupon: {}", e.getMessage());
-            throw new RuntimeException("Error creating coupon: " + e.getMessage());
+        } catch (NoSuchElementException e) {
+            log.warn("Seller not found: {}", userPrincipal.providerId());
+            throw e;
+        } catch (DuplicateCouponException e) {
+            throw e;
         }
     }
 

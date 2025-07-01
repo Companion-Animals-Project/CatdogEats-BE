@@ -4,6 +4,7 @@ import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.coupons.domain.dto.BuyerCouponListResponseDTO;
 import com.team5.catdogeats.coupons.domain.dto.BuyerCreateCouponRequestDTO;
 import com.team5.catdogeats.coupons.domain.enums.CouponFilterType;
+import com.team5.catdogeats.coupons.exception.DuplicateCouponException;
 import com.team5.catdogeats.coupons.service.BuyerCouponService;
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
@@ -51,7 +52,7 @@ public class BuyerCouponController {
             return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS));
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE));
-        } catch (IllegalStateException e) {
+        } catch (DuplicateCouponException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ResponseCode.DUPLICATE_COUPON_CODE));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));

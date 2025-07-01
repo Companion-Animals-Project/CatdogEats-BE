@@ -41,6 +41,8 @@ public class SellerUpdateCouponServiceImpl implements SellerUpdateCouponService 
                                         dto.startDate(),
                                         dto.endDate(),
                                         dto.usageLimit());
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error updating coupon: {}", e.getMessage());
             throw new RuntimeException("Error updating coupon: " + e.getMessage());
@@ -64,15 +66,27 @@ public class SellerUpdateCouponServiceImpl implements SellerUpdateCouponService 
 
 
     private void validate(Coupons coupons, SellerModifyCouponRequestDTO dto) {
-        if (coupons.getDiscountType() == DiscountType.PERCENT) {
-            if (dto.discountValue() < 0 || dto.discountValue() > 100) {
-                throw new IllegalArgumentException("Discount value must be between 0 and 100");
+        DiscountType typeToValidate = dto.discountType() != null
+                ? dto.discountType()
+                : coupons.getDiscountType();  // PATCH 요청 시 유지되는 기존 타입
+
+        Integer valueToValidate = dto.discountValue();
+
+        if (valueToValidate != null) {
+            if (typeToValidate == DiscountType.PERCENT) {
+                if (valueToValidate < 0 || valueToValidate > 100) {
+                    throw new IllegalArgumentException("Discount value must be between 0 and 100");
+                }
+            } else if (typeToValidate == DiscountType.AMOUNT) {
+                if (valueToValidate <= 0) {
+                    throw new IllegalArgumentException("Discount value must be greater than 0");
+                }
             }
         }
 
-        if (coupons.getDiscountType() == DiscountType.AMOUNT) {
-            if (dto.discountValue() <= 0) {
-                throw new IllegalArgumentException("Discount value must be greater than 0");
+        if (dto.startDate() != null && dto.endDate() != null) {
+            if (dto.startDate().isAfter(dto.endDate())) {
+                throw new IllegalArgumentException("Start date must be before end date");
             }
         }
     }
