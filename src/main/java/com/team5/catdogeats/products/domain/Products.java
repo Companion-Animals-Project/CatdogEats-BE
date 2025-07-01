@@ -33,6 +33,12 @@ public class Products extends BaseEntity {
     @Column(length = 50, nullable = false)
     private String title;
 
+    @Column(nullable = false)
+    private String subTitle;
+
+    @Column(columnDefinition = "TEXT", nullable = false)
+    private String productInfo;
+
     @Column(columnDefinition = "TEXT", nullable = false)
     private String contents;
 
@@ -76,6 +82,8 @@ public class Products extends BaseEntity {
                 .productNumber(productNumber)
                 .seller(seller)
                 .title(dto.title())
+                .subTitle(dto.subTitle())
+                .productInfo(dto.productInfo())
                 .contents(dto.contents())
                 .petCategory(dto.petCategory())
                 .productCategory(dto.productCategory())
@@ -90,6 +98,8 @@ public class Products extends BaseEntity {
 
     public void updateFromDto(ProductUpdateRequestDto dto) {
         if (dto.title() != null) this.title = dto.title();
+        if (dto.subTitle() != null) this.subTitle = dto.subTitle();
+        if (dto.productInfo() != null) this.productInfo = dto.productInfo();
         if (dto.contents() != null) this.contents = dto.contents();
         if (dto.petCategory() != null) this.petCategory = dto.petCategory();
         if (dto.productCategory() != null) this.productCategory = dto.productCategory();
