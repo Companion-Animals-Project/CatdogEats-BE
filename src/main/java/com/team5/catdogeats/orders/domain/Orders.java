@@ -7,7 +7,7 @@ import com.team5.catdogeats.users.domain.Users;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 @Entity
@@ -94,7 +94,7 @@ public class Orders extends BaseEntity {
      * 숨김 처리된 정확한 시점을 기록 (추후 복원 등에 활용 가능)
      */
     @Column(name = "hidden_at")
-    private LocalDateTime hiddenAt;
+    private ZonedDateTime hiddenAt;
 
     // 주문 상품 목록
     @OneToMany(mappedBy = "orders", fetch = FetchType.LAZY)
@@ -142,7 +142,7 @@ public class Orders extends BaseEntity {
      */
     public void hideOrder() {
         this.isHidden = Boolean.TRUE;
-        this.hiddenAt = LocalDateTime.now();
+        this.hiddenAt = ZonedDateTime.now();
     }
 
     /**
