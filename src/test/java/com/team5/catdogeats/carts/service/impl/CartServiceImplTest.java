@@ -25,15 +25,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.Mockito.*;
@@ -257,7 +253,7 @@ class CartServiceImplTest {
                 .willReturn(Optional.of(testUser));
         given(cartRepository.findByUserId("test-user-id"))
                 .willReturn(Optional.of(testCart));
-        given(cartItemRepository.findById("test-cart-item-id"))
+        given(cartItemRepository.findByIdAndUserId("test-cart-item-id", "test-user-id"))
                 .willReturn(Optional.of(testCartItem));
         given(cartItemRepository.save(testCartItem))
                 .willReturn(testCartItem);
@@ -280,38 +276,17 @@ class CartServiceImplTest {
         UpdateCartItemRequest request = new UpdateCartItemRequest();
         request.setQuantity(5);
 
-        Users otherUser = Users.builder()
-                .id("other-user-id")
-                .provider("google")
-                .providerId("other-provider-id")
-                .userNameAttribute("sub")
-                .name("다른 사용자")
-                .role(Role.ROLE_BUYER)
-                .build();
-
-        Carts otherCart = Carts.builder()
-                .id("other-cart-id")
-                .user(otherUser)
-                .build();
-
-        CartItems otherCartItem = CartItems.builder()
-                .id("other-cart-item-id")
-                .carts(otherCart)
-                .product(testProduct)
-                .quantity(1)
-                .build();
-
         given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
                 .willReturn(Optional.of(testUser));
-        given(cartRepository.findByUserId("test-user-id"))
-                .willReturn(Optional.of(testCart));
-        given(cartItemRepository.findById("other-cart-item-id"))
-                .willReturn(Optional.of(otherCartItem));
+//        given(cartRepository.findByUserId("test-user-id"))
+//                .willReturn(Optional.of(testCart));
+        given(cartItemRepository.findByIdAndUserId("other-cart-item-id", "test-user-id"))
+                .willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> cartService.updateCartItem(userPrincipal, "other-cart-item-id", request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("해당 장바구니 아이템에 접근 권한이 없습니다.");
+                .isInstanceOf(SecurityException.class)
+                .hasMessage("해당 장바구니 아이템에 접근 권한이 없거나 존재하지 않습니다.");
 
         verify(cartItemRepository, never()).save(any());
     }
@@ -324,7 +299,7 @@ class CartServiceImplTest {
                 .willReturn(Optional.of(testUser));
         given(cartRepository.findByUserId("test-user-id"))
                 .willReturn(Optional.of(testCart));
-        given(cartItemRepository.findById("test-cart-item-id"))
+        given(cartItemRepository.findByIdAndUserId("test-cart-item-id", "test-user-id"))
                 .willReturn(Optional.of(testCartItem));
         willDoNothing().given(cartItemRepository).delete(testCartItem);
         given(cartItemRepository.findByCartsIdWithProduct("test-cart-id"))
@@ -368,15 +343,15 @@ class CartServiceImplTest {
 
         given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
                 .willReturn(Optional.of(testUser));
-        given(cartRepository.findByUserId("test-user-id"))
-                .willReturn(Optional.of(testCart));
-        given(cartItemRepository.findById("other-cart-item-id"))
-                .willReturn(Optional.of(otherCartItem));
+//        given(cartRepository.findByUserId("test-user-id"))
+//                .willReturn(Optional.of(testCart));
+        given(cartItemRepository.findByIdAndUserId("other-cart-item-id", "test-user-id"))
+                .willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> cartService.removeCartItem(userPrincipal, "other-cart-item-id"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("해당 장바구니 아이템에 접근 권한이 없습니다.");
+                .isInstanceOf(SecurityException.class)
+                .hasMessage("해당 장바구니 아이템에 접근 권한이 없거나 존재하지 않습니다.");
 
         verify(cartItemRepository, never()).delete(any());
     }
@@ -430,7 +405,7 @@ class CartServiceImplTest {
 
         // when & then
         assertThatThrownBy(() -> cartService.getCartByUserPrincipal(userPrincipal))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(NoSuchElementException.class)
                 .hasMessageContaining("사용자를 찾을 수 없습니다");
     }
 
@@ -451,7 +426,7 @@ class CartServiceImplTest {
 
         // when & then
         assertThatThrownBy(() -> cartService.addItemToCart(userPrincipal, request))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(NoSuchElementException.class)
                 .hasMessageContaining("상품을 찾을 수 없습니다");
     }
 
@@ -464,15 +439,15 @@ class CartServiceImplTest {
 
         given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
                 .willReturn(Optional.of(testUser));
-        given(cartRepository.findByUserId("test-user-id"))
-                .willReturn(Optional.of(testCart));
-        given(cartItemRepository.findById("nonexistent-item-id"))
+//        given(cartRepository.findByUserId("test-user-id"))
+//                .willReturn(Optional.of(testCart));
+        given(cartItemRepository.findByIdAndUserId("nonexistent-item-id", "test-user-id"))
                 .willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> cartService.updateCartItem(userPrincipal, "nonexistent-item-id", request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("장바구니 아이템을 찾을 수 없습니다");
+                .isInstanceOf(SecurityException.class)
+                .hasMessage("해당 장바구니 아이템에 접근 권한이 없거나 존재하지 않습니다.");
     }
 
     @Test
@@ -481,15 +456,15 @@ class CartServiceImplTest {
         // given
         given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
                 .willReturn(Optional.of(testUser));
-        given(cartRepository.findByUserId("test-user-id"))
-                .willReturn(Optional.of(testCart));
-        given(cartItemRepository.findById("nonexistent-item-id"))
+//        given(cartRepository.findByUserId("test-user-id"))
+//                .willReturn(Optional.of(testCart));
+        given(cartItemRepository.findByIdAndUserId("nonexistent-item-id", "test-user-id"))
                 .willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> cartService.removeCartItem(userPrincipal, "nonexistent-item-id"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("장바구니 아이템을 찾을 수 없습니다");
+                .isInstanceOf(SecurityException.class)
+                .hasMessage("해당 장바구니 아이템에 접근 권한이 없거나 존재하지 않습니다.");
     }
 
     @Test
