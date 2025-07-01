@@ -1,7 +1,7 @@
 package com.team5.catdogeats.storage.service.impl;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.global.config.JpaTransactional;
+import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.reviews.domain.Reviews;
 import com.team5.catdogeats.reviews.repository.ReviewRepository;
 import com.team5.catdogeats.storage.domain.Images;
@@ -19,7 +19,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
