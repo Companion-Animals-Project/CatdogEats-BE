@@ -10,6 +10,8 @@ import com.team5.catdogeats.orders.dto.request.OrderCreateRequest;
 import com.team5.catdogeats.orders.dto.response.OrderCreateResponse;
 import com.team5.catdogeats.orders.dto.response.OrderDeleteResponse;
 import com.team5.catdogeats.orders.dto.response.OrderDetailResponse;
+import com.team5.catdogeats.orders.domain.Shipments;
+import com.team5.catdogeats.orders.repository.ShipmentRepository;
 import com.team5.catdogeats.orders.event.OrderCreatedEvent;
 import com.team5.catdogeats.orders.repository.OrderRepository;
 import com.team5.catdogeats.orders.service.OrderService;
@@ -33,17 +35,14 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 주문 관리 서비스 구현체 (EDA + 쿠폰 할인 방식 + 배송비 포함)
- * 이벤트 기반 아키텍처 적용으로 관심사를 분리했습니다:
+ * 주문 관리 서비스 구현체 (리팩터링 버전: Orders-Shipments 책임 분리)
+ * 주요 변경사항:
+ * - Orders 엔티티는 주문 자체(주문자, 주문 상품, 주문 상태, 결제 금액)만 관리
+ * - Shipments 엔티티가 배송지 정보와 배송 추적 정보를 모두 관리
+ * - 주문 생성 시 Orders와 Shipments를 별도로 생성하여 단일 책임 원칙 준수
+ * 이벤트 기반 아키텍처 적용으로 관심사를 분리:
  * - OrderService: 주문 엔티티 저장과 이벤트 발행만 담당
  * - EventListeners: 재고 차감, 결제 정보 생성, 알림 등 부가 로직 처리
- * 쿠폰 할인 방식 개선사항:
- * 1. 상품별 할인 제거 → 전체 주문 금액에 쿠폰 할인률 적용
- * 2. 단순화된 가격 계산 로직
- * 3. 할인 정보의 명확한 분리 (원가 vs 최종 가격)
- * 배송비 및 배송지 정보 개선사항:
- * 4. 배송비 포함된 최종 결제 금액 계산
- * 5. 주문 시 배송지 정보 DB 저장
  */
 @Slf4j
 @Service
@@ -56,6 +55,7 @@ public class OrderServiceImpl implements OrderService {
     private final ProductRepository productRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final TossPaymentResponseBuilder tossPaymentResponseBuilder;
+    private final ShipmentRepository shipmentRepository;
 
     /**
      * UserPrincipal을 사용한 주문 생성 (EDA + 쿠폰 할인 + 배송비 포함 방식)
@@ -94,12 +94,15 @@ public class OrderServiceImpl implements OrderService {
         Long finalPaymentAmount = calculateFinalPaymentAmount(discountedPrice, originalTotalPrice);
 
         // 6. 주문 엔티티 생성 및 저장 (배송비 포함 금액 + 배송지 정보)
-        Orders savedOrder = createAndSaveOrderWithShipping(user, finalPaymentAmount, request.getShippingAddress());
+        Orders savedOrder = createAndSaveOrder(user, finalPaymentAmount);
 
-        // 7. 토스 페이먼츠 응답 생성
+        // 8. Shipments 엔티티 생성 및 저장 (배송지 정보)
+        Shipments savedShipment = createAndSaveShipment(savedOrder, request.getShippingAddress());
+
+        // 9. 토스 페이먼츠 응답 생성
         OrderCreateResponse response = buildTossPaymentResponse(savedOrder, request.getPaymentInfo());
 
-        // 8. OrderCreatedEvent 발행 (할인 정보 포함)
+        // 10. OrderCreatedEvent 발행 (할인 정보 포함)
         publishOrderCreatedEvent(savedOrder, user, userPrincipal, detailedOrderItems,
                 originalTotalPrice, couponDiscountRate, finalPaymentAmount);
 
@@ -143,7 +146,11 @@ public class OrderServiceImpl implements OrderService {
                     return new NoSuchElementException("주문을 찾을 수 없습니다.");
                 });
 
-        // 3. 주문 상품 정보 변환
+        // 3. 배송 정보 조회
+        Shipments shipment = shipmentRepository.findByOrders(order).orElse(null);
+
+
+        // 4. 주문 상품 정보 변환
         List<OrderDetailResponse.OrderItemDetail> orderItemDetails = order.getOrderItems().stream()
                 .map(orderItem -> new OrderDetailResponse.OrderItemDetail(
                         orderItem.getId(),
@@ -154,23 +161,23 @@ public class OrderServiceImpl implements OrderService {
                         orderItem.getPrice() * orderItem.getQuantity()
                 )).toList();
 
-        // 4. 총 상품 가격 계산
+        // 5. 총 상품 가격 계산
         Long totalProductPrice = orderItemDetails.stream()
                 .mapToLong(OrderDetailResponse.OrderItemDetail::totalPrice)
                 .sum();
 
-        // 5. 할인 금액 및 배송비 계산
+        // 6. 할인 금액 및 배송비 계산
         Long discountAmount = calculateDiscountAmount(order, totalProductPrice);
         Long deliveryFee = calculateDeliveryFee(totalProductPrice); // order 매개변수 제거
 
-        // 6. 받는 사람 정보 생성
-        OrderDetailResponse.RecipientInfo recipientInfo = createRecipientInfoFromOrder(order);
+        // 7. 받는 사람 정보 생성
+        OrderDetailResponse.RecipientInfo recipientInfo = createRecipientInfoFromShipment(shipment);
 
-        // 7. 결제 정보 생성
+        // 8. 결제 정보 생성
         OrderDetailResponse.PaymentInfo paymentInfo = OrderDetailResponse.PaymentInfo.of(
                 totalProductPrice, discountAmount, deliveryFee);
 
-        // 8. 응답 DTO 생성
+        // 9. 응답 DTO 생성
         OrderDetailResponse response = new OrderDetailResponse(
                 order.getId(),
                 order.getOrderNumber(),
@@ -206,24 +213,36 @@ public class OrderServiceImpl implements OrderService {
         return finalPaymentAmount;
     }
 
+    // 기존 createAndSaveOrderWithShipping 메서드를 다음 두 메서드로 분리:
+
     /**
-     * 주문 엔티티 생성 및 저장 (배송지 정보 포함)
-     * @param user 사용자 정보
-     * @param finalPaymentAmount 배송비 포함된 최종 결제 금액
-     * @param shippingAddress 배송지 정보
-     * @return 저장된 주문 엔티티
+     * Orders 엔티티 생성 및 저장 (주문 정보만)
      */
-    private Orders createAndSaveOrderWithShipping(Users user, Long finalPaymentAmount,
-                                                  OrderCreateRequest.ShippingAddressRequest shippingAddress) {
+    private Orders createAndSaveOrder(Users user, Long finalPaymentAmount) {
         Orders order = Orders.builder()
                 .user(user)
                 .orderNumber(generateOrderNumber())
                 .orderStatus(OrderStatus.PAYMENT_PENDING)
-                .totalPrice(finalPaymentAmount)  //배송비 포함된 최종 금액
+                .totalPrice(finalPaymentAmount)
+                .build();
+
+        Orders savedOrder = orderRepository.save(order);
+        log.debug("주문 엔티티 저장 완료: orderId={}, orderNumber={}, 최종결제금액={}원",
+                savedOrder.getId(), savedOrder.getOrderNumber(), finalPaymentAmount);
+
+        return savedOrder;
+    }
+
+    /**
+     * Shipments 엔티티 생성 및 저장 (배송지 정보)
+     */
+    private Shipments createAndSaveShipment(Orders order, OrderCreateRequest.ShippingAddressRequest shippingAddress) {
+        Shipments shipment = Shipments.builder()
+                .orders(order)
                 .build();
 
         // 배송지 정보 설정
-        order.setShippingInfo(
+        shipment.setShippingInfo(
                 shippingAddress.getRecipientName(),
                 shippingAddress.getRecipientPhone(),
                 shippingAddress.getPostalCode(),
@@ -232,30 +251,32 @@ public class OrderServiceImpl implements OrderService {
                 shippingAddress.getDeliveryNote()
         );
 
-        Orders savedOrder = orderRepository.save(order);
-        log.debug("주문 엔티티 저장 완료: orderId={}, orderNumber={}, 최종결제금액={}원 (배송비포함), 수령인={}",
-                savedOrder.getId(), savedOrder.getOrderNumber(), finalPaymentAmount, shippingAddress.getRecipientName());
+        Shipments savedShipment = shipmentRepository.save(shipment);
+        log.debug("배송 엔티티 저장 완료: shipmentId={}, orderId={}, 수령인={}",
+                savedShipment.getId(), order.getId(), shippingAddress.getRecipientName());
 
-        return savedOrder;
+        return savedShipment;
     }
 
+    // 기존 createRecipientInfoFromOrder 메서드를 다음으로 교체:
+
     /**
-     * 저장된 주문 정보에서 받는 사람 정보 생성
-     * @param order 주문 엔티티 (배송지 정보 포함)
+     * Shipments에서 받는 사람 정보 생성
+     * @param shipment 배송 엔티티 (배송지 정보 포함)
      * @return 받는 사람 정보 DTO
      */
-    private OrderDetailResponse.RecipientInfo createRecipientInfoFromOrder(Orders order) {
-        // 주문에 저장된 배송지 정보가 있는 경우
-        if (order.getRecipientName() != null && !order.getRecipientName().trim().isEmpty()) {
+    private OrderDetailResponse.RecipientInfo createRecipientInfoFromShipment(Shipments shipment) {
+        // 배송 정보가 있는 경우
+        if (shipment != null && shipment.getRecipientName() != null && !shipment.getRecipientName().trim().isEmpty()) {
             return new OrderDetailResponse.RecipientInfo(
-                    order.getRecipientName(),
-                    order.getRecipientPhone(),
-                    order.getFullShippingAddress(), // Orders 엔티티의 편의 메서드 사용
-                    order.getDeliveryNote() != null ? order.getDeliveryNote() : "배송 요청사항 없음"
+                    shipment.getRecipientName(),
+                    shipment.getRecipientPhone(),
+                    shipment.getFullShippingAddress(),
+                    shipment.getDeliveryNote() != null ? shipment.getDeliveryNote() : "배송 요청사항 없음"
             );
         }
 
-        // 주문에 배송지 정보가 없는 경우 기본값 (기존 로직과 동일)
+        // 배송 정보가 없는 경우 기본값
         return new OrderDetailResponse.RecipientInfo(
                 "수령인 미등록",
                 "연락처 미등록",
