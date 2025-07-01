@@ -8,7 +8,6 @@ import com.team5.catdogeats.coupons.domain.mapping.SellerCoupons;
 import com.team5.catdogeats.coupons.repository.CouponRepository;
 import com.team5.catdogeats.coupons.repository.SellerCouponRepository;
 import com.team5.catdogeats.coupons.service.SellerCouponService;
-import com.team5.catdogeats.global.config.JpaTransactional;
 import com.team5.catdogeats.users.domain.dto.SellerDTO;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
 import com.team5.catdogeats.users.repository.SellersRepository;
@@ -28,7 +27,6 @@ public class SellerCouponServiceImpl implements SellerCouponService {
     private final SellersRepository sellersRepository;
 
     @Override
-    @JpaTransactional // 2개 테이블 동시 데이터 생성이라 필요
     public void createCoupon(UserPrincipal userPrincipal, SellerCreateCouponRequestDTO dto) {
         try {
             validate(dto);
@@ -43,7 +41,7 @@ public class SellerCouponServiceImpl implements SellerCouponService {
                     .build();
             sellerCouponRepository.save(sellerCoupon);
         } catch (DataIntegrityViolationException e) {
-            throw new DataIntegrityViolationException("Coupon already exists" + dto.code());
+            throw new IllegalStateException("Coupon already exists" + dto.code());
         } catch (Exception e) {
             log.error("Error creating coupon: {}", e.getMessage());
             throw new RuntimeException("Error creating coupon: " + e.getMessage());

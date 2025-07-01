@@ -13,13 +13,13 @@ import com.team5.catdogeats.global.enums.ResponseCode;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 
 @RestController
 @RequiredArgsConstructor
@@ -47,7 +47,8 @@ public class SellerCouponController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<Void>> createCoupon(@AuthenticationPrincipal UserPrincipal userPrincipal, SellerCreateCouponRequestDTO dto) {
+    public ResponseEntity<ApiResponse<Void>> createCoupon(@AuthenticationPrincipal UserPrincipal userPrincipal,
+                                                          @Valid @RequestBody SellerCreateCouponRequestDTO dto) {
         if (userPrincipal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -55,11 +56,11 @@ public class SellerCouponController {
         try {
             sellerCouponService.createCoupon(userPrincipal, dto);
             return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
 
-        } catch (DataIntegrityViolationException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ResponseCode.DUPLICATE_COUPON_CODE));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ResponseCode.DUPLICATE_COUPON_CODE));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
@@ -68,7 +69,7 @@ public class SellerCouponController {
 
     @PatchMapping
     public ResponseEntity<ApiResponse<Void>> updateCoupon(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                                          @Valid SellerModifyCouponRequestDTO dto) {
+                                                          @Valid @RequestBody SellerModifyCouponRequestDTO dto) {
         if (userPrincipal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
         }
@@ -85,7 +86,7 @@ public class SellerCouponController {
 
     @DeleteMapping
     public ResponseEntity<ApiResponse<Void>> deleteCoupon(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                                          @Valid SellerDeleteCouponRequestDTO dto) {
+                                                          @Valid @RequestBody SellerDeleteCouponRequestDTO dto) {
         if (userPrincipal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
         }

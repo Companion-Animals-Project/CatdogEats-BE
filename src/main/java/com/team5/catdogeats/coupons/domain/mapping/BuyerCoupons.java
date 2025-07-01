@@ -9,7 +9,15 @@ import lombok.*;
 import java.time.ZonedDateTime;
 
 @Entity
-@Table(name = "buyer_coupons")
+@Table(
+        name = "buyer_coupons",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_buyer_coupon",
+                        columnNames = {"buyer_id", "coupon_id"}
+                )
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

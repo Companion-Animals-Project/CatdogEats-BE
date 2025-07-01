@@ -1,6 +1,7 @@
 package com.team5.catdogeats.coupons.mapper;
 
 import com.team5.catdogeats.coupons.domain.Coupons;
+import com.team5.catdogeats.coupons.domain.dto.BuyerCouponDTO;
 import com.team5.catdogeats.coupons.domain.dto.SellerCouponListResponseDTO;
 import com.team5.catdogeats.coupons.domain.enums.DiscountType;
 import org.apache.ibatis.annotations.Mapper;
@@ -80,7 +81,6 @@ public interface CouponMapper {
                                                                          @Param("providerId") String providerId,
                                                                          @Param("limit") int limit,
                                                                          @Param("offset") int offset);
-
 
 
 }

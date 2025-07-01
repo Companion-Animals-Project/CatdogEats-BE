@@ -4,7 +4,7 @@ import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.coupons.domain.dto.SellerCouponListResponseDTO;
 import com.team5.catdogeats.coupons.mapper.CouponMapper;
 import com.team5.catdogeats.coupons.service.SellerCouponListService;
-import com.team5.catdogeats.global.config.MybatisTransactional;
+import com.team5.catdogeats.global.annotation.MybatisTransactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
