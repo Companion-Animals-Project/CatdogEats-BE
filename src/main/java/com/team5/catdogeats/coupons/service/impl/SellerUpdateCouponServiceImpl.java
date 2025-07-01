@@ -60,7 +60,7 @@ public class SellerUpdateCouponServiceImpl implements SellerUpdateCouponService 
             couponRepository.deleteCoupon(coupon);
         } catch (Exception e) {
             log.error("Error deleting coupon: {}", e.getMessage());
-            throw new RuntimeException("Error deleting coupon: " + e.getMessage());
+            throw new RuntimeException("Error deleting coupon");
         }
     }
 

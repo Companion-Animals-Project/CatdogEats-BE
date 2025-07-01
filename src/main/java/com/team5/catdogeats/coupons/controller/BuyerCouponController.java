@@ -17,7 +17,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.NoSuchElementException;
 
 @Slf4j
@@ -29,7 +28,7 @@ public class BuyerCouponController {
     private final BuyerCouponService buyerCouponService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<BuyerCouponListResponseDTO>>> getCoupons(@AuthenticationPrincipal UserPrincipal userPrincipal,
+    public ResponseEntity<ApiResponse<BuyerCouponListResponseDTO>> getCoupons(@AuthenticationPrincipal UserPrincipal userPrincipal,
                                                                                    @RequestParam CouponFilterType filter,
                                                                                    @RequestParam(defaultValue = "0") int page) {
         try {

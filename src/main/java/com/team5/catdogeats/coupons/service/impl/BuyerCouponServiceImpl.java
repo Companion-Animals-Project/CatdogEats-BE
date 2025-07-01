@@ -1,9 +1,7 @@
 package com.team5.catdogeats.coupons.service.impl;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.coupons.domain.dto.BuyerCouponDTO;
-import com.team5.catdogeats.coupons.domain.dto.BuyerCouponListResponseDTO;
-import com.team5.catdogeats.coupons.domain.dto.BuyerCreateCouponRequestDTO;
+import com.team5.catdogeats.coupons.domain.dto.*;
 import com.team5.catdogeats.coupons.domain.enums.CouponFilterType;
 import com.team5.catdogeats.coupons.exception.DuplicateCouponException;
 import com.team5.catdogeats.coupons.mapper.BuyerCouponMapper;
@@ -48,16 +46,20 @@ public class BuyerCouponServiceImpl implements BuyerCouponService {
 
     @Override
     @MybatisTransactional(readOnly = true)
-    public List<BuyerCouponListResponseDTO> getBuyerCoupons(UserPrincipal userPrincipal, CouponFilterType filter, int page, int size) {
+    public BuyerCouponListResponseDTO getBuyerCoupons(UserPrincipal userPrincipal, CouponFilterType filter, int page, int size) {
         try {
             int offset = page * size;
-            return buyerCouponMapper.findBuyerCoupons(
+            List<BuyerCouponSelectedDTO> selectedDTOList = buyerCouponMapper.findBuyerCoupons(
                     userPrincipal.provider(),
                     userPrincipal.providerId(),
                     filter.toString(),
                     size,
                     offset
             );
+
+            BuyerCouponCountDTO couponCountDTO = buyerCouponMapper.countUsedFalseAndExpiringCoupons(userPrincipal.provider(),
+                                                                                                    userPrincipal.providerId());
+            return new BuyerCouponListResponseDTO(couponCountDTO, selectedDTOList);
         } catch (Exception e) {
             log.error("Error while getting buyer coupons {}", e.getMessage());
             throw new RuntimeException("Error getting buyer coupons: " + e.getMessage());
