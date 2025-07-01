@@ -3,7 +3,7 @@ package com.team5.catdogeats.products.service.impl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.global.config.JpaTransactional;
+import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.pets.domain.enums.PetCategory;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.domain.dto.*;
