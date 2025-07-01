@@ -7,6 +7,7 @@ import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.pets.domain.enums.PetCategory;
 import com.team5.catdogeats.products.domain.dto.*;
 import com.team5.catdogeats.products.domain.enums.BuyerProductSortType;
+import com.team5.catdogeats.products.domain.enums.MainProductSortType;
 import com.team5.catdogeats.products.domain.enums.ProductCategory;
 import com.team5.catdogeats.products.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +23,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 @RestController
@@ -136,4 +138,18 @@ public class ProductController {
                     .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
+
+    @Operation(
+            summary = "메인페이지 상품 조회",
+            description = "신상품, 베스트셀러, 할인상품 상위8개 품목 보여주기"
+    )
+    @GetMapping("/buyers/products/main")
+    public ResponseEntity<ApiResponse<List<MainProductResponseDto>>> getMainProducts(
+            @RequestParam(defaultValue = "NEW") MainProductSortType filterType
+    ) {
+        List<MainProductResponseDto> products = productService.getMainProducts(filterType);
+
+        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, products));
+    }
+
 }

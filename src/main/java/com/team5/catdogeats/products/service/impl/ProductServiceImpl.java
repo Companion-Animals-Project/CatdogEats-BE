@@ -8,6 +8,7 @@ import com.team5.catdogeats.pets.domain.enums.PetCategory;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.domain.dto.*;
 import com.team5.catdogeats.products.domain.enums.BuyerProductSortType;
+import com.team5.catdogeats.products.domain.enums.MainProductSortType;
 import com.team5.catdogeats.products.domain.enums.ProductCategory;
 import com.team5.catdogeats.products.exception.DuplicateProductNumberException;
 import com.team5.catdogeats.products.repository.ProductRepository;
@@ -125,9 +126,11 @@ public class ProductServiceImpl implements ProductService {
         String imagesJson = projection.getImages();
         if (imagesJson != null && !imagesJson.isBlank()) {
             try {
-                images = new ObjectMapper().readValue(imagesJson, new TypeReference<List<String>>() {});
+                images = new ObjectMapper().readValue(imagesJson, new TypeReference<>() {
+                });
             } catch (Exception e) {
                 // 파싱 실패시 빈 리스트로 둠
+                log.warn("상품 이미지 JSON 파싱 실패: {}", imagesJson, e);
             }
         }
 
@@ -144,6 +147,36 @@ public class ProductServiceImpl implements ProductService {
                 projection.getAverageStar(),
                 projection.getReviewCount() != null ? projection.getReviewCount() : 0
         );
+    }
+
+    @Override
+    public List<MainProductResponseDto> getMainProducts(MainProductSortType type) {
+        List<MainProductProjection> projections;
+        switch (type) {
+            case BEST:
+                projections = productRepository.findTop8ByBestScoreDesc();
+                break;
+            case DISCOUNT:
+                projections = productRepository.findTop8ByOrderByDiscountRateDesc();
+                break;
+            case NEW:
+            default:
+                projections = productRepository.findTop8ByOrderByCreatedAtDesc();
+                break;
+        }
+        return projections.stream()
+                .map(p -> new MainProductResponseDto(
+                        p.getImageUrl(),
+                        p.getVendorName(),
+                        p.getTitle(),
+                        p.getAverageStar(),
+                        p.getReviewCount() != null ? p.getReviewCount() : 0,
+                        p.getPrice(),
+                        p.getIsDiscounted(),
+                        p.getDiscountRate(),
+                        p.getCreatedAt()
+                ))
+                .toList();
     }
 
 

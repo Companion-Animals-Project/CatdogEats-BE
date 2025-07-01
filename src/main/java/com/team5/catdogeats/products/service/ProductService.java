@@ -4,9 +4,12 @@ import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.pets.domain.enums.PetCategory;
 import com.team5.catdogeats.products.domain.dto.*;
 import com.team5.catdogeats.products.domain.enums.BuyerProductSortType;
+import com.team5.catdogeats.products.domain.enums.MainProductSortType;
 import com.team5.catdogeats.products.domain.enums.ProductCategory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import java.util.List;
 
 public interface ProductService {
     String registerProduct(UserPrincipal userPrincipal, ProductCreateRequestDto dto);
@@ -23,4 +26,6 @@ public interface ProductService {
     );
 
     ProductDetailResponseDto getProductDetail(Long productNumber);
+
+    List<MainProductResponseDto> getMainProducts(MainProductSortType type);
 }
