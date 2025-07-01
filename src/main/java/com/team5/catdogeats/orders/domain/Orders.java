@@ -60,7 +60,7 @@ public class Orders extends BaseEntity {
     private List<OrderItems> orderItems;
 
     // 배송 정보 (일대일 관계)
-    @OneToOne(mappedBy = "orders", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "orders", cascade = CascadeType.ALL)
     private Shipments shipment;
 
     // ===== 주문 내역 숨김 기능 편의 메서드 =====

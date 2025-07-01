@@ -10,6 +10,7 @@ import java.time.ZonedDateTime;
 @Entity
 @Table(name = "shipments")
 @Getter
+@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
@@ -20,20 +21,21 @@ public class Shipments extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false,
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", nullable = false, unique = true,
             foreignKey = @ForeignKey(name = "fk_shipments_order"))
     private Orders orders;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "seller_id", nullable = false,
+    @JoinColumn(name = "seller_id",
             foreignKey = @ForeignKey(name = "fk_shipments_seller"))
     private Sellers seller;
 
-    @Column(length = 50, nullable = false)
+    // ===== 배송 추적 정보 =====
+    @Column(length = 50)
     private String courier;
 
-    @Column(name = "tracking_number", length = 100, nullable = false)
+    @Column(name = "tracking_number", length = 100)
     private String trackingNumber;
 
     @Column(name = "shipped_at")
