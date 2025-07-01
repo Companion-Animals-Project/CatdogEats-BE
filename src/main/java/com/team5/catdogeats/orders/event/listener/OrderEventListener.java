@@ -66,7 +66,7 @@ public class OrderEventListener {
              */
             // OrderItemInfo를 OrderItems 엔티티로 변환하여 저장
             List<OrderItems> orderItemsToSave = event.getOrderItems().stream()
-                    .map(orderItemInfo -> {  // ✅ 함수형 변환
+                    .map(orderItemInfo -> {
                         // 상품 정보 조회
                         Products product = productRepository.findById(orderItemInfo.productId())
                                 .orElseThrow(() -> new NoSuchElementException(
