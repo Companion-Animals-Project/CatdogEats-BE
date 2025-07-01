@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -72,7 +73,7 @@ public class CartRecommendationServiceImpl implements CartRecommendationService 
             log.error("장바구니 기반 추천 중 오류 발생 - provider: {}, providerId: {}",
                     userPrincipal.provider(), userPrincipal.providerId(), e);
 
-            // 오류 발생 시 전체 인기 상품으로 안전하게 대체
+            // 오류 발생 시 전체 인기 상품
             return getPopularProductsAll(Collections.emptyList());
         }
     }
@@ -82,7 +83,7 @@ public class CartRecommendationServiceImpl implements CartRecommendationService 
             Set<PetCategory> categories, List<String> excludeProductIds) {
 
         if (categories.size() == 1) {
-            // 단일 카테고리 (강아지만 또는 고양이만)
+            // 단일 카테고리 (강아지 또는 고양이)
             PetCategory singleCategory = categories.iterator().next();
             log.debug("단일 카테고리 추천 - category: {}", singleCategory);
             return getPopularProductsByCategory(singleCategory, excludeProductIds);
@@ -99,7 +100,15 @@ public class CartRecommendationServiceImpl implements CartRecommendationService 
             PetCategory petCategory, List<String> excludeProductIds) {
 
         try {
-            List<Products> products = cartRecommendationRepository.findPopularProductsByCategory(petCategory, excludeProductIds);
+            List<Products> products;
+
+            // 제외할 상품이 있는지 확인하고 적절한 메서드 호출
+            if (excludeProductIds == null || excludeProductIds.isEmpty()) {
+                products = cartRecommendationRepository.findPopularProductsByCategory(petCategory);
+            } else {
+                products = cartRecommendationRepository.findPopularProductsByCategoryExcluding(petCategory, excludeProductIds);
+            }
+
             return products.stream()
                     .limit(4) // 4개 제한
                     .map(this::convertToRecommendationResponse)
@@ -113,7 +122,15 @@ public class CartRecommendationServiceImpl implements CartRecommendationService 
     // 전체 인기 상품 조회
     private List<RecommendationResponse> getPopularProductsAll(List<String> excludeProductIds) {
         try {
-            List<Products> products = cartRecommendationRepository.findPopularProductsAll(excludeProductIds);
+            List<Products> products;
+
+            // 제외할 상품이 있는지 확인하고 적절한 메서드 호출
+            if (excludeProductIds == null || excludeProductIds.isEmpty()) {
+                products = cartRecommendationRepository.findPopularProductsAll();
+            } else {
+                products = cartRecommendationRepository.findPopularProductsExcluding(excludeProductIds);
+            }
+
             return products.stream()
                     .limit(4) // 4개 제한
                     .map(this::convertToRecommendationResponse)
@@ -136,7 +153,7 @@ public class CartRecommendationServiceImpl implements CartRecommendationService 
                 .build();
     }
 
-    // 사용자 조회 (기존 CartServiceImpl과 동일한 방식)
+    // 사용자 조회
     private Users getUserByPrincipal(UserPrincipal userPrincipal) {
         return userRepository.findByProviderAndProviderId(
                         userPrincipal.provider(),
