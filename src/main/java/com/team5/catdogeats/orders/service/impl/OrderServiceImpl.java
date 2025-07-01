@@ -96,19 +96,19 @@ public class OrderServiceImpl implements OrderService {
         // 6. 주문 엔티티 생성 및 저장 (배송비 포함 금액 + 배송지 정보)
         Orders savedOrder = createAndSaveOrder(user, finalPaymentAmount);
 
-        // 8. Shipments 엔티티 생성 및 저장 (배송지 정보)
+        // 7. Shipments 엔티티 생성 및 저장 (배송지 정보)
         Shipments savedShipment = createAndSaveShipment(savedOrder, request.getShippingAddress());
 
-        // 9. 토스 페이먼츠 응답 생성
+        // 8. 토스 페이먼츠 응답 생성
         OrderCreateResponse response = buildTossPaymentResponse(savedOrder, request.getPaymentInfo());
 
-        // 10. OrderCreatedEvent 발행 (할인 정보 포함)
+        // 9. OrderCreatedEvent 발행 (할인 정보 포함)
         publishOrderCreatedEvent(savedOrder, user, userPrincipal, detailedOrderItems,
                 originalTotalPrice, couponDiscountRate, finalPaymentAmount);
 
-        log.info("주문 생성 완료: orderId={}, orderNumber={}, 원가={}원, 쿠폰할인={}%, 최종결제금액={}원 (배송비포함)",
+        log.info("주문 생성 완료: orderId={}, orderNumber={}, 원가={}원, 쿠폰할인={}%, 최종결제금액={}원 (배송비포함), 수령인={}",
                 savedOrder.getId(), savedOrder.getOrderNumber(), originalTotalPrice,
-                couponDiscountRate != null ? couponDiscountRate : 0, finalPaymentAmount);
+                couponDiscountRate != null ? couponDiscountRate : 0, finalPaymentAmount, savedShipment.getRecipientName());
 
         return response;
     }
@@ -253,7 +253,7 @@ public class OrderServiceImpl implements OrderService {
 
         Shipments savedShipment = shipmentRepository.save(shipment);
         log.debug("배송 엔티티 저장 완료: shipmentId={}, orderId={}, 수령인={}",
-                savedShipment.getId(), order.getId(), shippingAddress.getRecipientName());
+                savedShipment.getId(), order.getId(), savedShipment.getRecipientName());
 
         return savedShipment;
     }
