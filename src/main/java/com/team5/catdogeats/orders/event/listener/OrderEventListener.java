@@ -1,6 +1,6 @@
 package com.team5.catdogeats.orders.event.listener;
 
-import com.team5.catdogeats.global.config.JpaTransactional;
+import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.domain.mapping.OrderItems;
