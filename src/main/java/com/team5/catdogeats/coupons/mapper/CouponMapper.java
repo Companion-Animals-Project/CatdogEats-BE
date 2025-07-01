@@ -82,5 +82,25 @@ public interface CouponMapper {
                                                                          @Param("limit") int limit,
                                                                          @Param("offset") int offset);
 
+    @Select("""
+        SELECT
+                c.id,
+                c.code,
+                c.coupon_name AS couponName,
+                c.discount_type AS discountType,
+                c.discount_value AS discountValue,
+                c.start_date AS startDate,
+                c.end_date AS endDate,
+                c.usage_limit AS usageLimit
+            FROM coupons c
+            INNER JOIN seller_coupons sc ON sc.coupon_id = c.id
+            INNER JOIN sellers s ON s.vendor_name = #{vendorName}
+            ORDER BY c.created_at DESC
+            LIMIT #{limit}
+            OFFSET #{offset}
+    """)
+    List<SellerCouponListResponseDTO> findCouponsByVendorName(@Param("vendorName") String vendorName,
+                                                             @Param("limit") int limit,
+                                                             @Param("offset") int offset);
 
 }

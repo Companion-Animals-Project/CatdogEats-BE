@@ -1,29 +1,44 @@
 package com.team5.catdogeats.coupons.controller;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
+import com.team5.catdogeats.coupons.domain.dto.BuyerCouponListResponseDTO;
 import com.team5.catdogeats.coupons.domain.dto.BuyerCreateCouponRequestDTO;
+import com.team5.catdogeats.coupons.domain.enums.CouponFilterType;
 import com.team5.catdogeats.coupons.service.BuyerCouponService;
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.NoSuchElementException;
 
 @Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/v1/buyers/coupons")
+@Tag(name = "구매자 쿠폰 관리", description = "구매자 쿠폰 관련 API입니다.")
 public class BuyerCouponController {
     private final BuyerCouponService buyerCouponService;
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<BuyerCouponListResponseDTO>>> getCoupons(@AuthenticationPrincipal UserPrincipal userPrincipal,
+                                                                                   @RequestParam CouponFilterType filter,
+                                                                                   @RequestParam(defaultValue = "0") int page) {
+        try {
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, buyerCouponService.getBuyerCoupons(userPrincipal,filter,page,10)));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+        }
+
+    }
+
 
     @PostMapping
     public ResponseEntity<ApiResponse<Void>> createCoupon(@AuthenticationPrincipal UserPrincipal userPrincipal,

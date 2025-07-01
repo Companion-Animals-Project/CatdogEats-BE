@@ -30,6 +30,23 @@ public class SellerCouponController {
     private final SellerUpdateCouponService sellerUpdateCouponService;
     private final SellerCouponListService sellerCouponListService;
 
+
+    @GetMapping("/{vendorName}")
+    public ResponseEntity<ApiResponse<List<SellerCouponListResponseDTO>>> getCoupons(@AuthenticationPrincipal UserPrincipal userPrincipal,
+                                                                                     @PathVariable String vendorName,
+                                                                                     @RequestParam(defaultValue = "0") int page) {
+        if (userPrincipal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
+        }
+
+        try {
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, sellerCouponListService.getSellerCouponsWithVendorName(vendorName, page, 10)));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+        }
+
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<List<SellerCouponListResponseDTO>>> getCoupons(@AuthenticationPrincipal UserPrincipal userPrincipal,
                                                                                @RequestParam(defaultValue = "0") int page,

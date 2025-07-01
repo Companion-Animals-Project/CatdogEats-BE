@@ -28,4 +28,16 @@ public class SellerCouponListServiceImpl implements SellerCouponListService {
                 offset
         );
     }
+
+    @Override
+    public List<SellerCouponListResponseDTO> getSellerCouponsWithVendorName(String vendorName, int page, int size) {
+        int offset = page * size;
+        return couponMapper.findCouponsByVendorName(
+                vendorName,
+                size,
+                offset
+        );
+    }
+
+
 }
