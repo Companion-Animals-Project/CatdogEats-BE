@@ -2,12 +2,14 @@ package com.team5.catdogeats.products.service.impl;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.config.JpaTransactional;
+import com.team5.catdogeats.pets.domain.enums.PetCategory;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.domain.dto.*;
+import com.team5.catdogeats.products.domain.enums.BuyerProductSortType;
+import com.team5.catdogeats.products.domain.enums.ProductCategory;
 import com.team5.catdogeats.products.exception.DuplicateProductNumberException;
 import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.products.service.ProductService;
-import com.team5.catdogeats.reviews.repository.ReviewRepository;
 import com.team5.catdogeats.storage.domain.mapping.ProductsImages;
 import com.team5.catdogeats.storage.repository.ProductImageRepository;
 import com.team5.catdogeats.storage.service.ProductImageService;
@@ -16,6 +18,8 @@ import com.team5.catdogeats.users.domain.mapping.Sellers;
 import com.team5.catdogeats.users.repository.SellersRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -92,9 +96,22 @@ public class ProductServiceImpl implements ProductService {
         productRepository.deleteById(dto.productId());
     }
 
+    // 상품 조회 서비스 로직
+    @Override
+    public Page<ProductListProjection> getProductList(PetCategory petCategory, ProductCategory productCategory, BuyerProductSortType sortBy, Pageable pageable) {
+        String petCategoryStr = petCategory != null ? petCategory.name() : null;
+        String productCategoryStr = productCategory != null ? productCategory.name() : null;
+
+        return switch (sortBy) {
+            case PRICE -> productRepository.findAllByOrderByPriceDesc(petCategoryStr, productCategoryStr, pageable);
+            case AVERAGE_STAR ->
+                    productRepository.findAllByOrderByAverageStarDesc(petCategoryStr, productCategoryStr, pageable);
+            default -> productRepository.findAllByOrderByCreatedAtDesc(petCategoryStr, productCategoryStr, pageable);
+        };
+    }
 
 
-    // TODO: 상품 조회 서비스 로직 / 상품 상세 조회 서비스 로직 구현하기
+    // 상품 상세 조회 서비스 로직 구현하기
 
 
     /**

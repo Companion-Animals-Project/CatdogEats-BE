@@ -2,16 +2,23 @@ package com.team5.catdogeats.products.controller;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.PageResponseDto;
 import com.team5.catdogeats.global.enums.ResponseCode;
+import com.team5.catdogeats.pets.domain.enums.PetCategory;
 import com.team5.catdogeats.products.domain.dto.ProductCreateRequestDto;
 import com.team5.catdogeats.products.domain.dto.ProductDeleteRequestDto;
+import com.team5.catdogeats.products.domain.dto.ProductListProjection;
 import com.team5.catdogeats.products.domain.dto.ProductUpdateRequestDto;
+import com.team5.catdogeats.products.domain.enums.BuyerProductSortType;
+import com.team5.catdogeats.products.domain.enums.ProductCategory;
 import com.team5.catdogeats.products.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -81,6 +88,29 @@ public class ProductController {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
                     .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+        }
+    }
+
+    @Operation(
+            summary = "상품 목록 조회",
+            description = "모든 상품을 조회합니다. 이미지, 리뷰 통계 모두 포함 "
+    )
+    @GetMapping("/buyers/products/list")
+    public ResponseEntity<ApiResponse<PageResponseDto<ProductListProjection>>> getProducts(
+            @RequestParam(required = false) PetCategory petCategory,
+            @RequestParam(required = false) ProductCategory productCategory,
+            @RequestParam(defaultValue = "CREATED_AT") BuyerProductSortType sortBy,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size
+    ) {
+        try{
+            Page<ProductListProjection> responses = productService.getProductList(petCategory, productCategory, sortBy, PageRequest.of(page, size));
+
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, PageResponseDto.from(responses)));
         } catch (Exception e) {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
