@@ -5,7 +5,7 @@ import com.team5.catdogeats.admins.domain.dto.AdminSoftDeleteRequestDTO;
 import com.team5.catdogeats.admins.domain.dto.AdminSoftDeleteResponseDTO;
 import com.team5.catdogeats.admins.repository.AdminRepository;
 import com.team5.catdogeats.admins.service.AdminSoftDeleteService;
-import com.team5.catdogeats.global.config.JpaTransactional;
+import com.team5.catdogeats.global.annotation.JpaTransactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

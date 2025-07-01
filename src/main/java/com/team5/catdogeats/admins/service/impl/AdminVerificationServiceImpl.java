@@ -1,14 +1,13 @@
 package com.team5.catdogeats.admins.service.impl;
 
 import com.team5.catdogeats.admins.domain.Admins;
-import com.team5.catdogeats.admins.domain.dto.AdminPasswordResetVerificationDTO;
 import com.team5.catdogeats.admins.domain.dto.AdminVerificationRequestDTO;
 import com.team5.catdogeats.admins.domain.dto.AdminVerificationResponseDTO;
 import com.team5.catdogeats.admins.repository.AdminRepository;
 import com.team5.catdogeats.admins.service.AdminVerificationService;
 import com.team5.catdogeats.admins.service.RedisVerificationCodeService;
 import com.team5.catdogeats.admins.util.AdminUtils;
-import com.team5.catdogeats.global.config.JpaTransactional;
+import com.team5.catdogeats.global.annotation.JpaTransactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
