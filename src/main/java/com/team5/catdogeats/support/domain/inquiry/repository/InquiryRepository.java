@@ -9,28 +9,27 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface InquiryRepository extends JpaRepository<Inquires, String> {
 
     // 특정 사용자의 문의 목록 조회 (페이징)
-    // 최상위 문의만 조회 (parent가 null인 것)
-    // 최신순 정렬
-    @Query("SELECT i FROM Inquires i " +
-            "LEFT JOIN FETCH i.users " +         // 사용자 정보를 한 번에 가져옴
-            "LEFT JOIN FETCH i.orders " +        // 주문 정보를 한 번에 가져옴
+    @Query(value = "SELECT i FROM Inquires i " +
+            "LEFT JOIN FETCH i.users " +
+            "LEFT JOIN FETCH i.orders " +
             "WHERE i.users.id = :userId AND i.parent IS NULL " +
-            "ORDER BY i.createdAt DESC")
+            "ORDER BY i.createdAt DESC",
+            countQuery = "SELECT COUNT(i) FROM Inquires i WHERE i.users.id = :userId AND i.parent IS NULL")
     Page<Inquires> findByUserIdOrderByCreatedAtDesc(@Param("userId") String userId, Pageable pageable);
 
     // 관리자: 모든 문의 목록 조회 (페이징)
-    // 최상위 문의만 조회
-    // 최신순 정렬
-    @Query("SELECT i FROM Inquires i " +
-            "LEFT JOIN FETCH i.users " +           // 사용자 정보 한 번에 조회
-            "LEFT JOIN FETCH i.orders " +          // 주문 정보 한 번에 조회
+    @Query(value = "SELECT i FROM Inquires i " +
+            "LEFT JOIN FETCH i.users " +
+            "LEFT JOIN FETCH i.orders " +
             "WHERE i.parent IS NULL " +
-            "ORDER BY i.createdAt DESC")
+            "ORDER BY i.createdAt DESC",
+            countQuery = "SELECT COUNT(i) FROM Inquires i WHERE i.parent IS NULL")
     Page<Inquires> findAllInquiriesOrderByCreatedAtDesc(Pageable pageable);
 
     // 관리자: 답변 상태별 문의 조회
@@ -54,6 +53,7 @@ public interface InquiryRepository extends JpaRepository<Inquires, String> {
             @Param("endDate") ZonedDateTime endDate,
             Pageable pageable);
 
-    // 수정: 단일 답변 조회
-    Optional<Inquires> findByParent_Id(String parentId);
+    // 특정 문의의 모든 답글들을 시간순으로 조회
+    @Query("SELECT i FROM Inquires i WHERE i.parent.id = :parentId ORDER BY i.createdAt ASC")
+    List<Inquires> findByParentIdOrderByCreatedAtAsc(@Param("parentId") String parentId);
 }

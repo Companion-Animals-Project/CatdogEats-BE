@@ -145,7 +145,7 @@ class InquiryRepositoryTest {
                 .inquiryType(InquiryType.PRODUCT)
                 .inquiryReceiveMethod(InquiryReceiveMethod.WEB)
                 .inquiryStatus(InquiryStatus.ANSWERED)
-                .inquiryUrgentLevel(InquiryUrgentLevel.MEDIUM)
+                .inquiryUrgentLevel(InquiryUrgentLevel.MIDDLE)
                 .build();
         inquiryRepository.save(replyInquiry);
 
@@ -204,7 +204,7 @@ class InquiryRepositoryTest {
                 .inquiryType(InquiryType.PRODUCT)
                 .inquiryReceiveMethod(InquiryReceiveMethod.WEB)
                 .inquiryStatus(InquiryStatus.PENDING)
-                .inquiryUrgentLevel(InquiryUrgentLevel.MEDIUM)
+                .inquiryUrgentLevel(InquiryUrgentLevel.MIDDLE)
                 .build();
     }
 
@@ -218,7 +218,7 @@ class InquiryRepositoryTest {
                 .inquiryType(parent.getInquiryType())
                 .inquiryReceiveMethod(parent.getInquiryReceiveMethod())
                 .inquiryStatus(InquiryStatus.ANSWERED)
-                .inquiryUrgentLevel(InquiryUrgentLevel.MEDIUM)
+                .inquiryUrgentLevel(InquiryUrgentLevel.MIDDLE)
                 .build();
     }
 }
