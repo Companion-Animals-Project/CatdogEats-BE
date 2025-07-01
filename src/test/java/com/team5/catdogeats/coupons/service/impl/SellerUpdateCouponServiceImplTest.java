@@ -6,7 +6,6 @@ import com.team5.catdogeats.coupons.domain.dto.SellerDeleteCouponRequestDTO;
 import com.team5.catdogeats.coupons.domain.dto.SellerModifyCouponRequestDTO;
 import com.team5.catdogeats.coupons.domain.enums.DiscountType;
 import com.team5.catdogeats.coupons.domain.mapping.SellerCoupons;
-import com.team5.catdogeats.coupons.mapper.CouponMapper;
 import com.team5.catdogeats.coupons.repository.CouponRepository;
 import com.team5.catdogeats.coupons.repository.SellerCouponRepository;
 import com.team5.catdogeats.coupons.service.SellerUpdateCouponService;
@@ -21,6 +20,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -29,6 +29,7 @@ import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest
 @Transactional
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class SellerUpdateCouponServiceImplTest {
     @Autowired
     private SellerUpdateCouponService sellerUpdateCouponService;
@@ -38,9 +39,6 @@ class SellerUpdateCouponServiceImplTest {
 
     @Autowired
     private SellerCouponRepository sellerCouponRepository;
-
-    @Autowired
-    private CouponMapper couponMapper;
 
     @Autowired
     private SellersRepository sellersRepository;
