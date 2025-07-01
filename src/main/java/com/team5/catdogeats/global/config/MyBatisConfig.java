@@ -17,7 +17,8 @@ import javax.sql.DataSource;
                         "com.team5.catdogeats.batch.mapper",
                         "com.team5.catdogeats.products.mapper",
                         "com.team5.catdogeats.orders.mapper",
-                        "com.team5.catdogeats.reviews.mapper"},
+                        "com.team5.catdogeats.reviews.mapper",
+                        "com.team5.catdogeats.coupons.mapper",},
 
         sqlSessionFactoryRef = "sqlSessionFactory"
 )
