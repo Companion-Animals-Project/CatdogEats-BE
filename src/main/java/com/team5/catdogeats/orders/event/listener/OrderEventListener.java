@@ -61,28 +61,28 @@ public class OrderEventListener {
                 log.info("취소된 주문 - 주문 상품 저장 건너뜀: orderId={}", orderId);
                 return;
             }
-
+            /*
+             * - 기존 ArrayList 생성 + for 반복문 방식을 Stream API로 변경
+             * - 중간 컬렉션 생성 없이 직접 변환하여 메모리 효율성 개선
+             */
             // OrderItemInfo를 OrderItems 엔티티로 변환하여 저장
-            List<OrderItems> orderItemsToSave = new ArrayList<>();
+            List<OrderItems> orderItemsToSave = event.getOrderItems().stream()
+                    .map(orderItemInfo -> {  // ✅ 함수형 변환
+                        // 상품 정보 조회
+                        Products product = productRepository.findById(orderItemInfo.productId())
+                                .orElseThrow(() -> new NoSuchElementException(
+                                        "상품을 찾을 수 없습니다: " + orderItemInfo.productId()));
 
-            for (OrderItemInfo orderItemInfo : event.getOrderItems()) {
-                // 상품 정보 조회
-                Products product = productRepository.findById(orderItemInfo.productId())
-                        .orElseThrow(() -> new NoSuchElementException(
-                                "상품을 찾을 수 없습니다: " + orderItemInfo.productId()));
+                        // OrderItems 엔티티 생성
+                        return OrderItems.builder()
+                                .orders(order)
+                                .products(product)
+                                .quantity(orderItemInfo.quantity())
+                                .price(orderItemInfo.unitPrice())  // 주문 시점의 상품 가격
+                                .build();
+                    })
+                    .toList();
 
-                // OrderItems 엔티티 생성
-                OrderItems orderItem = OrderItems.builder()
-                        .orders(order)
-                        .products(product)
-                        .quantity(orderItemInfo.quantity())
-                        .price(orderItemInfo.unitPrice())  // 주문 시점의 상품 가격
-                        .build();
-
-                orderItemsToSave.add(orderItem);
-            }
-
-            // 배치로 저장
             List<OrderItems> savedOrderItems = orderItemRepository.saveAll(orderItemsToSave);
 
             log.info("주문 상품 저장 완료: orderId={}, 저장된 상품 개수={}",
