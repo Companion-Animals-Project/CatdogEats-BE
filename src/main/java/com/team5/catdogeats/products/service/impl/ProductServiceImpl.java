@@ -151,19 +151,11 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public List<MainProductResponseDto> getMainProducts(MainProductSortType type) {
-        List<MainProductProjection> projections;
-        switch (type) {
-            case BEST:
-                projections = productRepository.findTop8ByBestScoreDesc();
-                break;
-            case DISCOUNT:
-                projections = productRepository.findTop8ByOrderByDiscountRateDesc();
-                break;
-            case NEW:
-            default:
-                projections = productRepository.findTop8ByOrderByCreatedAtDesc();
-                break;
-        }
+        List<MainProductProjection> projections = switch (type) {
+            case BEST -> productRepository.findTop8ByBestScoreDesc();
+            case DISCOUNT -> productRepository.findTop8ByOrderByDiscountRateDesc();
+            default -> productRepository.findTop8ByOrderByCreatedAtDesc();
+        };
         return projections.stream()
                 .map(p -> new MainProductResponseDto(
                         p.getImageUrl(),
