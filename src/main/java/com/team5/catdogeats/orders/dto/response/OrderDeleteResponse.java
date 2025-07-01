@@ -1,6 +1,6 @@
 package com.team5.catdogeats.orders.dto.response;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 /**
  * 주문 내역 삭제(숨김) 응답 DTO
@@ -18,7 +18,7 @@ public record OrderDeleteResponse(
         boolean success,
         Long orderNumber,
         String orderId,
-        LocalDateTime hiddenAt,
+        ZonedDateTime hiddenAt,
         String message
 
 ) {
@@ -47,7 +47,7 @@ public record OrderDeleteResponse(
      * @param hiddenAt 숨김 처리 시각
      * @return 성공 응답
      */
-    public static OrderDeleteResponse success(Long orderNumber, String orderId, LocalDateTime hiddenAt) {
+    public static OrderDeleteResponse success(Long orderNumber, String orderId, ZonedDateTime hiddenAt) {
         return new OrderDeleteResponse(
                 true,
                 orderNumber,
@@ -79,7 +79,7 @@ public record OrderDeleteResponse(
      * @param hiddenAt 숨김 처리 시각
      * @return 성공 응답
      */
-    public static OrderDeleteResponse success(Long orderNumber, LocalDateTime hiddenAt) {
+    public static OrderDeleteResponse success(Long orderNumber, ZonedDateTime hiddenAt) {
         return success(orderNumber, null, hiddenAt);
     }
 }
