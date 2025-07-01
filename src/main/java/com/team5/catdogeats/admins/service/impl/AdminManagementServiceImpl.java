@@ -91,10 +91,11 @@ public class AdminManagementServiceImpl implements AdminManagementService {
 
         List<Admins> inactiveAdmins = adminRepository.findAllInactiveAdmins(); // isActive = false
 
+        // Redis 기반으로 PENDING과 INACTIVE 구분
         long pendingCount = 0;
         for (Admins admin : inactiveAdmins) {
             if (redisVerificationCodeService.hasVerificationCode(admin.getEmail())) {
-                pendingCount++;
+                pendingCount++;  // Redis에 인증코드 있음 = PENDING
             }
         }
 
