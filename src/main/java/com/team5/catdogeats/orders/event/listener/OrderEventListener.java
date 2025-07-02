@@ -46,7 +46,7 @@ public class OrderEventListener {
     private final BuyerRepository buyerRepository;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
+    @Async("taskExecutor")
     public void handleOrderItemsCreation(OrderCreatedEvent event) {
         String orderId = event.getOrderId();
         log.info("주문 상품 저장 시작: orderId={}, orderNumber={}, 상품 개수={}",
