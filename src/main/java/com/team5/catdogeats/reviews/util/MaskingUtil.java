@@ -5,10 +5,8 @@ public class MaskingUtil {
         if (name == null || name.isBlank()) return name;
         // 이름 2글자 이상부터 masking 처리
         if (name.length() > 1) {
-            StringBuilder sb = new StringBuilder();
-            sb.append(name.charAt(0));
-            sb.append("*".repeat(name.length() - 1));
-            return sb.toString();
+            return name.charAt(0) +
+                    "*".repeat(name.length() - 1);
         }
         return name;
     }
