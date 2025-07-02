@@ -147,9 +147,15 @@ public class ProductController {
     public ResponseEntity<ApiResponse<List<MainProductResponseDto>>> getMainProducts(
             @RequestParam(defaultValue = "NEW") MainProductSortType filterType
     ) {
-        List<MainProductResponseDto> products = productService.getMainProducts(filterType);
+        try {
+            List<MainProductResponseDto> products = productService.getMainProducts(filterType);
 
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, products));
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, products));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+        }
     }
 
 }
