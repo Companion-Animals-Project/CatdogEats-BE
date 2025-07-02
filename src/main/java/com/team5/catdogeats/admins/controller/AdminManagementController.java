@@ -143,27 +143,24 @@ public class AdminManagementController {
     /**
      * 관리자 비밀번호 초기화 요청
      */
-    @PostMapping("/accounts/{adminEmail}/reset-password")
-    @ResponseBody
-    @Operation(summary = "관리자 비밀번호 초기화", description = "관리자의 비밀번호를 초기화하고 인증 메일을 발송합니다.")
+    @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<AdminPasswordResetResponseDTO>> resetAdminPassword(
-            @PathVariable String adminEmail,
+            @Valid @RequestBody AdminPasswordResetRequestDTO request,
             HttpSession session) {
 
-        if (superAdminEmail.equals(adminEmail)) {
+        // 슈퍼관리자 체크
+        if (superAdminEmail.equals(request.email())) {
             throw new IllegalArgumentException("슈퍼관리자 계정은 비밀번호를 초기화할 수 없습니다.");
         }
 
-        AdminSessionInfo sessionInfo = controllerUtils.requireAdminDepartment(session);
-        AdminPasswordResetRequestDTO request = new AdminPasswordResetRequestDTO(
-                adminEmail,
-                sessionInfo.getEmail()
-        );
+        // 권한 체크
+        controllerUtils.requireAdminDepartment(session);
 
+        // 서비스 호출
         AdminPasswordResetResponseDTO response = passwordResetService.requestPasswordReset(request);
 
         log.info("비밀번호 초기화 요청 성공: target={}, requestedBy={}",
-                adminEmail, sessionInfo.getEmail());
+                request.email(), request.requestedBy());
 
         return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
     }
@@ -185,49 +182,47 @@ public class AdminManagementController {
     /**
      * 관리자 퇴사 처리 (ADMIN 부서만 접근 가능)
      */
-    @PostMapping("/accounts/{adminEmail}/soft-delete")
+    @PostMapping("/accounts/soft-delete")
     @ResponseBody
     @Operation(summary = "관리자 퇴사 처리", description = "관리자를 소프트 딜리트 처리합니다.")
     public ResponseEntity<ApiResponse<AdminSoftDeleteResponseDTO>> softDeleteAdmin(
-            @PathVariable String adminEmail,
-            @RequestParam(required = false) String reason,
-            HttpSession session) {
-
-        // ADMIN 부서 권한 확인 (기존 비밀번호 초기화와 동일)
-        AdminSessionInfo sessionInfo = controllerUtils.requireAdminDepartment(session);
-
-        AdminSoftDeleteRequestDTO request = new AdminSoftDeleteRequestDTO(
-                adminEmail,
-                sessionInfo.getEmail(),
-                reason
-        );
-
-        AdminSoftDeleteResponseDTO response = softDeleteService.softDeleteAdmin(request);
-
-        log.info("관리자 퇴사 처리 요청: target={}, requestedBy={}",
-                adminEmail, sessionInfo.getEmail());
-
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
-    }
-
-
-    /**
-     * 관리자 퇴사 취소 (복구) (ADMIN 부서만 접근 가능)
-     */
-    @PostMapping("/accounts/{adminEmail}/restore")
-    @ResponseBody
-    @Operation(summary = "관리자 퇴사 취소", description = "퇴사 처리된 관리자를 복구합니다.")
-    public ResponseEntity<ApiResponse<AdminSoftDeleteResponseDTO>> restoreAdmin(
-            @PathVariable String adminEmail,
+            @Valid @RequestBody AdminSoftDeleteRequestDTO request,
             HttpSession session) {
 
         // ADMIN 부서 권한 확인
         AdminSessionInfo sessionInfo = controllerUtils.requireAdminDepartment(session);
 
-        AdminSoftDeleteResponseDTO response = softDeleteService.undoSoftDelete(adminEmail);
+
+        AdminSoftDeleteRequestDTO serviceRequest = new AdminSoftDeleteRequestDTO(
+                request.targetEmail(),
+                sessionInfo.getEmail(),
+                request.reason()
+        );
+
+        AdminSoftDeleteResponseDTO response = softDeleteService.softDeleteAdmin(serviceRequest);
+
+        log.info("관리자 퇴사 처리 요청: target={}, requestedBy={}",
+                request.targetEmail(), sessionInfo.getEmail());
+
+        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+    }
+
+    /**
+     * 관리자 퇴사 취소 (복구) (ADMIN 부서만 접근 가능)
+     */
+    @PostMapping("/restore")
+    @ResponseBody
+    @Operation(summary = "관리자 퇴사 취소", description = "퇴사 처리된 관리자를 복구합니다.")
+    public ResponseEntity<ApiResponse<AdminSoftDeleteResponseDTO>> restoreAdmin(
+            @Valid @RequestBody AdminRestoreRequestDTO request,  // 새로운 DTO
+            HttpSession session) {
+
+        AdminSessionInfo sessionInfo = controllerUtils.requireAdminDepartment(session);
+
+        AdminSoftDeleteResponseDTO response = softDeleteService.undoSoftDelete(request.email());
 
         log.info("관리자 퇴사 취소 요청: target={}, requestedBy={}",
-                adminEmail, sessionInfo.getEmail());
+                request.email(), sessionInfo.getEmail());
 
         return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
     }

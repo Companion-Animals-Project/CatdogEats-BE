@@ -971,11 +971,16 @@
         if (!confirmed) return;
 
         try {
-            const response = await fetch(`/v1/admin/accounts/${encodeURIComponent(adminEmail)}/reset-password`, {
+            const response = await fetch('/v1/admin/reset-password', {
                 method: 'POST',
                 headers: {
+                    'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
-                }
+                },
+                body: JSON.stringify({
+                    email: adminEmail,
+                    requestedBy: currentAdminInfo.email  // 현재 로그인한 관리자 이메일
+                })
             });
 
             const result = await response.json();
@@ -1262,11 +1267,15 @@
         if (!confirmed) return;
 
         try {
-            const response = await fetch(`/v1/admin/accounts/${encodeURIComponent(adminEmail)}/restore`, {
+            const response = await fetch('/v1/admin/restore', {
                 method: 'POST',
                 headers: {
+                    'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
-                }
+                },
+                body: JSON.stringify({
+                    email: adminEmail
+                })
             });
 
             const result = await response.json();
@@ -1536,11 +1545,17 @@
                 params.append('reason', reason.trim());
             }
 
-            const response = await fetch(`/v1/admin/accounts/${encodeURIComponent(adminEmail)}/soft-delete?${params}`, {
+            const response = await fetch('/v1/admin/accounts/soft-delete', {
                 method: 'POST',
                 headers: {
+                    'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
-                }
+                },
+                body: JSON.stringify({
+                    targetEmail: adminEmail,
+                    requestedBy: currentAdminInfo.email,
+                    reason: reason && reason.trim() ? reason.trim() : null
+                })
             });
 
             const result = await response.json();
