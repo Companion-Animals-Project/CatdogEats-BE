@@ -9,6 +9,7 @@ import com.team5.catdogeats.auth.util.JwtUtils;
 import com.team5.catdogeats.global.config.CookieProperties;
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
+import com.team5.catdogeats.global.exception.TokenErrorException;
 import com.team5.catdogeats.users.domain.dto.ModifyRoleRequestDTO;
 import com.team5.catdogeats.users.service.ModifyUserRoleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -61,6 +62,8 @@ public class AuthController {
                     .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
                     .header(HttpHeaders.SET_COOKIE, refreshIdCookie.toString())
                     .body(ApiResponse.success(ResponseCode.SUCCESS, dto));
+        } catch (TokenErrorException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(ResponseCode.ACCESS_DENIED));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
