@@ -190,6 +190,14 @@ admin:
   # 초대 관련 설정
   invitation:
     expiration-hours: ${ADMIN_INVITATION_EXPIRATION_HOURS:1}
+  # Redis 관련 설정
+  redis:
+    verification-code-prefix: ${ADMIN_REDIS_VERIFICATION_PREFIX:admin:verification:}
+  # 세션 관련 설정
+  session:
+    key: ${ADMIN_SESSION_KEY:ADMIN_USER}
+
+
 
 # 애플리케이션 설정
 app:

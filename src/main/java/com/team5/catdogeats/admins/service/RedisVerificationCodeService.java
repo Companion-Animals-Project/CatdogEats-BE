@@ -25,14 +25,16 @@ public class RedisVerificationCodeService {
     private int expirationHours;
 
     // Redis 키 패턴
-    private static final String VERIFICATION_CODE_PREFIX = "admin:verification:";
+    @Value("${admin.redis.verification-code-prefix:admin:verification:}")
+    private String verificationCodePrefix;
+
 
 
     /**
      * 인증코드 저장
      */
     public void saveVerificationCode(String email, String code) {
-        String key = VERIFICATION_CODE_PREFIX + email;
+        String key = verificationCodePrefix + email;
         redisTemplate.opsForValue().set(key, code, Duration.ofHours(expirationHours));
         log.info("인증코드 저장: email={}, expiration={}시간", email, expirationHours);
     }
@@ -42,7 +44,7 @@ public class RedisVerificationCodeService {
      * 인증코드 검증 및 삭제
      */
     public boolean verifyAndDeleteCode(String email, String inputCode) {
-        String key = VERIFICATION_CODE_PREFIX + email;
+        String key = verificationCodePrefix + email;
         String storedCode = redisTemplate.opsForValue().get(key);
 
         if (storedCode == null) {
@@ -66,7 +68,7 @@ public class RedisVerificationCodeService {
      * 인증코드 존재 여부 확인 (직원 계정 상태 정보 통계에서 사용 )
      */
     public boolean hasVerificationCode(String email) {
-        String key = VERIFICATION_CODE_PREFIX + email;
+        String key = verificationCodePrefix + email;
         return redisTemplate.hasKey(key);
     }
 
@@ -76,7 +78,7 @@ public class RedisVerificationCodeService {
      * 인증코드 TTL 조회 (남은 시간 확인용)
      */
     public long getVerificationCodeTTL(String email) {
-        String key = VERIFICATION_CODE_PREFIX + email;
+        String key = verificationCodePrefix + email;
         return redisTemplate.getExpire(key, TimeUnit.SECONDS);
     }
 

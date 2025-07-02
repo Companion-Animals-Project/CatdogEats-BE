@@ -8,6 +8,7 @@ import com.team5.catdogeats.global.annotation.JpaTransactional;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -33,7 +34,9 @@ public class AdminAuthenticationServiceImpl implements AdminAuthenticationServic
     private final AdminRepository adminRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public static final String ADMIN_SESSION_KEY = "ADMIN_USER";
+
+    @Value("${admin.session.key:ADMIN_USER}")
+    private String adminSessionKey;
 
     @Override
     @JpaTransactional
@@ -80,7 +83,7 @@ public class AdminAuthenticationServiceImpl implements AdminAuthenticationServic
                 .isFirstLogin(isFirstLogin)
                 .build();
 
-        session.setAttribute(ADMIN_SESSION_KEY, sessionInfo);
+        session.setAttribute(adminSessionKey, sessionInfo);
         session.setMaxInactiveInterval(30 * 60);
 
         // 8. 리다이렉트 URL 결정 - 첫 로그인이면 비밀번호 변경 권장
@@ -144,14 +147,14 @@ public class AdminAuthenticationServiceImpl implements AdminAuthenticationServic
 
         // 세션 정보 업데이트
         sessionInfo.setFirstLogin(false);
-        session.setAttribute(ADMIN_SESSION_KEY, sessionInfo);
+        session.setAttribute(adminSessionKey, sessionInfo);
 
         log.info("관리자 비밀번호 변경 완료: email={}", admin.getEmail());
     }
 
     @Override
     public AdminSessionInfo getSessionInfo(HttpSession session) {
-        return (AdminSessionInfo) session.getAttribute(ADMIN_SESSION_KEY);
+        return (AdminSessionInfo) session.getAttribute(adminSessionKey);
     }
 
     @Override
