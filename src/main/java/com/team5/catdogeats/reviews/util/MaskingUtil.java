@@ -7,7 +7,7 @@ public class MaskingUtil {
         if (name.length() > 1) {
             StringBuilder sb = new StringBuilder();
             sb.append(name.charAt(0));
-            for (int i = 1; i < name.length(); i++) sb.append("*");
+            sb.append("*".repeat(name.length() - 1));
             return sb.toString();
         }
         return name;
