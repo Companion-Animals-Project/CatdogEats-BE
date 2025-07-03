@@ -17,12 +17,10 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.time.ZonedDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -88,11 +86,11 @@ class AdminAuthenticationServiceImplTest {
         assertThat(response.message()).isEqualTo("로그인 성공");
 
         // 세션 설정 검증
-        ArgumentCaptor<AdminSessionInfo> sessionCaptor = ArgumentCaptor.forClass(AdminSessionInfo.class);
+        ArgumentCaptor<AdminInfo> sessionCaptor = ArgumentCaptor.forClass(AdminInfo.class);
         verify(session).setAttribute(eq("ADMIN_USER"), sessionCaptor.capture());
         verify(session).setMaxInactiveInterval(1800); // 30분
 
-        AdminSessionInfo sessionInfo = sessionCaptor.getValue();
+        AdminInfo sessionInfo = sessionCaptor.getValue();
         assertThat(sessionInfo.getAdminId()).isEqualTo(testAdmin.getId());
         assertThat(sessionInfo.getEmail()).isEqualTo(testAdmin.getEmail());
         assertThat(sessionInfo.getName()).isEqualTo(testAdmin.getName());
@@ -171,7 +169,7 @@ class AdminAuthenticationServiceImplTest {
     @DisplayName("로그아웃 성공 - SecurityContextHolder.clearContext() 검증 포함")
     void logout_Success_WithStaticMock() {
         // given
-        AdminSessionInfo sessionInfo = AdminSessionInfo.builder()
+        AdminInfo sessionInfo = AdminInfo.builder()
                 .adminId("admin-1")
                 .email("test@admin.com")
                 .name("테스트 관리자")
@@ -193,7 +191,7 @@ class AdminAuthenticationServiceImplTest {
     @DisplayName("비밀번호 변경 성공")
     void changePassword_Success() {
         // given
-        AdminSessionInfo sessionInfo = AdminSessionInfo.builder()
+        AdminInfo sessionInfo = AdminInfo.builder()
                 .adminId("admin-1")
                 .email("test@admin.com")
                 .name("테스트 관리자")
@@ -215,7 +213,7 @@ class AdminAuthenticationServiceImplTest {
         assertThat(testAdmin.getPassword()).isEqualTo("encodedNewPassword");
         assertThat(testAdmin.getIsFirstLogin()).isFalse();
 
-        ArgumentCaptor<AdminSessionInfo> sessionCaptor = ArgumentCaptor.forClass(AdminSessionInfo.class);
+        ArgumentCaptor<AdminInfo> sessionCaptor = ArgumentCaptor.forClass(AdminInfo.class);
         verify(session).setAttribute(eq("ADMIN_USER"), sessionCaptor.capture());
         assertThat(sessionCaptor.getValue().isFirstLogin()).isFalse();
     }
@@ -238,7 +236,7 @@ class AdminAuthenticationServiceImplTest {
     @DisplayName("비밀번호 변경 실패 - 현재 비밀번호 불일치")
     void changePassword_Fail_WrongCurrentPassword() {
         // given
-        AdminSessionInfo sessionInfo = AdminSessionInfo.builder()
+        AdminInfo sessionInfo = AdminInfo.builder()
                 .adminId("admin-1")
                 .email("test@admin.com")
                 .name("테스트 관리자")
@@ -260,7 +258,7 @@ class AdminAuthenticationServiceImplTest {
     @DisplayName("비밀번호 변경 실패 - 새 비밀번호 확인 불일치")
     void changePassword_Fail_PasswordMismatch() {
         // given
-        AdminSessionInfo sessionInfo = AdminSessionInfo.builder()
+        AdminInfo sessionInfo = AdminInfo.builder()
                 .adminId("admin-1")
                 .email("test@admin.com")
                 .name("테스트 관리자")
@@ -287,7 +285,7 @@ class AdminAuthenticationServiceImplTest {
         when(auth.getPrincipal()).thenReturn("test@admin.com");
         when(securityContext.getAuthentication()).thenReturn(auth);
 
-        AdminSessionInfo sessionInfo = AdminSessionInfo.builder()
+        AdminInfo sessionInfo = AdminInfo.builder()
                 .adminId("admin-1")
                 .email("test@admin.com")
                 .name("테스트 관리자")

@@ -49,7 +49,7 @@ public class AdminManagementController {
             return redirectResult;
         }
 
-        AdminSessionInfo sessionInfo = controllerUtils.requireAdminDepartment(session);
+        AdminInfo sessionInfo = controllerUtils.requireAdminDepartment(session);
         model.addAttribute("admin", sessionInfo);
         // 환경변수로부터 슈퍼관리자 이메일을 모델에 추가
         model.addAttribute("superAdminEmail", superAdminEmail);
@@ -190,19 +190,19 @@ public class AdminManagementController {
             HttpSession session) {
 
         // ADMIN 부서 권한 확인
-        AdminSessionInfo sessionInfo = controllerUtils.requireAdminDepartment(session);
+        AdminInfo sessionInfo = controllerUtils.requireAdminDepartment(session);
 
 
         AdminSoftDeleteRequestDTO serviceRequest = new AdminSoftDeleteRequestDTO(
                 request.targetEmail(),
-                sessionInfo.getEmail(),
+                sessionInfo.email(),
                 request.reason()
         );
 
         AdminSoftDeleteResponseDTO response = softDeleteService.softDeleteAdmin(serviceRequest);
 
         log.info("관리자 퇴사 처리 요청: target={}, requestedBy={}",
-                request.targetEmail(), sessionInfo.getEmail());
+                request.targetEmail(), sessionInfo.email());
 
         return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
     }
@@ -217,12 +217,12 @@ public class AdminManagementController {
             @Valid @RequestBody AdminRestoreRequestDTO request,  // 새로운 DTO
             HttpSession session) {
 
-        AdminSessionInfo sessionInfo = controllerUtils.requireAdminDepartment(session);
+        AdminInfo sessionInfo = controllerUtils.requireAdminDepartment(session);
 
         AdminSoftDeleteResponseDTO response = softDeleteService.undoSoftDelete(request.email());
 
         log.info("관리자 퇴사 취소 요청: target={}, requestedBy={}",
-                request.email(), sessionInfo.getEmail());
+                request.email(), sessionInfo.email());
 
         return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
     }

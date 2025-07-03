@@ -25,7 +25,7 @@ public interface AdminAuthenticationService {
     /**
      * 세션에서 관리자 정보 조회
      */
-    AdminSessionInfo getSessionInfo(HttpSession session);
+    AdminInfo getSessionInfo(HttpSession session);
 
     /**
      * 로그인 상태 확인

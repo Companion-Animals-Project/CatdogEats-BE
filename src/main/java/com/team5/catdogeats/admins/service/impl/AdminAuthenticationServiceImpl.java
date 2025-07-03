@@ -18,10 +18,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 
 /**
  * 관리자 인증 서비스 구현체
@@ -144,7 +142,7 @@ public class AdminAuthenticationServiceImpl implements AdminAuthenticationServic
     }
 
     @Override
-    public AdminSessionInfo getSessionInfo(HttpSession session) {
+    public AdminInfo getSessionInfo(HttpSession session) {
         // 1. Redis에서 adminId만 조회
         AdminSession adminSession = adminSessionRepository.findById(session.getId())
                 .orElse(null);
@@ -163,14 +161,14 @@ public class AdminAuthenticationServiceImpl implements AdminAuthenticationServic
             return null;
         }
 
-        return AdminSessionInfo.builder()
-                .adminId(admin.getId())
-                .email(admin.getEmail())
-                .name(admin.getName())
-                .department(admin.getDepartment())
-                .isFirstLogin(admin.getIsFirstLogin())
-                .loginTime(admin.getLastLoginAt())
-                .build();
+        return new AdminInfo(
+                admin.getId(),
+                admin.getEmail(),
+                admin.getName(),
+                admin.getDepartment(),
+                admin.getIsFirstLogin(),
+                admin.getLastLoginAt()
+        );
     }
 
     @Override

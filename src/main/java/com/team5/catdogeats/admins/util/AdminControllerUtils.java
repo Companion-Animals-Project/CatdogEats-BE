@@ -1,6 +1,6 @@
 package com.team5.catdogeats.admins.util;
 
-import com.team5.catdogeats.admins.domain.dto.AdminSessionInfo;
+import com.team5.catdogeats.admins.domain.dto.AdminInfo;
 import com.team5.catdogeats.admins.domain.enums.Department;
 import com.team5.catdogeats.admins.service.AdminAuthenticationService;
 import jakarta.servlet.http.HttpSession;
@@ -8,9 +8,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 /**
@@ -27,21 +24,24 @@ public class AdminControllerUtils {
      * 세션에서 관리자 정보 조회 (필수)
      * 세션이 없거나 유효하지 않으면 예외 발생
      */
-    public AdminSessionInfo requireSessionInfo(HttpSession session) {
-        AdminSessionInfo sessionInfo = authenticationService.getSessionInfo(session);
+    public AdminInfo requireSessionInfo(HttpSession session) {
+        AdminInfo sessionInfo = authenticationService.getSessionInfo(session);
         if (sessionInfo == null) {
             throw new BadCredentialsException("로그인이 필요합니다.");
         }
+
+
         return sessionInfo;
     }
+
 
     /**
      * ADMIN 부서 권한 확인 (필수)
      * ADMIN 부서가 아니면 예외 발생
      */
-    public AdminSessionInfo requireAdminDepartment(HttpSession session) {
-        AdminSessionInfo sessionInfo = requireSessionInfo(session);
-        if (!Department.ADMIN.equals(sessionInfo.getDepartment())) {
+    public AdminInfo requireAdminDepartment(HttpSession session) {
+        AdminInfo sessionInfo = requireSessionInfo(session);
+        if (!Department.ADMIN.equals(sessionInfo.department())) {
             throw new AccessDeniedException("ADMIN 부서만 접근할 수 있습니다.");
         }
         return sessionInfo;
@@ -52,8 +52,8 @@ public class AdminControllerUtils {
      */
     public boolean isAdminDepartmentUser(HttpSession session) {
         try {
-            AdminSessionInfo sessionInfo = authenticationService.getSessionInfo(session);
-            return sessionInfo != null && Department.ADMIN.equals(sessionInfo.getDepartment());
+            AdminInfo sessionInfo = authenticationService.getSessionInfo(session);
+            return sessionInfo != null && Department.ADMIN.equals(sessionInfo.department());
         } catch (Exception e) {
             return false;
         }
@@ -64,50 +64,22 @@ public class AdminControllerUtils {
      */
     public String getSessionUserInfo(HttpSession session) {
         try {
-            AdminSessionInfo sessionInfo = authenticationService.getSessionInfo(session);
+            AdminInfo sessionInfo = authenticationService.getSessionInfo(session);
             if (sessionInfo == null) {
                 return "익명사용자";
             }
             return String.format("email=%s, department=%s",
-                    sessionInfo.getEmail(), sessionInfo.getDepartment());
+                    sessionInfo.email(), sessionInfo.department());
         } catch (Exception e) {
             return "정보조회실패";
         }
     }
 
     /**
-     * Spring Security에서 권한 확인
-     */
-    public boolean hasAdminRole() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return auth != null &&
-                auth.getAuthorities().stream()
-                        .anyMatch(authority -> "ADMIN".equals(authority.getAuthority()));
-    }
-
-
-    /**
-     * Spring Security에서 부서 정보 확인
-     */
-    public Department getCurrentDepartment() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null) return null;
-
-        return auth.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .filter(authority -> !authority.startsWith("ROLE_"))
-                .map(Department::valueOf)
-                .findFirst()
-                .orElse(null);
-    }
-
-
-
-    /**
      * 첫 로그인인지 확인하여 비밀번호 변경 페이지로 리다이렉트 필요한지 판단
      */
     public String checkFirstLoginRedirect(HttpSession session) {
-        AdminSessionInfo sessionInfo = authenticationService.getSessionInfo(session);
+        AdminInfo sessionInfo = authenticationService.getSessionInfo(session);
         if (sessionInfo == null) {
             return "redirect:/v1/admin/login";
         }
@@ -122,7 +94,7 @@ public class AdminControllerUtils {
      * 로그인 되어있지 않으면 로그인 페이지로, ADMIN 부서가 아니면 대시보드로
      */
     public String validatePageAccess(HttpSession session, boolean requireAdminDepartment) {
-        AdminSessionInfo sessionInfo = authenticationService.getSessionInfo(session);
+        AdminInfo sessionInfo = authenticationService.getSessionInfo(session);
 
         if (sessionInfo == null) {
             return "redirect:/v1/admin/login";
@@ -132,7 +104,7 @@ public class AdminControllerUtils {
             return "redirect:/v1/admin/change-password";
         }
 
-        if (requireAdminDepartment && !Department.ADMIN.equals(sessionInfo.getDepartment())) {
+        if (requireAdminDepartment && !Department.ADMIN.equals(sessionInfo.department())) {
             log.warn("ADMIN 부서가 아닌 사용자의 접근 시도: {}", getSessionUserInfo(session));
             return "redirect:/v1/admin/dashboard?error=access_denied";
         }
