@@ -79,7 +79,7 @@ public class PetController {
 
     @Operation(summary = "내 펫 목록 조회 (스크롤)", description = "프론트에서 응답의 nextCursor값을 다음 요청의 cursorCreatedAt으로 사용하는 로직 추가하기")
     @GetMapping("/pet/curost")
-    public ResponseEntity<ApiResponse<CursorPetResponseDto>> getMyPetsWithCursor(
+    public ResponseEntity<APIResponse<CursorPetResponseDto>> getMyPetsWithCursor(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestParam(required = false) ZonedDateTime cursorUpdatedAt,
             @RequestParam(defaultValue = "4") int size) {
@@ -95,15 +95,15 @@ public class PetController {
             CursorPetResponseDto response = new CursorPetResponseDto(page.getContent(), nextCursor, hasNext);
 
 
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
 
