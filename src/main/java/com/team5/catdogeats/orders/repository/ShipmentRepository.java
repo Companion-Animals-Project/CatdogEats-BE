@@ -49,10 +49,10 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
 
     /**
      * 판매자가 주문번호로 배송정보 조회 (권한 검증 포함)
-     * 판매자는 본인이 판매한 상품이 포함된 주문의 배송지 정보만 조회할 수 있다.
+     * 판매자는 본인이 판매한 상품이 포함된 주문의 배송지 정보만 조회할 수 있다
      * OrderItems와 Products를 함께 조회하여 판매자 권한을 검증
      * @param orderNumber 주문 번호
-     * @param sellerId 판매자 ID
+     * @param sellerId 판매자 userId (Sellers의 userId 필드)
      * @return 배송 정보 (Optional)
      */
     @Query("""
@@ -60,8 +60,9 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
     JOIN FETCH s.orders o
     JOIN FETCH o.orderItems oi
     JOIN FETCH oi.products p
+    JOIN FETCH p.seller ps
     WHERE o.orderNumber = :orderNumber
-    AND p.seller.id = :sellerId
+    AND ps.userId = :sellerId
     """)
     Optional<Shipments> findShippingInfoByOrderNumberAndSeller(
             @Param("orderNumber") Long orderNumber,
