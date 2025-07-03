@@ -2,7 +2,6 @@ package com.team5.catdogeats.orders.repository;
 
 import com.team5.catdogeats.orders.domain.mapping.OrderItems;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
 

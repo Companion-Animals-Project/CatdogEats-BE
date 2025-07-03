@@ -13,6 +13,12 @@ public record ProductCreateRequestDto(
         @NotBlank(message = "상품명은 필수입니다.")
         String title,
 
+        @NotBlank(message = "상품 부제는 필수입니다.")
+        String subTitle,
+
+        @NotBlank(message = "상품 정보는 필수입니다.")
+        String productInfo,
+
         @NotBlank(message = "상품 설명은 필수입니다.")
         String contents,
 
