@@ -25,7 +25,7 @@ public class Notifications extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_notifications_user_id"))
-    private Users user;
+    private Users users;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
