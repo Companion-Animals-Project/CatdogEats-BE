@@ -107,8 +107,6 @@ public class ProductImageSerivceImpl implements ProductImageService {
                 log.error("[uploadProductImage] products_images 매핑 저장 실패 후 최종 롤백 완료.");
                 throw e;
             }
-
-
             result.add(new ProductImageUploadResponseDto(savedImage.getId(), s3Url));
         }
 
