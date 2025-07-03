@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import lombok.Builder;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 /**
@@ -17,7 +17,7 @@ public record SellerOrderDetailResponse(
         Long orderNumber,
 
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
-        LocalDateTime orderDate,
+        ZonedDateTime orderDate,
 
         OrderStatus orderStatus,
         RecipientInfo recipientInfo,
@@ -64,7 +64,7 @@ public record SellerOrderDetailResponse(
      */
     public static SellerOrderDetailResponse success(
             Long orderNumber,
-            LocalDateTime orderDate,
+            ZonedDateTime orderDate,
             OrderStatus orderStatus,
             RecipientInfo recipientInfo,
             List<SellerOrderItem> orderItems,
