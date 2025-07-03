@@ -4,6 +4,7 @@ import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.orders.dto.request.OrderCreateRequest;
+import com.team5.catdogeats.orders.dto.request.OrderDeleteRequest;
 import com.team5.catdogeats.orders.dto.response.OrderCreateResponse;
 import com.team5.catdogeats.orders.dto.response.OrderDeleteResponse;
 import com.team5.catdogeats.orders.dto.response.OrderDetailResponse;
@@ -122,19 +123,19 @@ public class OrderController {
      * 주문 상세 페이지에서 호출되는 단일 주문 삭제 기능입니다.
      *
      * @param userPrincipal JWT에서 추출된 인증된 사용자 정보
-     * @param orderNumber 삭제할 주문 번호
+     * @param request 삭제할 주문 정보 (orderNumber 포함)
      * @return 삭제 처리 결과
      */
-    @DeleteMapping("/{orderNumber}")
+    @DeleteMapping
     public ResponseEntity<ApiResponse<OrderDeleteResponse>> deleteOrder(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @PathVariable("orderNumber") Long orderNumber) {
+            @RequestBody @Valid OrderDeleteRequest request) {
 
         try {
             log.info("주문 내역 삭제 요청 - provider: {}, providerId: {}, orderNumber: {}",
-                    userPrincipal.provider(), userPrincipal.providerId(), orderNumber);
+                    userPrincipal.provider(), userPrincipal.providerId(), request.orderNumber());
 
-            OrderDeleteResponse response = orderService.deleteOrder(userPrincipal, orderNumber);
+            OrderDeleteResponse response = orderService.deleteOrder(userPrincipal, request.orderNumber());
 
             if (response.success()) {
                 log.info("주문 내역 삭제 성공 - orderNumber: {}, orderId: {}",
@@ -151,7 +152,7 @@ public class OrderController {
             }
 
         } catch (Exception e) {
-            log.error("주문 내역 삭제 중 내부 오류 발생 - orderNumber: {}", orderNumber, e);
+            log.error("주문 내역 삭제 중 내부 오류 발생 - orderNumber: {}", request.orderNumber(), e);
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
                     .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "주문 내역 삭제 중 서버 오류가 발생했습니다."));
