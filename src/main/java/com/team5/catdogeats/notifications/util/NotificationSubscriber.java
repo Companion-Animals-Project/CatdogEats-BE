@@ -13,6 +13,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -36,8 +37,9 @@ public class NotificationSubscriber implements MessageListener {
 
             for (SseEmitter emitter : emitters) {
                 try {
+                    String id = UUID.randomUUID().toString();
                     emitter.send(SseEmitter.event()
-                            .id(dto.id())
+                            .id(id)
                             .name("notification")
                             .data(dto));
                 } catch (IOException e) {
