@@ -8,7 +8,6 @@ import com.team5.catdogeats.carts.service.CartService;
 import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,11 +29,6 @@ public class CartController {
             summary = "장바구니 조회",
             description = "사용자의 장바구니 목록을 조회합니다."
     )
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "장바구니를 찾을 수 없음")
-    })
     @GetMapping
     public ResponseEntity<APIResponse<CartResponse>> getCartItems(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
@@ -56,12 +50,6 @@ public class CartController {
             summary = "장바구니에 상품 추가",
             description = "장바구니에 새로운 상품을 추가하거나 기존 상품의 수량을 증가시킵니다."
     )
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "추가 성공"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "상품을 찾을 수 없음")
-    })
     @PostMapping
     public ResponseEntity<APIResponse<CartResponse>> addCartItem(
             @Valid @RequestBody AddCartItemRequest request,
