@@ -196,7 +196,7 @@ public class AdminManagementServiceImpl implements AdminManagementService {
                 .isDeleted(admin.getIsDeleted())
                 .verificationCode(verificationCode) // Redis에서 조회한 정보
                 .verificationCodeExpiry(verificationCodeExpiry) // Redis TTL 기반 만료시간
-                .lastLoginAt(admin.getUpdatedAt())
+                .lastLoginAt(admin.getLastLoginAt())
                 .createdAt(admin.getCreatedAt())
                 .deletedAt(admin.getDeletedAt())
                 .deleteReason(admin.getDeleteReason())

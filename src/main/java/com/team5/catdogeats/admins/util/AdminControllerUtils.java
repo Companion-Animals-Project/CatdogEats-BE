@@ -8,6 +8,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 /**
@@ -26,7 +29,7 @@ public class AdminControllerUtils {
      */
     public AdminSessionInfo requireSessionInfo(HttpSession session) {
         AdminSessionInfo sessionInfo = authenticationService.getSessionInfo(session);
-        if (sessionInfo == null || !sessionInfo.isValid()) {
+        if (sessionInfo == null) {
             throw new BadCredentialsException("로그인이 필요합니다.");
         }
         return sessionInfo;
@@ -71,6 +74,34 @@ public class AdminControllerUtils {
             return "정보조회실패";
         }
     }
+
+    /**
+     * Spring Security에서 권한 확인
+     */
+    public boolean hasAdminRole() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null &&
+                auth.getAuthorities().stream()
+                        .anyMatch(authority -> "ADMIN".equals(authority.getAuthority()));
+    }
+
+
+    /**
+     * Spring Security에서 부서 정보 확인
+     */
+    public Department getCurrentDepartment() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return null;
+
+        return auth.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .filter(authority -> !authority.startsWith("ROLE_"))
+                .map(Department::valueOf)
+                .findFirst()
+                .orElse(null);
+    }
+
+
 
     /**
      * 첫 로그인인지 확인하여 비밀번호 변경 페이지로 리다이렉트 필요한지 판단

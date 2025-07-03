@@ -56,6 +56,9 @@ public class Admins extends BaseEntity {
     @Builder.Default
     private Boolean isDeleted = false;
 
+    @Column
+    private ZonedDateTime lastLoginAt;
+
 
     @Column(length = 100)
     private String deleteReason;
@@ -73,6 +76,13 @@ public class Admins extends BaseEntity {
         this.isFirstLogin = false;
     }
 
+
+    /**
+     * 로그인 시간 업데이트
+     */
+    public void updateLastLoginAt() {
+        this.lastLoginAt = ZonedDateTime.now();
+    }
 
     /**
      * 비밀번호 변경

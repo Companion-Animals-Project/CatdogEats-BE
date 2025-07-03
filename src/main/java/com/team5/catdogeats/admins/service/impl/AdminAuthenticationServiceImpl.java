@@ -3,6 +3,7 @@ package com.team5.catdogeats.admins.service.impl;
 import com.team5.catdogeats.admins.domain.Admins;
 import com.team5.catdogeats.admins.domain.dto.*;
 import com.team5.catdogeats.admins.repository.AdminRepository;
+import com.team5.catdogeats.admins.repository.AdminSessionRepository;
 import com.team5.catdogeats.admins.service.AdminAuthenticationService;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
 import jakarta.servlet.http.HttpSession;
@@ -32,6 +33,7 @@ import java.util.Collections;
 public class AdminAuthenticationServiceImpl implements AdminAuthenticationService {
 
     private final AdminRepository adminRepository;
+    private final AdminSessionRepository adminSessionRepository;
     private final PasswordEncoder passwordEncoder;
 
 
@@ -59,6 +61,7 @@ public class AdminAuthenticationServiceImpl implements AdminAuthenticationServic
         boolean isFirstLogin = admin.getIsFirstLogin();
 
         // 5. 로그인 시간 업데이트
+        admin.updateLastLoginAt();
         adminRepository.save(admin);
 
         // 6. Spring Security Authentication 객체 생성 및 설정
@@ -74,17 +77,12 @@ public class AdminAuthenticationServiceImpl implements AdminAuthenticationServic
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         // 7. 세션에 관리자 정보 저장
-        AdminSessionInfo sessionInfo = AdminSessionInfo.builder()
+        AdminSession adminSession = AdminSession.builder()
+                .sessionId(session.getId())
                 .adminId(admin.getId())
-                .email(admin.getEmail())
-                .name(admin.getName())
-                .department(admin.getDepartment())
-                .loginTime(ZonedDateTime.now())
-                .isFirstLogin(isFirstLogin)
                 .build();
 
-        session.setAttribute(adminSessionKey, sessionInfo);
-        session.setMaxInactiveInterval(30 * 60);
+        adminSessionRepository.save(adminSession);
 
         // 8. 리다이렉트 URL 결정 - 첫 로그인이면 비밀번호 변경 권장
         String redirectUrl = isFirstLogin ? "/v1/admin/change-password" : "/v1/admin/dashboard";
@@ -101,7 +99,7 @@ public class AdminAuthenticationServiceImpl implements AdminAuthenticationServic
                 .name(admin.getName())
                 .department(admin.getDepartment())
                 .isFirstLogin(isFirstLogin)
-                .lastLoginAt(admin.getUpdatedAt())
+                .lastLoginAt(admin.getLastLoginAt())
                 .redirectUrl(redirectUrl)
                 .message(message)
                 .build();
@@ -109,60 +107,85 @@ public class AdminAuthenticationServiceImpl implements AdminAuthenticationServic
 
     @Override
     public void logout(HttpSession session) {
-        AdminSessionInfo sessionInfo = getSessionInfo(session);
-        if (sessionInfo != null) {
-            log.info("관리자 로그아웃: email={}", sessionInfo.getEmail());
-        }
+        // Redis에서 세션 삭제
+        adminSessionRepository.deleteById(session.getId());
 
         // Spring Security 컨텍스트 클리어
         SecurityContextHolder.clearContext();
         session.invalidate();
+
+        log.info("관리자 로그아웃 완료: sessionId={}", session.getId());
     }
 
     @Override
     @JpaTransactional
     public void changePassword(AdminPasswordChangeRequestDTO request, HttpSession session) {
-        AdminSessionInfo sessionInfo = getSessionInfo(session);
-        if (sessionInfo == null) {
-            throw new IllegalStateException("로그인이 필요합니다.");
-        }
+        // adminId 조회
+        AdminSession adminSession = adminSessionRepository.findById(session.getId())
+                .orElseThrow(() -> new IllegalStateException("로그인이 필요합니다."));
 
-        Admins admin = adminRepository.findById(sessionInfo.getAdminId())
+
+        Admins admin = adminRepository.findById(adminSession.getAdminId())
                 .orElseThrow(() -> new IllegalStateException("관리자를 찾을 수 없습니다."));
 
-        // 현재 비밀번호 확인
         if (!passwordEncoder.matches(request.currentPassword(), admin.getPassword())) {
             throw new BadCredentialsException("현재 비밀번호가 올바르지 않습니다.");
         }
 
-        // 새 비밀번호와 확인 비밀번호 일치 검증
         if (!request.newPassword().equals(request.confirmPassword())) {
             throw new IllegalArgumentException("새 비밀번호와 확인 비밀번호가 일치하지 않습니다.");
         }
 
-        // 비밀번호 변경
         admin.changePassword(passwordEncoder.encode(request.newPassword()));
         admin.completeFirstLogin();
         adminRepository.save(admin);
-
-        // 세션 정보 업데이트
-        sessionInfo.setFirstLogin(false);
-        session.setAttribute(adminSessionKey, sessionInfo);
 
         log.info("관리자 비밀번호 변경 완료: email={}", admin.getEmail());
     }
 
     @Override
     public AdminSessionInfo getSessionInfo(HttpSession session) {
-        return (AdminSessionInfo) session.getAttribute(adminSessionKey);
+        // 1. Redis에서 adminId만 조회
+        AdminSession adminSession = adminSessionRepository.findById(session.getId())
+                .orElse(null);
+
+        if (adminSession == null || !adminSession.isValid()) {
+            return null;
+        }
+
+
+        Admins admin = adminRepository.findById(adminSession.getAdminId())
+                .orElse(null);
+
+        if (admin == null) {
+            // adminId가 유효하지 않으면 세션 삭제
+            adminSessionRepository.deleteById(session.getId());
+            return null;
+        }
+
+        return AdminSessionInfo.builder()
+                .adminId(admin.getId())
+                .email(admin.getEmail())
+                .name(admin.getName())
+                .department(admin.getDepartment())
+                .isFirstLogin(admin.getIsFirstLogin())
+                .loginTime(admin.getLastLoginAt())
+                .build();
     }
 
     @Override
     public boolean isLoggedIn(HttpSession session) {
-        // Spring Security 인증 상태와 세션 정보 둘 다 확인
+        // 1. Spring Security 인증 확인
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return auth != null && auth.isAuthenticated() &&
-                !"anonymousUser".equals(auth.getPrincipal()) &&
-                getSessionInfo(session) != null;
+        boolean isSecurityAuthenticated = auth != null &&
+                auth.isAuthenticated() &&
+                !"anonymousUser".equals(auth.getPrincipal());
+
+        // 2. Redis 세션 확인 (adminId만 확인)
+        boolean hasValidSession = adminSessionRepository.findById(session.getId())
+                .map(AdminSession::isValid)
+                .orElse(false);
+
+        return isSecurityAuthenticated && hasValidSession;
     }
 }
