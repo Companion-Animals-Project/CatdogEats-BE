@@ -47,7 +47,7 @@ public class SellerOrderServiceImpl implements SellerOrderService {
 
             // 2. 주문번호로 배송정보 조회 (판매자 권한 검증 포함)
             Shipments shipment = shipmentRepository.findShippingInfoByOrderNumberAndSeller(
-                            orderNumber, seller.getId())
+                            orderNumber, seller.getUserId())
                     .orElseThrow(() -> new NoSuchElementException(
                             "주문을 찾을 수 없거나 접근 권한이 없습니다"));
 
@@ -56,7 +56,7 @@ public class SellerOrderServiceImpl implements SellerOrderService {
 
             // 4. 해당 판매자의 주문 상품만 필터링
             List<SellerOrderDetailResponse.SellerOrderItem> sellerOrderItems =
-                    filterSellerOrderItems(shipment, seller.getId());
+                    filterSellerOrderItems(shipment, seller.getUserId());
 
             // 5. 해당 판매자 상품들의 총 금액 계산
             Long totalAmount = calculateSellerTotalAmount(sellerOrderItems);
@@ -72,7 +72,7 @@ public class SellerOrderServiceImpl implements SellerOrderService {
             );
 
             log.info("판매자용 주문 상세 조회 완료 - orderNumber: {}, sellerId: {}, itemCount: {}, totalAmount: {}원",
-                    orderNumber, seller.getId(), sellerOrderItems.size(), totalAmount);
+                    orderNumber, seller.getUserId(), sellerOrderItems.size(), totalAmount);
 
             return response;
 
@@ -122,7 +122,7 @@ public class SellerOrderServiceImpl implements SellerOrderService {
             Shipments shipment, String sellerId) {
 
         return shipment.getOrders().getOrderItems().stream()
-                .filter(orderItem -> sellerId.equals(orderItem.getProducts().getSeller().getId()))
+                .filter(orderItem -> sellerId.equals(orderItem.getProducts().getSeller().getUserId()))
                 .map(this::convertToSellerOrderItem)
                 .toList();
     }
@@ -133,10 +133,10 @@ public class SellerOrderServiceImpl implements SellerOrderService {
     private SellerOrderDetailResponse.SellerOrderItem convertToSellerOrderItem(OrderItems orderItem) {
         return SellerOrderDetailResponse.SellerOrderItem.builder()
                 .productId(orderItem.getProducts().getId())
-                .productName(orderItem.getProducts().getName())
-                .unitPrice(orderItem.getUnitPrice())
+                .productName(orderItem.getProducts().getTitle())
+                .unitPrice(orderItem.getPrice())
                 .quantity(orderItem.getQuantity())
-                .itemTotalPrice(orderItem.getUnitPrice() * orderItem.getQuantity())
+                .itemTotalPrice(orderItem.getPrice() * orderItem.getQuantity())
                 .build();
     }
 
