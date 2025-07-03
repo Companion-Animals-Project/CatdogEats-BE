@@ -4,6 +4,7 @@ import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.storage.domain.dto.ReviewImageUploadResponseDto;
+import com.team5.catdogeats.storage.exception.ImageUploadException;
 import com.team5.catdogeats.storage.service.ReviewImageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -41,6 +42,11 @@ public class ReviewImageController {
         try {
             List<ReviewImageUploadResponseDto> response = reviewImageService.uploadReviewImage(userPrincipal, reviewId, images);
             return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+        } catch (ImageUploadException e) {
+            // DB저장, 매핑 저장 등 업로드 과정 오류
+            return ResponseEntity
+                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
@@ -73,6 +79,11 @@ public class ReviewImageController {
         try {
             List<ReviewImageUploadResponseDto> response = reviewImageService.updateReviewImage(userPrincipal, reviewId, oldImageIds, images);
             return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+        } catch (ImageUploadException e) {
+            // DB저장, 매핑 저장 등 업로드 과정 오류
+            return ResponseEntity
+                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
