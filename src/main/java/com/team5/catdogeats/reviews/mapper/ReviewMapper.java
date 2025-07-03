@@ -32,6 +32,7 @@ public interface ReviewMapper {
     SELECT
         r.id as reviewId,
         u.name as writerName,
+        b.name_masking_status as nameMaskingStatus,
         r.star,
         r.contents,
         r.updated_at as updatedAt,
@@ -70,6 +71,7 @@ public interface ReviewMapper {
     class FlatReviewRow {
         public String reviewId;
         public String writerName;
+        public Boolean nameMaskingStatus;
         public Double star;
         public String contents;
         public String updatedAt;

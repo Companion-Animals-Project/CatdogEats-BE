@@ -1,9 +1,12 @@
 package com.team5.catdogeats.orders.event.listener;
 
+import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
+import com.team5.catdogeats.orders.domain.mapping.OrderItems;
 import com.team5.catdogeats.orders.dto.common.OrderItemInfo;
 import com.team5.catdogeats.orders.event.OrderCreatedEvent;
+import com.team5.catdogeats.orders.repository.OrderItemRepository;
 import com.team5.catdogeats.orders.repository.OrderRepository;
 import com.team5.catdogeats.payments.domain.Payments;
 import com.team5.catdogeats.payments.domain.enums.PaymentMethod;
@@ -23,7 +26,6 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -38,12 +40,63 @@ public class OrderEventListener {
 
     private final StockReservationService stockReservationService;
     private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;  // 추가된 부분
     private final ProductRepository productRepository;
     private final PaymentRepository paymentRepository;
     private final BuyerRepository buyerRepository;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional(transactionManager = "jpaTransactionManager", propagation = Propagation.REQUIRES_NEW)
+    @Async("taskExecutor")
+    public void handleOrderItemsCreation(OrderCreatedEvent event) {
+        String orderId = event.getOrderId();
+        log.info("주문 상품 저장 시작: orderId={}, orderNumber={}, 상품 개수={}",
+                orderId, event.getOrderNumber(), event.getOrderItemCount());
+
+        try {
+            Orders order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없습니다: " + orderId));
+
+            if (order.getOrderStatus() == OrderStatus.CANCELLED) {
+                log.info("취소된 주문 - 주문 상품 저장 건너뜀: orderId={}", orderId);
+                return;
+            }
+            /*
+             * - 기존 ArrayList 생성 + for 반복문 방식을 Stream API로 변경
+             * - 중간 컬렉션 생성 없이 직접 변환하여 메모리 효율성 개선
+             */
+            // OrderItemInfo를 OrderItems 엔티티로 변환하여 저장
+            List<OrderItems> orderItemsToSave = event.getOrderItems().stream()
+                    .map(orderItemInfo -> {
+                        // 상품 정보 조회
+                        Products product = productRepository.findById(orderItemInfo.productId())
+                                .orElseThrow(() -> new NoSuchElementException(
+                                        "상품을 찾을 수 없습니다: " + orderItemInfo.productId()));
+
+                        // OrderItems 엔티티 생성
+                        return OrderItems.builder()
+                                .orders(order)
+                                .products(product)
+                                .quantity(orderItemInfo.quantity())
+                                .price(orderItemInfo.unitPrice())  // 주문 시점의 상품 가격
+                                .build();
+                    })
+                    .toList();
+
+            List<OrderItems> savedOrderItems = orderItemRepository.saveAll(orderItemsToSave);
+
+            log.info("주문 상품 저장 완료: orderId={}, 저장된 상품 개수={}",
+                    orderId, savedOrderItems.size());
+
+        } catch (Exception e) {
+            log.error("주문 상품 저장 실패: orderId={}, error={}", orderId, e.getMessage(), e);
+            throw e; // 중요한 데이터이므로 예외를 다시 던져서 트랜잭션 롤백 유도
+        }
+    }
+
+    // === 기존 코드들 (수정하지 않음) ===
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
     public void handleStockReservation(OrderCreatedEvent event) {
         String orderId = event.getOrderId();
         log.info("재고 예약 처리 시작: orderId={}, orderNumber={}, 상품 개수={}, 쿠폰할인={}",
@@ -88,7 +141,7 @@ public class OrderEventListener {
                 .collect(Collectors.toList());
     }
 
-    @Transactional(transactionManager = "jpaTransactionManager", propagation = Propagation.REQUIRES_NEW)
+    @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
     public void performStockReservationCompensation(String orderId, String reason) {
         try {
             Orders order = orderRepository.findById(orderId)
@@ -106,7 +159,7 @@ public class OrderEventListener {
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional(transactionManager = "jpaTransactionManager", propagation = Propagation.REQUIRES_NEW)
+    @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
     public void handlePaymentInfoCreation(OrderCreatedEvent event) {
         String orderId = event.getOrderId();
 
