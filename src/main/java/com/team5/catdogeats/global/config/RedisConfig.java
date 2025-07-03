@@ -71,7 +71,7 @@ public class RedisConfig {
                 .setAddress("redis://" + host + ":" + port)
                 .setPassword(password)
                 .setConnectionPoolSize(5)
-                .setConnectionMinimumIdleSize(2)
+                .setConnectionMinimumIdleSize(1)
                 .setIdleConnectionTimeout(10000)
                 .setConnectTimeout(10000)
                 .setTimeout(3000)

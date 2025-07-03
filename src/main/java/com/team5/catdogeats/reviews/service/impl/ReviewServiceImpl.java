@@ -120,6 +120,7 @@ public class ReviewServiceImpl implements ReviewService {
                     new ProductReviewResponseDtoBuilder(
                             row.reviewId,
                             row.writerName,
+                            row.nameMaskingStatus,
                             row.star,
                             row.contents,
                             row.updatedAt
