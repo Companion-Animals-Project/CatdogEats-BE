@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -17,18 +18,40 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class SseEmitterServiceImpl implements SseEmitterService {
     private final UserIdCacheService userIdCacheService;
     private final Map<String, List<SseEmitter>> emitters = new ConcurrentHashMap<>();
-    private final static Long MAX_CONNECT = 60  * 1000L;
-
+    private static final Long DEFAULT_TIMEOUT = 60 * 1000L;
+    private static final Long HEARTBEAT_INTERVAL = 30 * 1000L;
     @Override
     public SseEmitter connect(String provider, String providerId) {
         String userId = getUserId(provider, providerId);
 
-        SseEmitter emitter = new SseEmitter(MAX_CONNECT);
+        SseEmitter emitter = new SseEmitter(DEFAULT_TIMEOUT);
         emitters.computeIfAbsent(userId, k -> new CopyOnWriteArrayList<>()).add(emitter);
 
-        emitter.onCompletion(() -> emitters.get(userId).remove(emitter));
-        emitter.onTimeout(() -> emitters.get(userId).remove(emitter));
-        emitter.onError(e -> emitters.get(userId).remove(emitter));
+        // 연결 즉시 확인 메시지 전송
+        try {
+            emitter.send(SseEmitter.event()
+                    .name("connected")
+                    .data("연결되었습니다"));
+        } catch (IOException e) {
+            emitters.get(userId).remove(emitter);
+            emitter.completeWithError(e);
+            return emitter;
+        }
+
+        // 정리 로직
+        Runnable cleanup = () -> {
+            List<SseEmitter> userEmitters = emitters.get(userId);
+            if (userEmitters != null) {
+                userEmitters.remove(emitter);
+                if (userEmitters.isEmpty()) {
+                    emitters.remove(userId);
+                }
+            }
+        };
+
+        emitter.onCompletion(cleanup);
+        emitter.onTimeout(cleanup);
+        emitter.onError(e -> cleanup.run());
 
         return emitter;
     }

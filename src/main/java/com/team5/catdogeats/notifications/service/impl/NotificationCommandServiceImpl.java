@@ -27,6 +27,7 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
 
     @Override
     @JpaTransactional
+
     public void markAsRead(String provider, String providerId, String notificationId) {
         try {
             String userId = getUserId(provider, providerId);
