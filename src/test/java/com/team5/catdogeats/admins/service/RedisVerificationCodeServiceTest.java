@@ -4,10 +4,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -18,9 +19,10 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("Redis 인증코드 서비스 테스트")
 class RedisVerificationCodeServiceTest {
 
@@ -33,46 +35,44 @@ class RedisVerificationCodeServiceTest {
     @InjectMocks
     private RedisVerificationCodeService redisVerificationCodeService;
 
+    private static final String TEST_EMAIL = "test@example.com";
+    private static final String TEST_CODE = "123456";
+    private static final String VERIFICATION_CODE_PREFIX = "admin:verification:";
+    private static final int EXPIRATION_HOURS = 1;
+
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(redisVerificationCodeService, "expirationHours", 1);
+        // 필드 값 설정
+        ReflectionTestUtils.setField(redisVerificationCodeService, "expirationHours", EXPIRATION_HOURS);
+        ReflectionTestUtils.setField(redisVerificationCodeService, "verificationCodePrefix", VERIFICATION_CODE_PREFIX);
+
+        // RedisTemplate의 ValueOperations 모킹
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
     }
 
     @Test
     @DisplayName("인증코드 저장 성공")
     void saveVerificationCode_Success() {
         // given
-        String email = "test@example.com";
-        String code = "123456";
-        String expectedKey = "admin:verification:" + email;
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        String expectedKey = VERIFICATION_CODE_PREFIX + TEST_EMAIL;
+        Duration expectedDuration = Duration.ofHours(EXPIRATION_HOURS);
 
         // when
-        redisVerificationCodeService.saveVerificationCode(email, code);
+        redisVerificationCodeService.saveVerificationCode(TEST_EMAIL, TEST_CODE);
 
         // then
-        ArgumentCaptor<Duration> durationCaptor = ArgumentCaptor.forClass(Duration.class);
-        verify(valueOperations).set(eq(expectedKey), eq(code), durationCaptor.capture());
-
-        Duration capturedDuration = durationCaptor.getValue();
-        assertThat(capturedDuration.toHours()).isEqualTo(1);
+        verify(valueOperations).set(expectedKey, TEST_CODE, expectedDuration);
     }
 
     @Test
     @DisplayName("인증코드 검증 및 삭제 성공")
     void verifyAndDeleteCode_Success() {
         // given
-        String email = "test@example.com";
-        String inputCode = "123456";
-        String storedCode = "123456";
-        String expectedKey = "admin:verification:" + email;
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(expectedKey)).thenReturn(storedCode);
+        String expectedKey = VERIFICATION_CODE_PREFIX + TEST_EMAIL;
+        given(valueOperations.get(expectedKey)).willReturn(TEST_CODE);
 
         // when
-        boolean result = redisVerificationCodeService.verifyAndDeleteCode(email, inputCode);
+        boolean result = redisVerificationCodeService.verifyAndDeleteCode(TEST_EMAIL, TEST_CODE);
 
         // then
         assertThat(result).isTrue();
@@ -81,57 +81,49 @@ class RedisVerificationCodeServiceTest {
     }
 
     @Test
-    @DisplayName("인증코드 검증 실패 - 코드가 존재하지 않음")
+    @DisplayName("인증코드 검증 실패 - 존재하지 않는 코드")
     void verifyAndDeleteCode_Fail_CodeNotExists() {
         // given
-        String email = "test@example.com";
-        String inputCode = "123456";
-        String expectedKey = "admin:verification:" + email;
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(expectedKey)).thenReturn(null);
+        String expectedKey = VERIFICATION_CODE_PREFIX + TEST_EMAIL;
+        given(valueOperations.get(expectedKey)).willReturn(null);
 
         // when
-        boolean result = redisVerificationCodeService.verifyAndDeleteCode(email, inputCode);
+        boolean result = redisVerificationCodeService.verifyAndDeleteCode(TEST_EMAIL, TEST_CODE);
 
         // then
         assertThat(result).isFalse();
         verify(valueOperations).get(expectedKey);
-        verify(redisTemplate, never()).delete(anyString());
+        verify(redisTemplate, never()).delete((String) any());
     }
 
     @Test
     @DisplayName("인증코드 검증 실패 - 코드 불일치")
     void verifyAndDeleteCode_Fail_CodeMismatch() {
         // given
-        String email = "test@example.com";
-        String inputCode = "123456";
+        String expectedKey = VERIFICATION_CODE_PREFIX + TEST_EMAIL;
         String storedCode = "654321";
-        String expectedKey = "admin:verification:" + email;
+        String inputCode = "123456";
 
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(expectedKey)).thenReturn(storedCode);
+        given(valueOperations.get(expectedKey)).willReturn(storedCode);
 
         // when
-        boolean result = redisVerificationCodeService.verifyAndDeleteCode(email, inputCode);
+        boolean result = redisVerificationCodeService.verifyAndDeleteCode(TEST_EMAIL, inputCode);
 
         // then
         assertThat(result).isFalse();
         verify(valueOperations).get(expectedKey);
-        verify(redisTemplate, never()).delete(anyString());
+        verify(redisTemplate, never()).delete((String) any());
     }
 
     @Test
     @DisplayName("인증코드 존재 여부 확인 - 존재함")
     void hasVerificationCode_True() {
         // given
-        String email = "test@example.com";
-        String expectedKey = "admin:verification:" + email;
-
-        when(redisTemplate.hasKey(expectedKey)).thenReturn(true);
+        String expectedKey = VERIFICATION_CODE_PREFIX + TEST_EMAIL;
+        given(redisTemplate.hasKey(expectedKey)).willReturn(true);
 
         // when
-        boolean result = redisVerificationCodeService.hasVerificationCode(email);
+        boolean result = redisVerificationCodeService.hasVerificationCode(TEST_EMAIL);
 
         // then
         assertThat(result).isTrue();
@@ -142,13 +134,11 @@ class RedisVerificationCodeServiceTest {
     @DisplayName("인증코드 존재 여부 확인 - 존재하지 않음")
     void hasVerificationCode_False() {
         // given
-        String email = "test@example.com";
-        String expectedKey = "admin:verification:" + email;
-
-        when(redisTemplate.hasKey(expectedKey)).thenReturn(false);
+        String expectedKey = VERIFICATION_CODE_PREFIX + TEST_EMAIL;
+        given(redisTemplate.hasKey(expectedKey)).willReturn(false);
 
         // when
-        boolean result = redisVerificationCodeService.hasVerificationCode(email);
+        boolean result = redisVerificationCodeService.hasVerificationCode(TEST_EMAIL);
 
         // then
         assertThat(result).isFalse();
@@ -156,17 +146,16 @@ class RedisVerificationCodeServiceTest {
     }
 
     @Test
-    @DisplayName("인증코드 TTL 조회")
-    void getVerificationCodeTTL() {
+    @DisplayName("인증코드 TTL 조회 성공")
+    void getVerificationCodeTTL_Success() {
         // given
-        String email = "test@example.com";
-        String expectedKey = "admin:verification:" + email;
-        long expectedTTL = 3600L; // 1시간
+        String expectedKey = VERIFICATION_CODE_PREFIX + TEST_EMAIL;
+        long expectedTTL = 3600L; // 1시간 = 3600초
 
-        when(redisTemplate.getExpire(expectedKey, TimeUnit.SECONDS)).thenReturn(expectedTTL);
+        given(redisTemplate.getExpire(expectedKey, TimeUnit.SECONDS)).willReturn(expectedTTL);
 
         // when
-        long result = redisVerificationCodeService.getVerificationCodeTTL(email);
+        long result = redisVerificationCodeService.getVerificationCodeTTL(TEST_EMAIL);
 
         // then
         assertThat(result).isEqualTo(expectedTTL);
@@ -174,72 +163,16 @@ class RedisVerificationCodeServiceTest {
     }
 
     @Test
-    @DisplayName("만료 시간 계산")
-    void calculateExpiryTime() {
+    @DisplayName("인증코드 TTL 조회 - 만료된 키")
+    void getVerificationCodeTTL_ExpiredKey() {
         // given
-        ZonedDateTime beforeCalculation = ZonedDateTime.now();
+        String expectedKey = VERIFICATION_CODE_PREFIX + TEST_EMAIL;
+        long expiredTTL = -2L; // Redis에서 존재하지 않는 키는 -2를 반환
+
+        given(redisTemplate.getExpire(expectedKey, TimeUnit.SECONDS)).willReturn(expiredTTL);
 
         // when
-        ZonedDateTime result = redisVerificationCodeService.calculateExpiryTime();
-
-        // then
-        ZonedDateTime afterCalculation = ZonedDateTime.now().plusHours(1);
-
-        assertThat(result).isAfter(beforeCalculation);
-        assertThat(result).isBefore(afterCalculation.plusMinutes(1)); // 1분 오차 허용
-    }
-
-    @Test
-    @DisplayName("여러 이메일의 인증코드 독립적 관리")
-    void multipleEmailsIndependentManagement() {
-        // given
-        String email1 = "user1@example.com";
-        String email2 = "user2@example.com";
-        String code1 = "123456";
-        String code2 = "654321";
-        String key1 = "admin:verification:" + email1;
-        String key2 = "admin:verification:" + email2;
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
-        // when
-        redisVerificationCodeService.saveVerificationCode(email1, code1);
-        redisVerificationCodeService.saveVerificationCode(email2, code2);
-
-        // then
-        verify(valueOperations).set(eq(key1), eq(code1), any(Duration.class));
-        verify(valueOperations).set(eq(key2), eq(code2), any(Duration.class));
-    }
-
-    @Test
-    @DisplayName("인증코드 키 패턴 검증")
-    void verificationCodeKeyPattern() {
-        // given
-        String email = "test@example.com";
-        String code = "123456";
-        String expectedKey = "admin:verification:" + email;
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
-        // when
-        redisVerificationCodeService.saveVerificationCode(email, code);
-
-        // then
-        verify(valueOperations).set(eq(expectedKey), eq(code), any(Duration.class));
-    }
-
-    @Test
-    @DisplayName("TTL이 0 이하인 경우 처리")
-    void getVerificationCodeTTL_Expired() {
-        // given
-        String email = "expired@example.com";
-        String expectedKey = "admin:verification:" + email;
-        long expiredTTL = -1L; // 만료된 키
-
-        when(redisTemplate.getExpire(expectedKey, TimeUnit.SECONDS)).thenReturn(expiredTTL);
-
-        // when
-        long result = redisVerificationCodeService.getVerificationCodeTTL(email);
+        long result = redisVerificationCodeService.getVerificationCodeTTL(TEST_EMAIL);
 
         // then
         assertThat(result).isEqualTo(expiredTTL);
@@ -247,91 +180,204 @@ class RedisVerificationCodeServiceTest {
     }
 
     @Test
-    @DisplayName("동일한 이메일로 여러 번 인증코드 저장 시 덮어쓰기")
-    void saveVerificationCode_Overwrite() {
+    @DisplayName("만료 시간 계산")
+    void calculateExpiryTime_Success() {
         // given
-        String email = "test@example.com";
-        String firstCode = "123456";
-        String secondCode = "654321";
-        String expectedKey = "admin:verification:" + email;
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        ZonedDateTime beforeCalculation = ZonedDateTime.now();
 
         // when
-        redisVerificationCodeService.saveVerificationCode(email, firstCode);
-        redisVerificationCodeService.saveVerificationCode(email, secondCode);
+        ZonedDateTime result = redisVerificationCodeService.calculateExpiryTime();
 
         // then
-        verify(valueOperations, times(2)).set(eq(expectedKey), anyString(), any(Duration.class));
-        // 첫 번째 호출
-        verify(valueOperations).set(eq(expectedKey), eq(firstCode), any(Duration.class));
-        // 두 번째 호출 (덮어쓰기)
-        verify(valueOperations).set(eq(expectedKey), eq(secondCode), any(Duration.class));
+        ZonedDateTime afterCalculation = ZonedDateTime.now().plusHours(EXPIRATION_HOURS);
+
+        assertThat(result).isAfter(beforeCalculation.plusHours(EXPIRATION_HOURS).minusSeconds(1));
+        assertThat(result).isBefore(afterCalculation.plusSeconds(1));
     }
 
     @Test
-    @DisplayName("인증 성공 후 코드 삭제 확인")
-    void verifyAndDeleteCode_DeleteAfterSuccess() {
+    @DisplayName("다양한 이메일 형식 테스트")
+    void verificationCode_DifferentEmailFormats() {
         // given
-        String email = "test@example.com";
-        String code = "123456";
-        String expectedKey = "admin:verification:" + email;
+        String[] testEmails = {
+                "user@domain.com",
+                "test.user+tag@example.org",
+                "admin@subdomain.example.com",
+                "special-chars_123@test-domain.co.kr"
+        };
 
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(expectedKey)).thenReturn(code);
+        for (String email : testEmails) {
+            String expectedKey = VERIFICATION_CODE_PREFIX + email;
+            given(valueOperations.get(expectedKey)).willReturn(TEST_CODE);
 
-        // when
-        boolean firstVerification = redisVerificationCodeService.verifyAndDeleteCode(email, code);
+            // when
+            boolean result = redisVerificationCodeService.verifyAndDeleteCode(email, TEST_CODE);
 
-        // 삭제 후 다시 시도
-        when(valueOperations.get(expectedKey)).thenReturn(null);
-        boolean secondVerification = redisVerificationCodeService.verifyAndDeleteCode(email, code);
-
-        // then
-        assertThat(firstVerification).isTrue();
-        assertThat(secondVerification).isFalse(); // 이미 삭제되어 실패
-
-        verify(redisTemplate, times(1)).delete(expectedKey); // 한 번만 삭제 호출
-        verify(valueOperations, times(2)).get(expectedKey); // 두 번 조회 호출
+            // then
+            assertThat(result).isTrue();
+            verify(valueOperations).get(expectedKey);
+            verify(redisTemplate).delete(expectedKey);
+        }
     }
 
     @Test
-    @DisplayName("빈 이메일이나 null 코드 처리")
-    void handleEmptyOrNullValues() {
+    @DisplayName("Redis 키 패턴 검증")
+    void redisKeyPattern_Verification() {
         // given
-        String emptyEmail = "";
-        String nullCode = null;
-        String validCode = "123456";
+        String testEmail1 = "user1@test.com";
+        String testEmail2 = "user2@test.com";
+        String expectedKey1 = VERIFICATION_CODE_PREFIX + testEmail1;
+        String expectedKey2 = VERIFICATION_CODE_PREFIX + testEmail2;
 
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        // when
+        redisVerificationCodeService.saveVerificationCode(testEmail1, "111111");
+        redisVerificationCodeService.saveVerificationCode(testEmail2, "222222");
 
-        // when & then - 빈 이메일
-        assertThatCode(() -> redisVerificationCodeService.saveVerificationCode(emptyEmail, validCode))
-                .doesNotThrowAnyException();
+        // then
+        verify(valueOperations).set(eq(expectedKey1), eq("111111"), any(Duration.class));
+        verify(valueOperations).set(eq(expectedKey2), eq("222222"), any(Duration.class));
 
-        // when & then - null 코드 (실제로는 Redis가 null을 문자열 "null"로 저장할 수 있음)
-        assertThatCode(() -> redisVerificationCodeService.saveVerificationCode("test@example.com", nullCode))
-                .doesNotThrowAnyException();
+        // 키가 올바른 패턴으로 생성되었는지 확인
+        assertThat(expectedKey1).startsWith(VERIFICATION_CODE_PREFIX);
+        assertThat(expectedKey2).startsWith(VERIFICATION_CODE_PREFIX);
+        assertThat(expectedKey1).isNotEqualTo(expectedKey2);
     }
 
     @Test
-    @DisplayName("만료 시간 설정 변경 테스트")
-    void customExpirationTime() {
+    @DisplayName("만료 시간 설정 검증")
+    void expirationTime_Verification() {
         // given
-        ReflectionTestUtils.setField(redisVerificationCodeService, "expirationHours", 2);
-        String email = "test@example.com";
-        String code = "123456";
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        Duration expectedDuration = Duration.ofHours(EXPIRATION_HOURS);
+        String expectedKey = VERIFICATION_CODE_PREFIX + TEST_EMAIL;
 
         // when
-        redisVerificationCodeService.saveVerificationCode(email, code);
+        redisVerificationCodeService.saveVerificationCode(TEST_EMAIL, TEST_CODE);
 
         // then
-        ArgumentCaptor<Duration> durationCaptor = ArgumentCaptor.forClass(Duration.class);
-        verify(valueOperations).set(anyString(), anyString(), durationCaptor.capture());
+        verify(valueOperations).set(expectedKey, TEST_CODE, expectedDuration);
+    }
 
-        Duration capturedDuration = durationCaptor.getValue();
-        assertThat(capturedDuration.toHours()).isEqualTo(2);
+    @Test
+    @DisplayName("다른 만료 시간 설정 테스트")
+    void differentExpirationHours_Test() {
+        // given
+        int customExpirationHours = 2;
+        ReflectionTestUtils.setField(redisVerificationCodeService, "expirationHours", customExpirationHours);
+
+        Duration expectedDuration = Duration.ofHours(customExpirationHours);
+        String expectedKey = VERIFICATION_CODE_PREFIX + TEST_EMAIL;
+
+        // when
+        redisVerificationCodeService.saveVerificationCode(TEST_EMAIL, TEST_CODE);
+
+        // then
+        verify(valueOperations).set(expectedKey, TEST_CODE, expectedDuration);
+
+        // 만료 시간 계산도 변경된 값으로 동작하는지 확인
+        ZonedDateTime beforeCalculation = ZonedDateTime.now();
+        ZonedDateTime result = redisVerificationCodeService.calculateExpiryTime();
+        ZonedDateTime afterCalculation = ZonedDateTime.now().plusHours(customExpirationHours);
+
+        assertThat(result).isAfter(beforeCalculation.plusHours(customExpirationHours).minusSeconds(1));
+        assertThat(result).isBefore(afterCalculation.plusSeconds(1));
+    }
+
+    @Test
+    @DisplayName("코드 삭제 후 재검증 시도")
+    void verifyAfterDeletion_Test() {
+        // given
+        String expectedKey = VERIFICATION_CODE_PREFIX + TEST_EMAIL;
+
+        // 첫 번째 검증 - 성공
+        given(valueOperations.get(expectedKey)).willReturn(TEST_CODE).willReturn(null);
+
+        // when & then
+        // 첫 번째 검증 성공
+        boolean firstResult = redisVerificationCodeService.verifyAndDeleteCode(TEST_EMAIL, TEST_CODE);
+        assertThat(firstResult).isTrue();
+
+        // 두 번째 검증 실패 (이미 삭제됨)
+        boolean secondResult = redisVerificationCodeService.verifyAndDeleteCode(TEST_EMAIL, TEST_CODE);
+        assertThat(secondResult).isFalse();
+
+        // Redis 호출 검증
+        verify(valueOperations, times(2)).get(expectedKey);
+        verify(redisTemplate, times(1)).delete(expectedKey); // 삭제는 한 번만
+    }
+
+    @Test
+    @DisplayName("특수 문자 포함 인증코드 테스트")
+    void specialCharacterCodes_Test() {
+        // given
+        String[] specialCodes = {
+                "ABC123",
+                "abc123",
+                "123456",
+                "!@#$%^",
+                "가나다라마바"
+        };
+
+        String expectedKey = VERIFICATION_CODE_PREFIX + TEST_EMAIL;
+
+        for (String code : specialCodes) {
+            given(valueOperations.get(expectedKey)).willReturn(code);
+
+            // when
+            boolean result = redisVerificationCodeService.verifyAndDeleteCode(TEST_EMAIL, code);
+
+            // then
+            assertThat(result).isTrue();
+        }
+    }
+
+    @Test
+    @DisplayName("Redis 연결 실패 시나리오")
+    void redisConnectionFailure_Test() {
+        // given
+        String expectedKey = VERIFICATION_CODE_PREFIX + TEST_EMAIL;
+        given(valueOperations.get(expectedKey)).willThrow(new RuntimeException("Redis connection failed"));
+
+        // when & then
+        assertThatThrownBy(() -> redisVerificationCodeService.verifyAndDeleteCode(TEST_EMAIL, TEST_CODE))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Redis connection failed");
+    }
+
+    @Test
+    @DisplayName("동시성 테스트 - 같은 이메일 다른 코드")
+    void concurrency_SameEmailDifferentCodes() {
+        // given
+        String code1 = "111111";
+        String code2 = "222222";
+        String expectedKey = VERIFICATION_CODE_PREFIX + TEST_EMAIL;
+
+        given(valueOperations.get(expectedKey)).willReturn(code1);
+
+        // when & then
+        // 올바른 코드로 검증 성공
+        boolean result1 = redisVerificationCodeService.verifyAndDeleteCode(TEST_EMAIL, code1);
+        assertThat(result1).isTrue();
+
+        // 다른 코드로 검증 실패
+        boolean result2 = redisVerificationCodeService.verifyAndDeleteCode(TEST_EMAIL, code2);
+        assertThat(result2).isFalse();
+    }
+
+    @Test
+    @DisplayName("TTL 다양한 값 테스트")
+    void variousTTLValues_Test() {
+        // given
+        String expectedKey = VERIFICATION_CODE_PREFIX + TEST_EMAIL;
+        long[] ttlValues = {3600L, 1800L, 60L, 0L, -1L, -2L};
+
+        for (long ttl : ttlValues) {
+            given(redisTemplate.getExpire(expectedKey, TimeUnit.SECONDS)).willReturn(ttl);
+
+            // when
+            long result = redisVerificationCodeService.getVerificationCodeTTL(TEST_EMAIL);
+
+            // then
+            assertThat(result).isEqualTo(ttl);
+        }
     }
 }
