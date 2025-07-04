@@ -81,4 +81,11 @@ public class Orders extends BaseEntity {
         this.isHidden = Boolean.FALSE;
         this.hiddenAt = null;
     }
+    /**
+     * 주문 내역이 숨겨진 상태인지 확인하는 메서드
+     * @return 숨김 상태 여부
+     */
+    public boolean isOrderHidden() {
+        return Boolean.TRUE.equals(this.isHidden);
+    }
 }
