@@ -1,38 +1,37 @@
 package com.team5.catdogeats.payments.event;
 
-import java.io.Serializable;
-import java.time.ZonedDateTime;
+import java.time.LocalDateTime;
 
 /**
  * 결제 실패 이벤트
- * PG 승인 실패 또는 만료 시 발행되어 주문 취소 및 보상 처리를 트리거한다
+ * 결제가 실패했을 때 발행되는 이벤트
+ * 주문 취소 및 재고 예약 해제 등의 처리를 위해 사용
  */
 public record PaymentFailedEvent(
+        // 주문 ID
         String orderId,
+
+        // 주문 번호
         Long orderNumber,
-        String userId,
-        String failureCode,
-        String failureMessage,
-        ZonedDateTime failedAt
-) implements Serializable {
+
+        // 실패 사유
+        String errorCode,
+        String errorMessage,
+
+        // 이벤트 발생 시각
+        LocalDateTime eventOccurredAt
+) {
 
     /**
-     * 결제 실패 이벤트 생성
+     * 정적 팩토리 메서드
      */
-    public static PaymentFailedEvent of(
-            String orderId,
-            Long orderNumber,
-            String userId,
-            String failureCode,
-            String failureMessage) {
-
+    public static PaymentFailedEvent of(String orderId, Long orderNumber, String errorCode, String errorMessage) {
         return new PaymentFailedEvent(
                 orderId,
                 orderNumber,
-                userId,
-                failureCode,
-                failureMessage,
-                ZonedDateTime.now()
+                errorCode,
+                errorMessage,
+                LocalDateTime.now()
         );
     }
 }
