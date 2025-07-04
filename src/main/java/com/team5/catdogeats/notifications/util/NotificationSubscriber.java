@@ -1,8 +1,9 @@
 package com.team5.catdogeats.notifications.util;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.notifications.domian.dto.NoticeCompletedDTO;
-import com.team5.catdogeats.notifications.domian.dto.NotificationDTO;
+import com.team5.catdogeats.notifications.domian.dto.OrderCompletedDTO;
 import com.team5.catdogeats.notifications.service.SseEmitterService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,19 +46,19 @@ public class NotificationSubscriber implements MessageListener {
 
     private Object parseNotificationMessage(String messageBody) {
         try {
-            // 먼저 NotificationDTO로 파싱 시도
-            log.debug("첫 번째 파싱");
-            return objectMapper.readValue(messageBody, NotificationDTO.class);
-        } catch (Exception e1) {
-            try {
-                // NotificationDTO 파싱 실패 시 NoticeCompletedDTO로 시도
-                log.debug("두번째 파싱");
-                return objectMapper.readValue(messageBody, NoticeCompletedDTO.class);
-            } catch (Exception e2) {
-                // 둘 다 실패하면 원본 문자열 반환
-                log.warn("JSON 파싱 실패, 원본 문자열 전송: {}", messageBody);
-                return messageBody;
-            }
+            JsonNode root = objectMapper.readTree(messageBody);
+            String type = root.get("type").asText();
+
+            return switch (type) {
+                case "NOTICE" -> objectMapper.readValue(messageBody, NoticeCompletedDTO.class);
+                case "NEW_ORDER" -> objectMapper.readValue(messageBody, OrderCompletedDTO.class);
+                case "CHATTING" -> objectMapper.readValue(messageBody, NoticeCompletedDTO.class);
+                default -> throw new IllegalStateException("지원하지 않는 알림입니다.");
+            };
+
+        } catch (Exception e) {
+            log.error("json 파싱 중 에러 {}", e.getMessage());
+            throw new RuntimeException(e);
         }
     }
 

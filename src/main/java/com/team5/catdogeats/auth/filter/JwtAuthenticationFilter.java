@@ -1,7 +1,6 @@
 package com.team5.catdogeats.auth.filter;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.auth.service.JwtService;
 import com.team5.catdogeats.auth.util.JwtUtils;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -27,7 +26,6 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String REFRESH_TOKEN_PATH = "/v1/auth/refresh";
     private final JwtUtils jwtUtils;
-    private final JwtService jwtService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -72,4 +70,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         filterChain.doFilter(request, response);
     }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        // 관리자 경로에서는 필터를 적용하지 않음
+        return request.getRequestURI().startsWith("/v1/admin/");
+    }
+
 }

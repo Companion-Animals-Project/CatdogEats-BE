@@ -7,6 +7,7 @@ import com.team5.catdogeats.global.config.CookieProperties;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseCookie;
@@ -29,6 +30,12 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws ServletException, IOException {
+
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            log.debug("OAuth2 인증 성공 후 세션 무효화: {}", session.getId());
+            session.invalidate();
+        }
 
         String token = jwtService.createAccessToken(authentication);
         String refreshTokenId = refreshTokenService.createRefreshToken(authentication);

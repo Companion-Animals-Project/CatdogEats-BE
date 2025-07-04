@@ -2,10 +2,7 @@ package com.team5.catdogeats.global.config;
 
 import com.team5.catdogeats.auth.filter.JwtAuthenticationFilter;
 import com.team5.catdogeats.auth.filter.PreventDuplicateLoginFilter;
-import com.team5.catdogeats.auth.handler.CustomLogoutSuccessHandler;
-import com.team5.catdogeats.auth.handler.OAuth2AuthenticationFailureHandler;
-import com.team5.catdogeats.auth.handler.OAuth2AuthenticationSuccessHandler;
-import com.team5.catdogeats.auth.handler.SseSilentAccessDeniedHandler;
+import com.team5.catdogeats.auth.handler.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -26,12 +23,10 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequest
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-@EnableRedisHttpSession(maxInactiveIntervalInSeconds = 1800)
 @Slf4j
 @RequiredArgsConstructor
 public class SecurityConfig {
@@ -72,6 +67,7 @@ public class SecurityConfig {
                             .logoutSuccessUrl("/v1/admin/login?logout=true")
                             .invalidateHttpSession(true)
                             .deleteCookies("JSESSIONID")
+                            .deleteCookies("SESSION")
                             .permitAll())
                     .securityContext(securityContext ->
                             securityContext.requireExplicitSave(false))                // SecurityContext 자동 저장 활성화
@@ -102,7 +98,8 @@ public class SecurityConfig {
             http
                     .csrf(AbstractHttpConfigurer::disable)
                     .sessionManagement(session
-                            -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                            -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                            .sessionFixation().none())
                     .authorizeHttpRequests(authorize
                             -> authorize
                             .requestMatchers("/").permitAll()
