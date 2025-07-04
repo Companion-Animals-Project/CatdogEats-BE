@@ -12,6 +12,8 @@ public record ProductUpdateRequestDto(
         @NotNull(message = "productId는 필수입니다.")
         String productId,
         String title,
+        String subTitle,
+        String productInfo,
         String contents,
         PetCategory petCategory,
         ProductCategory productCategory,
