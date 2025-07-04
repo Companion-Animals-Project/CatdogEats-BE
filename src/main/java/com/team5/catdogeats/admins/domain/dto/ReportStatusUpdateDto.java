@@ -1,4 +1,4 @@
-package com.team5.catdogeats.support.dto;
+package com.team5.catdogeats.admins.domain.dto;
 
 import com.team5.catdogeats.support.domain.enums.ReportStatus;
 import jakarta.validation.constraints.NotNull;

@@ -1,4 +1,4 @@
-package com.team5.catdogeats.support.dto;
+package com.team5.catdogeats.admins.domain.dto;
 
 import lombok.Builder;
 
