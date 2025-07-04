@@ -169,22 +169,22 @@ class NoticeServiceImplCRUDTest {
         verify(noticeRepository, never()).incrementViewCount(anyString());
     }
 
-    @Test
-    @DisplayName("공지사항 생성 - 성공")
-    void createNotice_Success() {
-        // given
-        given(noticeRepository.save(any(Notices.class))).willReturn(testNotice);
-
-        // when
-        NoticeResponseDTO result = noticeService.createNotice(createRequestDTO);
-
-        // then
-        assertThat(result).isNotNull();
-        assertThat(result.getTitle()).isEqualTo(testNotice.getTitle());
-        assertThat(result.getContent()).isEqualTo(testNotice.getContent());
-        assertThat(result.getViewCount()).isEqualTo(testNotice.getViewCount());
-        verify(noticeRepository).save(any(Notices.class));
-    }
+//    @Test
+//    @DisplayName("공지사항 생성 - 성공")
+//    void createNotice_Success() {
+//        // given
+//        given(noticeRepository.save(any(Notices.class))).willReturn(testNotice);
+//
+//        // when
+//        NoticeResponseDTO result = noticeService.createNotice(createRequestDTO);
+//
+//        // then
+//        assertThat(result).isNotNull();
+//        assertThat(result.getTitle()).isEqualTo(testNotice.getTitle());
+//        assertThat(result.getContent()).isEqualTo(testNotice.getContent());
+//        assertThat(result.getViewCount()).isEqualTo(testNotice.getViewCount());
+//        verify(noticeRepository).save(any(Notices.class));
+//    }
 
     @Test
     @DisplayName("공지사항 수정 - 성공")

@@ -29,12 +29,9 @@ public class OrderCompletedNotificationCreator implements NotificationEventCreat
             Users user = userRepository.getReferenceById(dto.userId());
             Notifications saved = notificationRepository.save(
                     Notifications.builder()
-                            .users(user)
                             .notificationType(NotificationType.NEW_ORDER)
                             .title("주문이 완료되었습니다")
                             .message("주문번호: %s, 결제 금액: %,d원".formatted(dto.orderNumber(), dto.totalPrice()))
-                            .isRead(false)
-                            .readAt(null)
                             .build()
             );
             sendRedis(dto, saved);
@@ -59,7 +56,7 @@ public class OrderCompletedNotificationCreator implements NotificationEventCreat
                     saved.getNotificationType(),
                     saved.getCreatedAt()
             );
-            redisTemplate.convertAndSend("notify:" + saved.getUsers().getId(), sseDTO);
+            redisTemplate.convertAndSend("notify:" , sseDTO);
         } catch (Exception e) {
             log.warn("Redis 알림 발송 실패 - 알림은 DB에 저장됨: userId={}, error={}",
                     dto.userId(), e.getMessage());

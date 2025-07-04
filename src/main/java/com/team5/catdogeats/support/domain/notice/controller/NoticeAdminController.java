@@ -73,14 +73,14 @@ public class NoticeAdminController {
             summary = "공지사항 등록",
             description = "관리자가 공지사항을 등록합니다."
     )
-    public ResponseEntity<ApiResponse<NoticeResponseDTO>> createNotice(
+    public ResponseEntity<ApiResponse<Void>> createNotice(
             @Valid @RequestBody NoticeCreateRequestDTO requestDto) {
 
         log.info("[관리자] 공지사항 생성 요청 - 제목: {}", requestDto.getTitle());
 
-        NoticeResponseDTO response = noticeService.createNotice(requestDto);
+        noticeService.createNotice(requestDto);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(ResponseCode.CREATED, response));
+                .body(ApiResponse.success(ResponseCode.CREATED));
     }
 
     // ========== 공지사항 수정 ==========

@@ -1,5 +1,6 @@
 package com.team5.catdogeats.support.domain.notice.service;
 
+import com.team5.catdogeats.notifications.domian.dto.NoticeCompletedDTO;
 import com.team5.catdogeats.support.domain.notice.dto.NoticeCreateRequestDTO;
 import com.team5.catdogeats.support.domain.notice.dto.NoticeListResponseDTO;
 import com.team5.catdogeats.support.domain.notice.dto.NoticeResponseDTO;
@@ -16,7 +17,7 @@ public interface NoticeService {
     NoticeResponseDTO getNotice(String noticeId);
 
     // 공지사항 생성
-    NoticeResponseDTO createNotice(NoticeCreateRequestDTO requestDTO);
+    NoticeCompletedDTO createNotice(NoticeCreateRequestDTO requestDTO);
 
     // 공지사항 수정
     NoticeResponseDTO updateNotice(String noticeId, NoticeUpdateRequestDTO requestDTO);

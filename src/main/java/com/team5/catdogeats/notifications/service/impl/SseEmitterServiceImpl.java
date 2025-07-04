@@ -3,6 +3,7 @@ package com.team5.catdogeats.notifications.service.impl;
 import com.team5.catdogeats.chats.service.UserIdCacheService;
 import com.team5.catdogeats.notifications.service.SseEmitterService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -18,7 +19,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class SseEmitterServiceImpl implements SseEmitterService {
     private final UserIdCacheService userIdCacheService;
     private final Map<String, List<SseEmitter>> emitters = new ConcurrentHashMap<>();
-    private static final Long DEFAULT_TIMEOUT = 60 * 1000L;
+    private static final Long DEFAULT_TIMEOUT = 30 * 60 * 1000L;
     private static final Long HEARTBEAT_INTERVAL = 30 * 1000L;
     @Override
     public SseEmitter connect(String provider, String providerId) {
@@ -56,6 +57,23 @@ public class SseEmitterServiceImpl implements SseEmitterService {
         return emitter;
     }
 
+    @Scheduled(fixedRate = 30 * 1000L)
+    public void sendHeartbeats() {
+        emitters.forEach((userId, emitterList) -> {
+            for (SseEmitter emitter : emitterList) {
+                try {
+                    emitter.send(SseEmitter.event()
+                            .name("ping")
+                            .data("heartbeat"));
+                } catch (IOException e) {
+                    emitter.completeWithError(e);
+                    emitterList.remove(emitter);
+                }
+            }
+        });
+    }
+
+
     @Override
     public List<SseEmitter> getEmitters(String userId) {
         return emitters.getOrDefault(userId, Collections.emptyList());
@@ -70,4 +88,16 @@ public class SseEmitterServiceImpl implements SseEmitterService {
         }
         return userId;
     }
+
+    @Override
+    public void removeEmitter(String userId, SseEmitter emitter) {
+        List<SseEmitter> list = emitters.get(userId);
+        if (list != null) {
+            list.remove(emitter);
+            if (list.isEmpty()) {
+                emitters.remove(userId);
+            }
+        }
+    }
+
 }

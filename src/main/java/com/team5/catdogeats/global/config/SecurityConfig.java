@@ -5,6 +5,7 @@ import com.team5.catdogeats.auth.filter.PreventDuplicateLoginFilter;
 import com.team5.catdogeats.auth.handler.CustomLogoutSuccessHandler;
 import com.team5.catdogeats.auth.handler.OAuth2AuthenticationFailureHandler;
 import com.team5.catdogeats.auth.handler.OAuth2AuthenticationSuccessHandler;
+import com.team5.catdogeats.auth.handler.SseSilentAccessDeniedHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -39,6 +40,7 @@ public class SecurityConfig {
     private final PreventDuplicateLoginFilter preventDuplicateLoginFilter;
     private final CustomLogoutSuccessHandler customLogoutSuccessHandler;
     private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
+    private final SseSilentAccessDeniedHandler sseSilentAccessDeniedHandler;
 
     @Bean
     @Order(value = 1)
@@ -51,7 +53,7 @@ public class SecurityConfig {
                             session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                     .authorizeHttpRequests(authorize -> authorize
                             .requestMatchers("/v1/admin/login").permitAll()
-                            .requestMatchers("/v1/admin/**").hasRole("ADMIN") // 테스트 시, permitAll() / 기존, hasRole("ADMIN")
+                            .requestMatchers("/v1/admin/**").permitAll() // 테스트 시, permitAll() / 기존, hasRole("ADMIN")
                             .anyRequest().authenticated());
             return http.build();
         } catch (Exception e) {
@@ -71,6 +73,8 @@ public class SecurityConfig {
                     .authorizeHttpRequests(authorize
                             -> authorize
                             .requestMatchers("/").permitAll()
+                            .requestMatchers("tossTest.html").permitAll()
+                            .requestMatchers("/alarm.html").permitAll()
                             .requestMatchers("/index.html").permitAll() // 개발할때만 사용 로그인 페이지
                             .requestMatchers("WebSocket.html").permitAll() // 개발할때만 소켓 페이지
                             .requestMatchers("/withdraw").permitAll()
@@ -93,6 +97,7 @@ public class SecurityConfig {
                             .requestMatchers("/v1/buyers/reviews/{product-number}").permitAll()
                             .requestMatchers("/v1/users/page/{vendor-name}").permitAll()
                             .requestMatchers("/withdraw").permitAll()
+                            .requestMatchers("/v1/buyers/payments/success").permitAll()
                             .requestMatchers("/v1/users/**").hasAnyRole("BUYER", "SELLER")
                             .requestMatchers("/v1/sellers/**").hasRole("SELLER")
                             .requestMatchers("/v1/buyers/**").hasRole("BUYER")
@@ -109,8 +114,10 @@ public class SecurityConfig {
                     .httpBasic(AbstractHttpConfigurer::disable)
                     .formLogin(AbstractHttpConfigurer::disable)
 
-// .exceptionHandling(exception ->
-// exception.authenticationEntryPoint(new OAuth2AuthenticationEntryPointHandler()))
+                    .exceptionHandling(ex -> ex
+                            .accessDeniedHandler(sseSilentAccessDeniedHandler)
+                    )
+
                     .logout(logout -> logout
                             .logoutUrl("/v1/auth/logout")
                             .logoutSuccessHandler(customLogoutSuccessHandler)
