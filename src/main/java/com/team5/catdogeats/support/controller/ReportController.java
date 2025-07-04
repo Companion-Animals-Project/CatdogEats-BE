@@ -1,19 +1,23 @@
 package com.team5.catdogeats.support.controller;
 
+import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.support.domain.enums.ReportStatus;
 import com.team5.catdogeats.support.domain.enums.ReportType;
 import com.team5.catdogeats.support.dto.*;
 import com.team5.catdogeats.support.service.ReportService;
-import jakarta.servlet.http.HttpServletRequest;
+import com.team5.catdogeats.users.domain.Users;
+import com.team5.catdogeats.users.repository.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDate;
 
 @RestController
@@ -23,51 +27,75 @@ import java.time.LocalDate;
 public class ReportController {
 
     private final ReportService reportService;
+    private final UserRepository userRepository;
 
-    /**
-     * 신고하기 (구매자용)
-     */
+    // 신고하기 (구매자용)
     @PostMapping("/buyers/reports")
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ApiResponse<String>> createReport(
             @Valid @RequestBody ReportCreateRequestDto request,
-            HttpServletRequest httpRequest) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
-        // TODO: JWT에서 사용자 ID 추출하는 유틸리티 메서드 사용
-        String reporterId = getCurrentUserId(httpRequest);
+        try {
+            // UserPrincipal에서 실제 사용자 ID 추출
+            String reporterId = getUserIdFromPrincipal(userPrincipal);
 
-        log.info("신고 생성 요청: 사용자={}, 타입={}", reporterId, request.reportType());
+            log.info("신고 생성 요청: 사용자={}, 타입={}, 대상ID={}",
+                    reporterId, request.reportType(), request.targetId());
 
-        String reportId = reportService.createReport(request, reporterId);
+            String reportId = reportService.createReport(request, reporterId);
 
-        return ResponseEntity.ok(
-                ApiResponse.success(ResponseCode.CREATED, reportId)
-        );
+            log.info("신고 생성 완료: reportId={}", reportId);
+
+            return ResponseEntity.ok(
+                    ApiResponse.success(ResponseCode.REPORT_CREATE_SUCCESS, reportId)
+            );
+
+        } catch (EntityNotFoundException e) {
+            log.warn("신고 생성 실패 - 엔티티 없음: {}", e.getMessage());
+            return ResponseEntity.status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+
+        } catch (IllegalStateException e) {
+            log.warn("신고 생성 실패 - 중복 신고: {}", e.getMessage());
+            return ResponseEntity.status(ResponseCode.REPORT_ALREADY_EXISTS.getStatus())
+                    .body(ApiResponse.error(ResponseCode.REPORT_ALREADY_EXISTS, e.getMessage()));
+
+        } catch (Exception e) {
+            log.error("신고 생성 중 오류 발생", e);
+            return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 처리 중 오류가 발생했습니다."));
+        }
     }
 
-    /**
-     * 사용자별 신고 목록 조회 (구매자용)
-     */
+    // 사용자별 신고 목록 조회 (구매자용)
     @GetMapping("/buyers/reports")
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ApiResponse<PageResponseDto<ReportListResponseDto>>> getUserReports(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            HttpServletRequest httpRequest) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
-        String userId = getCurrentUserId(httpRequest);
+        try {
+            String userId = getUserIdFromPrincipal(userPrincipal);
 
-        PageResponseDto<ReportListResponseDto> reports =
-                reportService.getUserReports(userId, page, size);
+            log.info("사용자 신고 목록 조회: userId={}, page={}, size={}", userId, page, size);
 
-        return ResponseEntity.ok(
-                ApiResponse.success(ResponseCode.SUCCESS, reports)
-        );
+            PageResponseDto<ReportListResponseDto> reports =
+                    reportService.getUserReports(userId, page, size);
+
+            return ResponseEntity.ok(
+                    ApiResponse.success(ResponseCode.REPORT_LIST_SUCCESS, reports)
+            );
+
+        } catch (Exception e) {
+            log.error("사용자 신고 목록 조회 중 오류 발생", e);
+            return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 목록 조회 중 오류가 발생했습니다."));
+        }
     }
 
-    /**
-     * 신고 목록 조회 (관리자용)
-     */
+    // 신고 목록 조회 (관리자용)
     @GetMapping("/admin/reports/list")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<PageResponseDto<ReportListResponseDto>>> getReports(
@@ -78,101 +106,157 @@ public class ReportController {
             @RequestParam(required = false) String endDate,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sort) {
+            @RequestParam(defaultValue = "createdAt") String sort,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
-        // 검색 조건 DTO 생성
-        ReportSearchDto searchDto = ReportSearchDto.builder()
-                .reportType(reportType != null ? ReportType.valueOf(reportType.toUpperCase()) : null)
-                .status(status != null ? ReportStatus.valueOf(status.toUpperCase()) : null)
-                .keyword(keyword)
-                .startDate(startDate != null ? LocalDate.parse(startDate) : null)
-                .endDate(endDate != null ? LocalDate.parse(endDate) : null)
-                .page(page)
-                .size(size)
-                .sort(sort)
-                .build();
+        try {
+            String adminId = getUserIdFromPrincipal(userPrincipal);
 
-        PageResponseDto<ReportListResponseDto> reports = reportService.getReports(searchDto);
+            log.info("관리자 신고 목록 조회: adminId={}, page={}, size={}", adminId, page, size);
 
-        return ResponseEntity.ok(
-                ApiResponse.success(ResponseCode.SUCCESS, reports)
-        );
+            // 검색 조건 DTO 생성
+            ReportSearchDto searchDto = ReportSearchDto.builder()
+                    .reportType(reportType != null ? ReportType.valueOf(reportType.toUpperCase()) : null)
+                    .status(status != null ? ReportStatus.valueOf(status.toUpperCase()) : null)
+                    .keyword(keyword)
+                    .startDate(startDate != null ? LocalDate.parse(startDate) : null)
+                    .endDate(endDate != null ? LocalDate.parse(endDate) : null)
+                    .page(page)
+                    .size(size)
+                    .sort(sort)
+                    .build();
+
+            PageResponseDto<ReportListResponseDto> reports = reportService.getReports(searchDto);
+
+            return ResponseEntity.ok(
+                    ApiResponse.success(ResponseCode.REPORT_LIST_SUCCESS, reports)
+            );
+
+        } catch (IllegalArgumentException e) {
+            log.warn("잘못된 검색 조건: {}", e.getMessage());
+            return ResponseEntity.status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+
+        } catch (Exception e) {
+            log.error("관리자 신고 목록 조회 중 오류 발생", e);
+            return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 목록 조회 중 오류가 발생했습니다."));
+        }
     }
 
-    /**
-     * 신고 상세 조회 (관리자용)
-     */
+    // 신고 상세 조회 (관리자용)
     @GetMapping("/admin/reports/{report-id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ReportDetailResponseDto>> getReportDetail(
-            @PathVariable("report-id") String reportId) {
+            @PathVariable("report-id") String reportId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
-        ReportDetailResponseDto report = reportService.getReportDetail(reportId);
+        try {
+            String adminId = getUserIdFromPrincipal(userPrincipal);
 
-        return ResponseEntity.ok(
-                ApiResponse.success(ResponseCode.SUCCESS, report)
-        );
+            log.info("신고 상세 조회: reportId={}, adminId={}", reportId, adminId);
+
+            ReportDetailResponseDto report = reportService.getReportDetail(reportId);
+
+            return ResponseEntity.ok(
+                    ApiResponse.success(ResponseCode.REPORT_DETAIL_SUCCESS, report)
+            );
+
+        } catch (EntityNotFoundException e) {
+            log.warn("신고 상세 조회 실패 - 신고 없음: reportId={}", reportId);
+            return ResponseEntity.status(ResponseCode.REPORT_NOT_FOUND.getStatus())
+                    .body(ApiResponse.error(ResponseCode.REPORT_NOT_FOUND, e.getMessage()));
+
+        } catch (Exception e) {
+            log.error("신고 상세 조회 중 오류 발생: reportId={}", reportId, e);
+            return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 상세 조회 중 오류가 발생했습니다."));
+        }
     }
 
-    /**
-     * 신고 상태 처리 (관리자용)
-     */
+    // 신고 상태 처리 (관리자용)
     @PostMapping("/admin/reports/status")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> updateReportStatus(
             @RequestParam String reportId,
             @Valid @RequestBody ReportStatusUpdateDto updateDto,
-            HttpServletRequest httpRequest) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
-        // TODO: 관리자 ID 추출
-        String adminId = getCurrentAdminId(httpRequest);
+        try {
+            String adminId = getUserIdFromPrincipal(userPrincipal);
 
-        log.info("신고 상태 변경 요청: ID={}, 상태={}, 관리자={}",
-                reportId, updateDto.status(), adminId);
+            log.info("신고 상태 변경 요청: reportId={}, 상태={}, adminId={}",
+                    reportId, updateDto.reportStatus(), adminId);
 
-        reportService.updateReportStatus(reportId, updateDto, adminId);
+            reportService.updateReportStatus(reportId, updateDto, adminId);
 
-        return ResponseEntity.ok(
-                ApiResponse.success(ResponseCode.SUCCESS)
-        );
+            log.info("신고 상태 변경 완료: reportId={}, 새 상태={}", reportId, updateDto.reportStatus());
+
+            return ResponseEntity.ok(
+                    ApiResponse.success(ResponseCode.REPORT_STATUS_UPDATE_SUCCESS)
+            );
+
+        } catch (EntityNotFoundException e) {
+            log.warn("신고 상태 변경 실패 - 신고 없음: reportId={}", reportId);
+            return ResponseEntity.status(ResponseCode.REPORT_NOT_FOUND.getStatus())
+                    .body(ApiResponse.error(ResponseCode.REPORT_NOT_FOUND, e.getMessage()));
+
+        } catch (Exception e) {
+            log.error("신고 상태 변경 중 오류 발생: reportId={}", reportId, e);
+            return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 상태 변경 중 오류가 발생했습니다."));
+        }
     }
 
-    /**
-     * 신고 통계 조회 (관리자 대시보드용)
-     */
+    // 신고 통계 조회 (관리자 대시보드용)
     @GetMapping("/admin/reports/stats")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<ReportStatsResponseDto>> getReportStats() {
+    public ResponseEntity<ApiResponse<ReportStatsResponseDto>> getReportStats(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
-        ReportStatsResponseDto stats = reportService.getReportStats();
+        try {
+            String adminId = getUserIdFromPrincipal(userPrincipal);
 
-        return ResponseEntity.ok(
-                ApiResponse.success(ResponseCode.SUCCESS, stats)
-        );
+            log.info("신고 통계 조회: adminId={}", adminId);
+
+            ReportStatsResponseDto stats = reportService.getReportStats();
+
+            return ResponseEntity.ok(
+                    ApiResponse.success(ResponseCode.REPORT_STATS_SUCCESS, stats)
+            );
+
+        } catch (Exception e) {
+            log.error("신고 통계 조회 중 오류 발생", e);
+            return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 통계 조회 중 오류가 발생했습니다."));
+        }
     }
 
     // === 헬퍼 메서드 ===
 
-    /**
-     * 현재 로그인한 사용자 ID 추출
-     * TODO: JWT 유틸리티 클래스에서 구현된 메서드 사용
-     */
-    private String getCurrentUserId(HttpServletRequest request) {
-        // 임시 구현 - 실제로는 JWT에서 추출
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            // JWT 파싱 로직 구현 필요
-            return "temp-user-id";
+    // provider + providerId 조합으로 Users 테이블에서 사용자 조회
+    private String getUserIdFromPrincipal(UserPrincipal userPrincipal) {
+        if (userPrincipal == null) {
+            throw new IllegalStateException("인증 정보가 없습니다.");
         }
-        throw new IllegalStateException("인증 정보가 없습니다.");
-    }
 
-    /**
-     * 현재 로그인한 관리자 ID 추출
-     * TODO: 세션에서 관리자 정보 추출
-     */
-    private String getCurrentAdminId(HttpServletRequest request) {
-        // 임시 구현 - 실제로는 세션에서 추출
-        return "temp-admin-id";
+        log.debug("사용자 조회: provider={}, providerId={}",
+                userPrincipal.provider(), userPrincipal.providerId());
+
+        // provider + providerId로 사용자 조회
+        Users user = userRepository.findByProviderAndProviderId(
+                userPrincipal.provider(),
+                userPrincipal.providerId()
+        ).orElseThrow(() -> {
+            log.warn("사용자를 찾을 수 없음: provider={}, providerId={}",
+                    userPrincipal.provider(), userPrincipal.providerId());
+            return new EntityNotFoundException(
+                    String.format("사용자를 찾을 수 없습니다. (provider: %s, providerId: %s)",
+                            userPrincipal.provider(), userPrincipal.providerId())
+            );
+        });
+
+        log.debug("사용자 조회 성공: userId={}, name={}", user.getId(), user.getName());
+        return user.getId();
     }
 }

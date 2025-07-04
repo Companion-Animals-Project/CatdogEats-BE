@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>신고하기 모달</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined" rel="stylesheet">
+    <style>
+        body {
+            font-family: "Noto Sans KR", sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 12px;
+            width: 500px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .modal-header {
+            padding: 24px 24px 0 24px;
+            border-bottom: none;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .close-button {
+            background: none;
+            border: none;
+            color: #9ca3af;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-button:hover {
+            color: #6b7280;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .required {
+            color: #ef4444;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            background-color: white;
+            color: #374151;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 12px center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+            padding-right: 40px;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            background-color: white;
+            color: #374151;
+            resize: vertical;
+            min-height: 120px;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+
+        .form-textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-textarea::placeholder {
+            color: #9ca3af;
+        }
+
+        .char-count {
+            text-align: right;
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .file-upload-area {
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+            background-color: #fafafa;
+            cursor: pointer;
+            transition: border-color 0.2s ease;
+        }
+
+        .file-upload-area:hover {
+            border-color: #9ca3af;
+        }
+
+        .file-upload-area.dragover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+
+        .upload-icon {
+            color: #9ca3af;
+            font-size: 48px;
+            margin-bottom: 8px;
+        }
+
+        .upload-text {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .upload-subtext {
+            color: #9ca3af;
+            font-size: 12px;
+        }
+
+        .modal-footer {
+            padding: 16px 24px 24px 24px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-secondary {
+            background-color: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background-color: #e5e7eb;
+        }
+
+        .btn-primary {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #059669;
+        }
+
+        .btn-primary:disabled {
+            background-color: #d1d5db;
+            cursor: not-allowed;
+        }
+
+        .selected-file {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #f3f4f6;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            color: #374151;
+            font-size: 14px;
+        }
+
+        .remove-file {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .remove-file:hover {
+            color: #dc2626;
+        }
+
+        .error-message {
+            color: #ef4444;
+            font-size: 12px;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .demo-buttons {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .demo-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            margin: 0 8px;
+            cursor: pointer;
+            font-weight: 500;
+            color: white;
+        }
+
+        .demo-btn.product {
+            background-color: #3b82f6;
+        }
+
+        .demo-btn.review {
+            background-color: #8b5cf6;
+        }
+    </style>
+</head>
+<body>
+<!-- 데모용 버튼들 -->
+<div class="demo-buttons">
+    <button class="demo-btn product" onclick="openReportModal('PRODUCT', 'prod-12345')">
+        상품 신고하기 (데모)
+    </button>
+    <button class="demo-btn review" onclick="openReportModal('REVIEW', 'review-67890')">
+        리뷰 신고하기 (데모)
+    </button>
+</div>
+
+<!-- 신고하기 모달 -->
+<div id="reportModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">
+                상품/리뷰 신고하기
+                <button type="button" class="close-button" onclick="closeReportModal()">
+                    ×
+                </button>
+            </h2>
+        </div>
+
+        <div class="modal-body">
+            <form id="reportForm" th:action="@{/v1/buyers/reports}" method="post" enctype="multipart/form-data">
+                <!-- CSRF 토큰 (Spring Security 사용 시) -->
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" th:if="${_csrf}"/>
+
+                <!-- 신고 유형 (숨겨진 필드) -->
+                <input type="hidden" id="reportType" name="reportType" th:value="${reportType}" />
+
+                <!-- 신고 대상 ID (숨겨진 필드) -->
+                <input type="hidden" id="targetId" name="targetId" th:value="${targetId}" />
+
+                <!-- 신고 사유 선택 -->
+                <div class="form-group">
+                    <label for="reportReason" class="form-label">
+                        신고 사유를 선택해주세요. <span class="required">(필수)</span>
+                    </label>
+                    <select id="reportReason" name="reason" class="form-select" required>
+                        <option value="">선택하세요</option>
+                        <!-- Thymeleaf로 동적 옵션 생성 -->
+                        <th:block th:if="${reportType == 'PRODUCT'}">
+                            <option value="불량 상품" th:selected="${reason == '불량 상품'}">불량 상품</option>
+                            <option value="허위 정보" th:selected="${reason == '허위 정보'}">허위 정보</option>
+                            <option value="사기성 판매" th:selected="${reason == '사기성 판매'}">사기성 판매</option>
+                            <option value="파손된 상품" th:selected="${reason == '파손된 상품'}">파손된 상품</option>
+                            <option value="사이즈 오류" th:selected="${reason == '사이즈 오류'}">사이즈 오류</option>
+                            <option value="배송 문제" th:selected="${reason == '배송 문제'}">배송 문제</option>
+                            <option value="기타" th:selected="${reason == '기타'}">기타</option>
+                        </th:block>
+                        <th:block th:if="${reportType == 'REVIEW'}">
+                            <option value="욕설/비방" th:selected="${reason == '욕설/비방'}">욕설/비방</option>
+                            <option value="거짓 정보" th:selected="${reason == '거짓 정보'}">거짓 정보</option>
+                            <option value="스팸/광고" th:selected="${reason == '스팸/광고'}">스팸/광고</option>
+                            <option value="부적절한 내용" th:selected="${reason == '부적절한 내용'}">부적절한 내용</option>
+                            <option value="저작권 침해" th:selected="${reason == '저작권 침해'}">저작권 침해</option>
+                            <option value="기타" th:selected="${reason == '기타'}">기타</option>
+                        </th:block>
+                    </select>
+                    <div id="reasonError" class="error-message" th:text="${reasonError}"></div>
+                </div>
+
+                <!-- 상세 내용 입력 -->
+                <div class="form-group">
+                    <label for="reportContent" class="form-label">
+                        상세 내용을 입력해주세요. <span class="required">(필수)</span>
+                    </label>
+                    <textarea
+                            id="reportContent"
+                            name="content"
+                            class="form-textarea"
+                            placeholder="상품명과 관계 없는 글 (비방, 욕설, 광고, 잘못된 정보 등)을 신고해주시면, 관리자 확인 후 해당 상품명의 노출이 제한될 수 있습니다. 타당한 사유 없이 허위 신고 시 신고자에 대한 활동 제한이 가해질 수 있으니, 신고 전에 신중하게 재고해주시기 바랍니다."
+                            maxlength="500"
+                            required
+                            th:text="${content}"></textarea>
+                    <div class="char-count">
+                        <span id="charCount">0</span> / 500자
+                    </div>
+                    <div id="contentError" class="error-message" th:text="${contentError}"></div>
+                </div>
+
+                <!-- 첨부파일 업로드 -->
+                <div class="form-group">
+                    <label class="form-label">첨부파일 업로드 <span style="color: #6b7280;">(선택사항)</span></label>
+                    <div class="file-upload-area" onclick="document.getElementById('fileInput').click()">
+                        <input type="file" id="fileInput" name="attachmentFile" accept="image/*,.pdf" style="display: none;" />
+                        <div class="upload-icon">☁️</div>
+                        <div class="upload-text">파일을 드래그 앤 드롭하거나</div>
+                        <div class="upload-subtext">클릭하여 파일을 선택하세요</div>
+                    </div>
+                    <div id="selectedFileInfo" style="display: none;"></div>
+                    <div id="fileError" class="error-message" th:text="${fileError}"></div>
+                </div>
+            </form>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeReportModal()">
+                취소
+            </button>
+            <button type="submit" class="btn btn-primary" id="submitBtn" form="reportForm">
+                <span id="submitText">제출하기</span>
+                <span id="submitSpinner" style="display: none;">처리중...</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+
+    // Thymeleaf에서 전달받은 데이터
+    const reportReasons = {
+        PRODUCT: ['불량 상품', '허위 정보', '사기성 판매', '파손된 상품', '사이즈 오류', '배송 문제', '기타'],
+        REVIEW: ['욕설/비방', '거짓 정보', '스팸/광고', '부적절한 내용', '저작권 침해', '기타']
+    };
+
+    let selectedFile = null;
+    let currentReportType = /*[[${reportType}]]*/ null;
+    let currentTargetId = /*[[${targetId}]]*/ null;
+
+    // 페이지 로드 시 초기화
+    document.addEventListener('DOMContentLoaded', function() {
+        // 글자 수 카운터 초기화
+        updateCharCount();
+
+        // 에러가 있는 경우 모달 자동 열기
+        const hasErrors = /*[[${#fields.hasAnyErrors()}]]*/ false;
+        if (hasErrors && currentReportType && currentTargetId) {
+            document.getElementById('reportModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+    });
+
+    // 모달 열기
+    function openReportModal(reportType, targetId) {
+        currentReportType = reportType;
+        currentTargetId = targetId;
+
+        // 숨겨진 필드 설정
+        document.getElementById('reportType').value = reportType;
+        document.getElementById('targetId').value = targetId;
+
+        // 신고 사유 옵션 설정
+        updateReasonOptions(reportType);
+
+        // 모달 표시
+        document.getElementById('reportModal').classList.add('show');
+        document.body.style.overflow = 'hidden';
+
+        // 폼 초기화 (새로 열 때만)
+        if (!/*[[${#fields.hasAnyErrors()}]]*/ false) {
+            resetForm();
+        }
+    }
+
+    // 신고 사유 옵션 업데이트
+    function updateReasonOptions(reportType) {
+        const reasonSelect = document.getElementById('reportReason');
+        reasonSelect.innerHTML = '<option value="">선택하세요</option>';
+
+        reportReasons[reportType].forEach(reason => {
+            const option = document.createElement('option');
+            option.value = reason;
+            option.textContent = reason;
+            reasonSelect.appendChild(option);
+        });
+    }
+
+    // 모달 닫기
+    function closeReportModal() {
+        document.getElementById('reportModal').classList.remove('show');
+        document.body.style.overflow = 'auto';
+
+        // URL에서 에러 파라미터 제거
+        const url = new URL(window.location);
+        url.searchParams.delete('error');
+        window.history.replaceState({}, '', url);
+
+        resetForm();
+    }
+
+    // 폼 초기화
+    function resetForm() {
+        document.getElementById('reportForm').reset();
+        document.getElementById('charCount').textContent = '0';
+        removeSelectedFile();
+        clearErrors();
+    }
+
+    // 글자 수 카운터 업데이트
+    function updateCharCount() {
+        const content = document.getElementById('reportContent').value;
+        document.getElementById('charCount').textContent = content.length;
+    }
+
+    // 글자 수 카운터 이벤트 리스너
+    document.getElementById('reportContent').addEventListener('input', updateCharCount);
+
+    // 파일 업로드 처리
+    document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+
+    // 드래그 앤 드롭 처리
+    const fileUploadArea = document.querySelector('.file-upload-area');
+
+    fileUploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.add('dragover');
+    });
+
+    fileUploadArea.addEventListener('dragleave', () => {
+        fileUploadArea.classList.remove('dragover');
+    });
+
+    fileUploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.remove('dragover');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFile(files[0]);
+        }
+    });
+
+    function handleFileSelect(e) {
+        const file = e.target.files[0];
+        if (file) {
+            handleFile(file);
+        }
+    }
+
+    function handleFile(file) {
+        // 파일 크기 체크 (10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            showError('fileError', '파일 크기는 10MB를 초과할 수 없습니다.');
+            return;
+        }
+
+        // 파일 형식 체크
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
+        if (!allowedTypes.includes(file.type)) {
+            showError('fileError', '이미지 파일(JPG, PNG, GIF) 또는 PDF 파일만 업로드 가능합니다.');
+            return;
+        }
+
+        selectedFile = file;
+        showSelectedFile(file);
+        hideError('fileError');
+    }
+
+    function showSelectedFile(file) {
+        const selectedFileInfo = document.getElementById('selectedFileInfo');
+        selectedFileInfo.innerHTML = `
+                <div class="selected-file">
+                    <div class="file-info">
+                        <span style="margin-right: 8px;">📎</span>
+                        ${file.name}
+                    </div>
+                    <button type="button" class="remove-file" onclick="removeSelectedFile()">
+                        ×
+                    </button>
+                </div>
+            `;
+        selectedFileInfo.style.display = 'block';
+    }
+
+    function removeSelectedFile() {
+        selectedFile = null;
+        document.getElementById('fileInput').value = '';
+        document.getElementById('selectedFileInfo').style.display = 'none';
+    }
+
+    // 폼 제출 처리
+    document.getElementById('reportForm').addEventListener('submit', function(e) {
+        const submitBtn = document.getElementById('submitBtn');
+        const submitText = document.getElementById('submitText');
+        const submitSpinner = document.getElementById('submitSpinner');
+
+        // 클라이언트사이드 유효성 검사
+        if (!validateForm()) {
+            e.preventDefault();
+            return;
+        }
+
+        // 버튼 비활성화 및 로딩 표시
+        submitBtn.disabled = true;
+        submitText.style.display = 'none';
+        submitSpinner.style.display = 'inline';
+    });
+
+    // 클라이언트사이드 유효성 검사
+    function validateForm() {
+        let isValid = true;
+
+        // 신고 사유 체크
+        const reason = document.getElementById('reportReason').value;
+        if (!reason) {
+            showError('reasonError', '신고 사유를 선택해주세요.');
+            isValid = false;
+        } else {
+            hideError('reasonError');
+        }
+
+        // 신고 내용 체크
+        const content = document.getElementById('reportContent').value.trim();
+        if (!content) {
+            showError('contentError', '상세 내용을 입력해주세요.');
+            isValid = false;
+        } else if (content.length > 500) {
+            showError('contentError', '내용은 500자 이내로 입력해주세요.');
+            isValid = false;
+        } else {
+            hideError('contentError');
+        }
+
+        return isValid;
+    }
+
+    // 에러 메시지 표시/숨김
+    function showError(elementId, message) {
+        const errorElement = document.getElementById(elementId);
+        errorElement.textContent = message;
+        errorElement.style.display = 'block';
+    }
+
+    function hideError(elementId) {
+        document.getElementById(elementId).style.display = 'none';
+    }
+
+    function clearErrors() {
+        const errorElements = document.querySelectorAll('.error-message');
+        errorElements.forEach(element => {
+            element.style.display = 'none';
+        });
+    }
+
+    // ESC 키로 모달 닫기
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeReportModal();
+        }
+    });
+
+    // 모달 외부 클릭 시 닫기
+    document.getElementById('reportModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeReportModal();
+        }
+    });
+
+    /*]]>*/
+</script>
+</body>
+</html>
