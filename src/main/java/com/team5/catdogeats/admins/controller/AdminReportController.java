@@ -24,6 +24,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 
 @RestController
 @RequestMapping("/v1/admin")
@@ -58,8 +59,8 @@ public class AdminReportController {
                     .reportType(reportType != null ? ReportType.valueOf(reportType.toUpperCase()) : null)
                     .status(status != null ? ReportStatus.valueOf(status.toUpperCase()) : null)
                     .keyword(keyword)
-                    .startDate(startDate != null ? LocalDate.parse(startDate) : null)
-                    .endDate(endDate != null ? LocalDate.parse(endDate) : null)
+                    .startDate(startDate != null ? LocalDate.parse(startDate).atStartOfDay(ZoneId.systemDefault()) : null)
+                    .endDate(endDate != null ? LocalDate.parse(endDate).atTime(23, 59, 59).atZone(ZoneId.systemDefault()) : null)
                     .page(page)
                     .size(size)
                     .sort(sort)
