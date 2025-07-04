@@ -42,14 +42,13 @@ class StockReservationServiceTest {
     private Orders testOrder;
     private Products testProduct1;
     private Products testProduct2;
-    private Users testUser;
     private List<StockReservationService.ReservationRequest> testReservationRequests;
     private List<StockReservation> testReservations;
 
     @BeforeEach
     void setUp() {
         // 테스트 사용자 생성
-        testUser = Users.builder()
+        Users testUser = Users.builder()
                 .id("user123")
                 .name("김철수")
                 .role(Role.ROLE_BUYER)
@@ -77,7 +76,7 @@ class StockReservationServiceTest {
         // 테스트 주문 생성
         testOrder = Orders.builder()
                 .id("order123")
-                .orderNumber(1001L)
+                .orderNumber(String.valueOf(1001))
                 .user(testUser)
                 .orderStatus(OrderStatus.PAYMENT_PENDING)
                 .totalPrice(50000L)
