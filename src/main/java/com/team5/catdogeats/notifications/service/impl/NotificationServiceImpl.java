@@ -1,5 +1,6 @@
 package com.team5.catdogeats.notifications.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.chats.service.UserIdCacheService;
 import com.team5.catdogeats.notifications.domian.dto.NotificationDTO;
 import com.team5.catdogeats.notifications.service.NotificationService;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 public class NotificationServiceImpl implements NotificationService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final UserIdCacheService userIdCacheService;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Async("SSE")
@@ -23,7 +25,8 @@ public class NotificationServiceImpl implements NotificationService {
             String userId = getUserId(provider, providerId);
 
             // Redis를 통해 알림 발송 (SSE 연결된 사용자들만 받음)
-            redisTemplate.convertAndSend("notify:" + userId, message);
+            String json = objectMapper.writeValueAsString(message);
+            redisTemplate.convertAndSend("notify:" + userId, json);
 
             log.info("Redis를 통해 알림 발송 완료: userId={}", userId);
         } catch (Exception e) {
