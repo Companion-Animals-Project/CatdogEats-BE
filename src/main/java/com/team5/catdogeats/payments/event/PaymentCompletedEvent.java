@@ -16,7 +16,7 @@ public record PaymentCompletedEvent(
         String orderId,
 
         // 주문 번호
-        Long orderNumber,
+        String orderNumber,
 
         // 사용자 정보
         String userId,
@@ -47,7 +47,7 @@ public record PaymentCompletedEvent(
      */
     public static PaymentCompletedEvent of(
             String orderId,
-            Long orderNumber,
+            String orderNumber,
             String userId,
             String userProvider,
             String userProviderId,

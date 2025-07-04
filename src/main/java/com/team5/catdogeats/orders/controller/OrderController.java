@@ -85,7 +85,7 @@ public class OrderController {
     @GetMapping("/{orderNumber}")
     public ResponseEntity<ApiResponse<OrderDetailResponse>> getOrderDetail(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @PathVariable("orderNumber") Long orderNumber) {
+            @PathVariable("orderNumber") String orderNumber) {
 
         try {
             log.info("주문 상세 조회 요청 - provider: {}, providerId: {}, orderNumber: {}",

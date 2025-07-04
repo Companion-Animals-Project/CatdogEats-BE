@@ -35,7 +35,7 @@ public class PaymentConfirmResponse {
      * 주문 번호
      * 사용자에게 표시되는 주문 번호
      */
-    private Long orderNumber;
+    private String orderNumber;
 
     /**
      * 결제 금액
@@ -68,7 +68,7 @@ public class PaymentConfirmResponse {
     /**
      * 성공 응답 생성을 위한 정적 팩토리 메서드
      */
-    public static PaymentConfirmResponse success(String paymentId, String orderId, Long orderNumber,
+    public static PaymentConfirmResponse success(String paymentId, String orderId, String orderNumber,
                                                  Long amount, String tossPaymentKey) {
         return PaymentConfirmResponse.builder()
                 .paymentId(paymentId)

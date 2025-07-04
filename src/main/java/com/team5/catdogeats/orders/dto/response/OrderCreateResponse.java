@@ -27,7 +27,7 @@ public class OrderCreateResponse {
     /**
      * 주문 번호 (사용자에게 표시되는 번호)
      */
-    private Long orderNumber;
+    private String orderNumber;
 
     /**
      * 주문 상태

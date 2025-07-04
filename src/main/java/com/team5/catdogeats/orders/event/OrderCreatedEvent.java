@@ -20,7 +20,7 @@ import java.util.List;
 public record OrderCreatedEvent(
         // 핵심 주문 정보
         String orderId,
-        Long orderNumber,
+        String orderNumber,
 
         // 사용자 정보 (결제 정보 생성용)
         String userId,
@@ -42,7 +42,7 @@ public record OrderCreatedEvent(
      */
     public static OrderCreatedEvent of(
             String orderId,
-            Long orderNumber,
+            String orderNumber,
             String userId,
             String userProvider,
             String userProviderId,

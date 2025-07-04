@@ -28,5 +28,5 @@ public interface OrderRepository extends JpaRepository<Orders, String> {
     WHERE o.user = :user
     AND o.orderNumber = :orderNumber
     """)
-    Optional<Orders> findOrderDetailByUserAndOrderNumber(@Param("user") Users user, @Param("orderNumber") Long orderNumber);
+    Optional<Orders> findOrderDetailByUserAndOrderNumber(@Param("user") Users user, @Param("orderNumber") String orderNumber);
 }

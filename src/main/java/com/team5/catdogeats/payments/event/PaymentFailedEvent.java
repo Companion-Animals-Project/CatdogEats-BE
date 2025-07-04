@@ -12,7 +12,7 @@ public record PaymentFailedEvent(
         String orderId,
 
         // 주문 번호
-        Long orderNumber,
+        String orderNumber,
 
         // 실패 사유
         String errorCode,
@@ -25,7 +25,7 @@ public record PaymentFailedEvent(
     /**
      * 정적 팩토리 메서드
      */
-    public static PaymentFailedEvent of(String orderId, Long orderNumber, String errorCode, String errorMessage) {
+    public static PaymentFailedEvent of(String orderId, String orderNumber, String errorCode, String errorMessage) {
         return new PaymentFailedEvent(
                 orderId,
                 orderNumber,

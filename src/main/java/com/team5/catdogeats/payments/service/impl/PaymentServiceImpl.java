@@ -136,7 +136,8 @@ public class PaymentServiceImpl implements PaymentService {
             // JSON 역직렬화
             List<OrderItemInfo> orderItems = objectMapper.readValue(
                     pendingDetails.getOrderItemsJson(),
-                    new TypeReference<List<OrderItemInfo>>() {}
+                    new TypeReference<>() {
+                    }
             );
 
             OrderCreateRequest.ShippingAddressRequest shippingAddress = null;
@@ -186,7 +187,7 @@ public class PaymentServiceImpl implements PaymentService {
             Orders order = orderRepository.findById(orderId)
                     .orElse(null);
 
-            Long orderNumber = order != null ? order.getOrderNumber() : null;
+            String orderNumber = order != null ? order.getOrderNumber() : null;
 
             PaymentFailedEvent event = PaymentFailedEvent.of(
                     orderId,

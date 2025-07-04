@@ -94,7 +94,7 @@ public class OrderServiceImpl implements OrderService {
                     user.getId(),
                     userPrincipal.provider(),
                     userPrincipal.providerId(),
-                    finalPaymentAmount, // originalTotalPrice, couponDiscountRate 제거
+                    finalPaymentAmount,
                     validatedOrderItems
             );
 
@@ -165,13 +165,15 @@ public class OrderServiceImpl implements OrderService {
 
     private Long calculateFinalPaymentAmount(Long discountedTotalPrice) {
         long deliveryFee = discountedTotalPrice >= 50000 ? 0 : 3000;
-        return discountedTotalPrice + deliveryFee;
+        long finalAmount = discountedTotalPrice + deliveryFee;
+        // 100% 할인 등으로 최종 결제 금액이 0원이 될 경우, 최소 결제 금액 1원으로 보정
+        return Math.max(finalAmount, 1L);
     }
 
     private Orders createAndSaveOrderOnly(Users user, Long finalPaymentAmount) {
         Orders order = Orders.builder()
                 .user(user)
-                .orderNumber(generateOrderNumber())
+                .orderNumber(generateOrderNumber()) // String 타입 반환값 사용
                 .orderStatus(OrderStatus.PAYMENT_PENDING)
                 .totalPrice(finalPaymentAmount)
                 .build();
@@ -205,68 +207,20 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @JpaTransactional(readOnly = true)
-    public OrderDetailResponse getOrderDetail(UserPrincipal userPrincipal, Long orderNumber) {
+    public OrderDetailResponse getOrderDetail(UserPrincipal userPrincipal, String orderNumber) {
         log.info("주문 상세 조회 시작 - provider: {}, providerId: {}, orderNumber: {}",
                 userPrincipal.provider(), userPrincipal.providerId(), orderNumber);
 
         Users user = findUserByPrincipal(userPrincipal);
         Orders order = orderRepository.findOrderDetailByUserAndOrderNumber(user, orderNumber)
-                .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없거나 접근 권한이 없습니다."));
 
         if (order.getOrderStatus() == OrderStatus.PAYMENT_PENDING) {
-            return getOrderDetailFromPendingDetails(order);
-        } else {
-            return getOrderDetailFromEntities(order);
+            log.warn("결제가 완료되지 않은 주문에 대한 상세 조회 시도: orderNumber={}", orderNumber);
+            throw new IllegalStateException("결제가 완료되지 않은 주문은 조회할 수 없습니다.");
         }
-    }
 
-    private OrderDetailResponse getOrderDetailFromPendingDetails(Orders order) {
-        OrderPendingDetails pendingDetails = orderPendingDetailsRepository.findByOrderId(order.getId())
-                .orElseThrow(() -> new NoSuchElementException("주문 대기 정보를 찾을 수 없습니다."));
-
-        try {
-            List<OrderItemInfo> orderItems = objectMapper.readValue(
-                    pendingDetails.getOrderItemsJson(),
-                    objectMapper.getTypeFactory().constructCollectionType(List.class, OrderItemInfo.class)
-            );
-
-            OrderCreateRequest.ShippingAddressRequest shippingAddress = objectMapper.readValue(
-                    pendingDetails.getShippingAddressJson(),
-                    OrderCreateRequest.ShippingAddressRequest.class
-            );
-
-            List<OrderDetailResponse.OrderItemDetail> orderItemDetails = orderItems.stream()
-                    .map(item -> new OrderDetailResponse.OrderItemDetail(
-                            null,
-                            item.productId(),
-                            item.productName(),
-                            item.quantity(),
-                            item.unitPrice(),
-                            item.totalPrice()
-                    )).toList();
-
-            Long totalProductPrice = calculateOriginalTotalPrice(orderItems);
-            Long discountAmount = calculateDiscountAmount(order, totalProductPrice);
-            Long deliveryFee = calculateDeliveryFee(totalProductPrice);
-
-            OrderDetailResponse.RecipientInfo recipientInfo = createRecipientInfoFromShippingAddress(shippingAddress);
-            OrderDetailResponse.PaymentInfo paymentInfo = OrderDetailResponse.PaymentInfo.of(
-                    totalProductPrice, discountAmount, deliveryFee);
-
-            return new OrderDetailResponse(
-                    order.getId(),
-                    order.getOrderNumber(),
-                    order.getCreatedAt().toLocalDateTime(),
-                    order.getOrderStatus(),
-                    recipientInfo,
-                    paymentInfo,
-                    orderItemDetails
-            );
-
-        } catch (Exception e) {
-            log.error("OrderPendingDetails JSON 역직렬화 실패: orderId={}, error={}", order.getId(), e.getMessage());
-            throw new RuntimeException("주문 정보 조회 중 오류가 발생했습니다", e);
-        }
+        return getOrderDetailFromEntities(order);
     }
 
     private OrderDetailResponse getOrderDetailFromEntities(Orders order) {
@@ -306,7 +260,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @JpaTransactional
-    public OrderDeleteResponse deleteOrder(UserPrincipal userPrincipal, Long orderNumber) {
+    public OrderDeleteResponse deleteOrder(UserPrincipal userPrincipal, String orderNumber) {
         log.info("주문 내역 삭제 요청 - provider: {}, providerId: {}, orderNumber: {}",
                 userPrincipal.provider(), userPrincipal.providerId(), orderNumber);
 
@@ -385,22 +339,9 @@ public class OrderServiceImpl implements OrderService {
         return new OrderDetailResponse.RecipientInfo("수령인 미등록", "연락처 미등록", "주소 미등록", "배송 요청사항 없음");
     }
 
-    private OrderDetailResponse.RecipientInfo createRecipientInfoFromShippingAddress(
-            OrderCreateRequest.ShippingAddressRequest shippingAddress) {
-        if (shippingAddress != null) {
-            return new OrderDetailResponse.RecipientInfo(
-                    shippingAddress.getRecipientName(),
-                    shippingAddress.getRecipientPhone(),
-                    shippingAddress.getStreetAddress() + " " + (shippingAddress.getDetailAddress() != null ? shippingAddress.getDetailAddress() : ""),
-                    shippingAddress.getDeliveryNote() != null ? shippingAddress.getDeliveryNote() : "배송 요청사항 없음"
-            );
-        }
-        return new OrderDetailResponse.RecipientInfo("수령인 미등록", "연락처 미등록", "주소 미등록", "배송 요청사항 없음");
-    }
-
-    private Long generateOrderNumber() {
+    private String generateOrderNumber() {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         int randomSuffix = ThreadLocalRandom.current().nextInt(10000, 100000);
-        return Long.parseLong(timestamp + randomSuffix);
+        return timestamp + randomSuffix;
     }
 }
