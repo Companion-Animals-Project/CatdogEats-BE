@@ -13,7 +13,6 @@ import com.team5.catdogeats.support.domain.Reports;
 import com.team5.catdogeats.support.domain.dto.PageResponseDto;
 import com.team5.catdogeats.support.domain.enums.ReportStatus;
 import com.team5.catdogeats.support.domain.enums.ReportType;
-import com.team5.catdogeats.support.domain.dto.PageResponseDto;
 import com.team5.catdogeats.support.domain.dto.ReportListResponseDto;
 import com.team5.catdogeats.support.exception.ReportNotFoundException;
 import com.team5.catdogeats.support.repository.ReportRepository;

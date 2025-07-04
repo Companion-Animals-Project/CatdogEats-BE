@@ -2,7 +2,6 @@ package com.team5.catdogeats.support.service.impl;
 
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.repository.ProductRepository;
-import com.team5.catdogeats.reviews.domain.Reviews;
 import com.team5.catdogeats.reviews.repository.ReviewRepository;
 import com.team5.catdogeats.support.domain.Reports;
 import com.team5.catdogeats.support.domain.dto.PageResponseDto;
