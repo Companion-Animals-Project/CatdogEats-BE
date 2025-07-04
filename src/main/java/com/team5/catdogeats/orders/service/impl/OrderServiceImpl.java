@@ -239,6 +239,7 @@ public class OrderServiceImpl implements OrderService {
     private Shipments createAndSaveShipment(Orders order, OrderCreateRequest.ShippingAddressRequest shippingAddress) {
         Shipments shipment = Shipments.builder()
                 .orders(order)
+                .user(order.getUser())
                 .build();
 
         // 배송지 정보 설정
