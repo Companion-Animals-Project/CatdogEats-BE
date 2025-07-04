@@ -1,4 +1,4 @@
-package com.team5.catdogeats.notifications.domian.enums;
+package com.team5.catdogeats.notifications.domain.enums;
 
 public enum NotificationType {
     NEW_ORDER,

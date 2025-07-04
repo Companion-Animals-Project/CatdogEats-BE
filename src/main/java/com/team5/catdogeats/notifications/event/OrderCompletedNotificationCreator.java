@@ -1,9 +1,9 @@
 package com.team5.catdogeats.notifications.event;
 
-import com.team5.catdogeats.notifications.domian.Notifications;
-import com.team5.catdogeats.notifications.domian.dto.NotificationDTO;
-import com.team5.catdogeats.notifications.domian.dto.OrderCompletedDTO;
-import com.team5.catdogeats.notifications.domian.enums.NotificationType;
+import com.team5.catdogeats.notifications.domain.Notifications;
+import com.team5.catdogeats.notifications.domain.dto.NotificationDTO;
+import com.team5.catdogeats.notifications.domain.dto.OrderCompletedDTO;
+import com.team5.catdogeats.notifications.domain.enums.NotificationType;
 import com.team5.catdogeats.notifications.repository.NotificationRepository;
 import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.repository.UserRepository;

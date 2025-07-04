@@ -1,6 +1,6 @@
-package com.team5.catdogeats.notifications.domian.dto;
+package com.team5.catdogeats.notifications.domain.dto;
 
-import com.team5.catdogeats.notifications.domian.enums.NotificationType;
+import com.team5.catdogeats.notifications.domain.enums.NotificationType;
 
 import java.time.ZonedDateTime;
 

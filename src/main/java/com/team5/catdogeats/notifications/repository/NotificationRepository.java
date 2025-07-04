@@ -1,7 +1,7 @@
 package com.team5.catdogeats.notifications.repository;
 
 
-import com.team5.catdogeats.notifications.domian.Notifications;
+import com.team5.catdogeats.notifications.domain.Notifications;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

@@ -2,8 +2,8 @@ package com.team5.catdogeats.notifications.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.team5.catdogeats.notifications.domian.dto.NoticeCompletedDTO;
-import com.team5.catdogeats.notifications.domian.dto.OrderCompletedDTO;
+import com.team5.catdogeats.notifications.domain.dto.NoticeCompletedDTO;
+import com.team5.catdogeats.notifications.domain.dto.OrderCompletedDTO;
 import com.team5.catdogeats.notifications.service.SseEmitterService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

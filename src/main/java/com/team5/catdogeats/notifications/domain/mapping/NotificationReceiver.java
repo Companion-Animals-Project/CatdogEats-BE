@@ -1,7 +1,7 @@
-package com.team5.catdogeats.notifications.domian.mapping;
+package com.team5.catdogeats.notifications.domain.mapping;
 
 import com.team5.catdogeats.baseEntity.BaseEntity;
-import com.team5.catdogeats.notifications.domian.Notifications;
+import com.team5.catdogeats.notifications.domain.Notifications;
 import com.team5.catdogeats.users.domain.Users;
 import jakarta.persistence.*;
 import lombok.*;

@@ -1,6 +1,6 @@
 package com.team5.catdogeats.notifications.event;
 
-import com.team5.catdogeats.notifications.domian.enums.NotificationType;
+import com.team5.catdogeats.notifications.domain.enums.NotificationType;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

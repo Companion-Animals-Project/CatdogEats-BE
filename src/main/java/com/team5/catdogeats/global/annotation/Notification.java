@@ -1,6 +1,6 @@
 package com.team5.catdogeats.global.annotation;
 
-import com.team5.catdogeats.notifications.domian.enums.NotificationType;
+import com.team5.catdogeats.notifications.domain.enums.NotificationType;
 
 import java.lang.annotation.*;
 

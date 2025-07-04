@@ -1,6 +1,6 @@
 package com.team5.catdogeats.support.domain.notice.service;
 
-import com.team5.catdogeats.notifications.domian.dto.NoticeCompletedDTO;
+import com.team5.catdogeats.notifications.domain.dto.NoticeCompletedDTO;
 import com.team5.catdogeats.support.domain.notice.dto.NoticeCreateRequestDTO;
 import com.team5.catdogeats.support.domain.notice.dto.NoticeListResponseDTO;
 import com.team5.catdogeats.support.domain.notice.dto.NoticeResponseDTO;

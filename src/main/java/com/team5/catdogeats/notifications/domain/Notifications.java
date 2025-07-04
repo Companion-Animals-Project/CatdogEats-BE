@@ -1,7 +1,7 @@
-package com.team5.catdogeats.notifications.domian;
+package com.team5.catdogeats.notifications.domain;
 
 import com.team5.catdogeats.baseEntity.BaseEntity;
-import com.team5.catdogeats.notifications.domian.enums.NotificationType;
+import com.team5.catdogeats.notifications.domain.enums.NotificationType;
 import jakarta.persistence.*;
 import lombok.*;
 

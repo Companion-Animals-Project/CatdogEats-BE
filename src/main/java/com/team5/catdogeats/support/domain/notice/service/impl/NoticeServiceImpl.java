@@ -2,8 +2,8 @@ package com.team5.catdogeats.support.domain.notice.service.impl;
 
 import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.global.annotation.Notification;
-import com.team5.catdogeats.notifications.domian.dto.NoticeCompletedDTO;
-import com.team5.catdogeats.notifications.domian.enums.NotificationType;
+import com.team5.catdogeats.notifications.domain.dto.NoticeCompletedDTO;
+import com.team5.catdogeats.notifications.domain.enums.NotificationType;
 import com.team5.catdogeats.storage.domain.Files;
 import com.team5.catdogeats.storage.domain.mapping.NoticeFiles;
 import com.team5.catdogeats.storage.service.NoticeFileManagementService;
