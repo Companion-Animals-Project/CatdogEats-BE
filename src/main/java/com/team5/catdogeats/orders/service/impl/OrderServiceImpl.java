@@ -240,17 +240,13 @@ public class OrderServiceImpl implements OrderService {
         Shipments shipment = Shipments.builder()
                 .orders(order)
                 .user(order.getUser())
+                .recipientName(shippingAddress.getRecipientName())
+                .recipientPhone(shippingAddress.getRecipientPhone())
+                .postalCode(shippingAddress.getPostalCode())
+                .shippingAddress(shippingAddress.getStreetAddress())
+                .detailAddress(shippingAddress.getDetailAddress())
+                .deliveryNote(shippingAddress.getDeliveryNote())
                 .build();
-
-        // 배송지 정보 설정
-        shipment.setShippingInfo(
-                shippingAddress.getRecipientName(),
-                shippingAddress.getRecipientPhone(),
-                shippingAddress.getPostalCode(),
-                shippingAddress.getStreetAddress(),
-                shippingAddress.getDetailAddress(),
-                shippingAddress.getDeliveryNote()
-        );
 
         Shipments savedShipment = shipmentRepository.save(shipment);
         log.debug("배송 엔티티 저장 완료: shipmentId={}, orderId={}, 수령인={}",
