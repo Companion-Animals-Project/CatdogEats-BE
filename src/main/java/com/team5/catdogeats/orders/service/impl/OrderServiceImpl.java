@@ -1,19 +1,22 @@
 package com.team5.catdogeats.orders.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
+import com.team5.catdogeats.orders.domain.OrderPendingDetails;
 import com.team5.catdogeats.orders.domain.Orders;
+import com.team5.catdogeats.orders.domain.Shipments;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
-import com.team5.catdogeats.orders.dto.common.DetailedOrderItemInfo;
 import com.team5.catdogeats.orders.dto.common.OrderItemInfo;
 import com.team5.catdogeats.orders.dto.request.OrderCreateRequest;
 import com.team5.catdogeats.orders.dto.response.OrderCreateResponse;
 import com.team5.catdogeats.orders.dto.response.OrderDeleteResponse;
 import com.team5.catdogeats.orders.dto.response.OrderDetailResponse;
-import com.team5.catdogeats.orders.domain.Shipments;
-import com.team5.catdogeats.orders.repository.ShipmentRepository;
 import com.team5.catdogeats.orders.event.OrderCreatedEvent;
+import com.team5.catdogeats.orders.repository.OrderPendingDetailsRepository;
 import com.team5.catdogeats.orders.repository.OrderRepository;
+import com.team5.catdogeats.orders.repository.ShipmentRepository;
 import com.team5.catdogeats.orders.service.OrderService;
 import com.team5.catdogeats.orders.util.TossPaymentResponseBuilder;
 import com.team5.catdogeats.products.domain.Products;
@@ -34,123 +37,241 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * 주문 관리 서비스 구현체 (리팩터링 버전: Orders-Shipments 책임 분리)
- * 주요 변경사항:
- * - Orders 엔티티는 주문 자체(주문자, 주문 상품, 주문 상태, 결제 금액)만 관리
- * - Shipments 엔티티가 배송지 정보와 배송 추적 정보를 모두 관리
- * - 주문 생성 시 Orders와 Shipments를 별도로 생성하여 단일 책임 원칙 준수
- * 이벤트 기반 아키텍처 적용으로 관심사를 분리:
- * - OrderService: 주문 엔티티 저장과 이벤트 발행만 담당
- * - EventListeners: 재고 차감, 결제 정보 생성, 알림 등 부가 로직 처리
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
+    private final OrderPendingDetailsRepository orderPendingDetailsRepository;
     private final UserRepository userRepository;
     private final BuyerRepository buyerRepository;
     private final ProductRepository productRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final TossPaymentResponseBuilder tossPaymentResponseBuilder;
     private final ShipmentRepository shipmentRepository;
+    private final ObjectMapper objectMapper;
 
-    /**
-     * UserPrincipal을 사용한 주문 생성 (EDA + 쿠폰 할인 + 배송비 포함 방식)
-     * 변경된 처리 흐름:
-     * 1. 구매자 검증 (BuyerRepository 활용)
-     * 2. 상품 정보 수집 (원가 기준)
-     * 3. 전체 주문 금액 계산 (원가 총합)
-     * 4. 쿠폰 할인 적용 (전체 금액에서 할인)
-     * 5. 배송비 포함 최종 결제 금액 계산
-     * 6. 주문 엔티티 저장 (배송비 포함 금액 + 배송지 정보)
-     * 7. 토스 페이먼츠 응답 생성
-     * 8. OrderCreatedEvent 발행 (할인 정보 포함)
-     */
     @Override
     @JpaTransactional
     public OrderCreateResponse createOrderByUserPrincipal(UserPrincipal userPrincipal, OrderCreateRequest request) {
-        log.info("주문 생성 시작 (EDA + 쿠폰 할인 + 배송비 포함): provider={}, providerId={}, 상품 개수={}, 쿠폰 할인률={}%",
+        log.info("주문 생성 요청: provider={}, providerId={}, itemCount={}, 쿠폰할인={}%",
                 userPrincipal.provider(), userPrincipal.providerId(),
-                request.getOrderItems().size(), request.getPaymentInfo().getCouponDiscountRate());
+                request.getOrderItems().size(),
+                request.getPaymentInfo() != null ? request.getPaymentInfo().getCouponDiscountRate() : 0);
 
-        // 1. 구매자 검증 (BuyerRepository 활용)
-        BuyerDTO buyer = findBuyerByPrincipal(userPrincipal);
-        Users user = userRepository.getReferenceById(buyer.userId());
+        try {
+            // 1. 구매자 검증
+            Users user = findUserByPrincipal(userPrincipal);
 
-        // 2. 주문 상품들 검증 및 정보 수집 (원가 기준)
-        List<DetailedOrderItemInfo> detailedOrderItems = validateAndCollectOrderItems(request.getOrderItems());
+            // 2. 주문 상품들 검증 및 정보 수집 (원가 기준)
+            List<OrderItemInfo> validatedOrderItems = validateAndCollectOrderItems(request.getOrderItems());
 
-        // 3. 원가 총 금액 계산
-        Long originalTotalPrice = calculateOriginalTotalPrice(detailedOrderItems);
+            // 3. 주문 금액 계산
+            Long originalTotalPrice = calculateOriginalTotalPrice(validatedOrderItems);
+            Double couponDiscountRate = request.getPaymentInfo() != null ?
+                    request.getPaymentInfo().getCouponDiscountRate() : null;
+            Long discountedTotalPrice = applyCouponDiscount(originalTotalPrice, couponDiscountRate);
+            Long finalPaymentAmount = calculateFinalPaymentAmount(discountedTotalPrice);
 
-        // 4. 쿠폰 할인 적용
-        Double couponDiscountRate = request.getPaymentInfo().getCouponDiscountRate();
-        Long discountedPrice = applyCouponDiscount(originalTotalPrice, couponDiscountRate);
+            log.debug("주문 금액 계산: 원가={}원, 할인후={}원, 최종={}원",
+                    originalTotalPrice, discountedTotalPrice, finalPaymentAmount);
 
-        // 5. 배송비 포함 최종 결제 금액 계산
-        Long finalPaymentAmount = calculateFinalPaymentAmount(discountedPrice, originalTotalPrice);
+            // 4. Orders 엔티티만 생성 및 저장 (PAYMENT_PENDING 상태)
+            Orders savedOrder = createAndSaveOrderOnly(user, finalPaymentAmount);
 
-        // 6. 주문 엔티티 생성 및 저장 (배송비 포함 금액 + 배송지 정보)
-        Orders savedOrder = createAndSaveOrder(user, finalPaymentAmount);
+            // 5. OrderPendingDetails에 임시 정보 저장
+            saveOrderPendingDetails(savedOrder, userPrincipal, originalTotalPrice,
+                    couponDiscountRate, validatedOrderItems, request.getShippingAddress());
 
-        // 7. Shipments 엔티티 생성 및 저장 (배송지 정보)
-        Shipments savedShipment = createAndSaveShipment(savedOrder, request.getShippingAddress());
+            log.info("주문 생성 완료: orderId={}, orderNumber={}, status={}, 최종금액={}원",
+                    savedOrder.getId(), savedOrder.getOrderNumber(), savedOrder.getOrderStatus(), finalPaymentAmount);
 
-        // 8. 토스 페이먼츠 응답 생성
-        OrderCreateResponse response = buildTossPaymentResponse(savedOrder, request.getPaymentInfo());
+            // 6. OrderCreatedEvent 발행 (재고 예약 및 결제 정보 생성용)
+            OrderCreatedEvent event = OrderCreatedEvent.of(
+                    savedOrder.getId(),
+                    savedOrder.getOrderNumber(),
+                    user.getId(),
+                    userPrincipal.provider(),
+                    userPrincipal.providerId(),
+                    finalPaymentAmount, // originalTotalPrice, couponDiscountRate 제거
+                    validatedOrderItems
+            );
 
-        // 9. OrderCreatedEvent 발행 (할인 정보 포함)
-        publishOrderCreatedEvent(savedOrder, user, userPrincipal, detailedOrderItems,
-                originalTotalPrice, couponDiscountRate, finalPaymentAmount);
+            eventPublisher.publishEvent(event);
+            log.debug("OrderCreatedEvent 발행 완료: orderId={} (shippingAddress는 OrderPendingDetails에 저장됨)",
+                    savedOrder.getId());
 
-        log.info("주문 생성 완료: orderId={}, orderNumber={}, 원가={}원, 쿠폰할인={}%, 최종결제금액={}원 (배송비포함), 수령인={}",
-                savedOrder.getId(), savedOrder.getOrderNumber(), originalTotalPrice,
-                couponDiscountRate != null ? couponDiscountRate : 0, finalPaymentAmount, savedShipment.getRecipientName());
+            // 7. Toss Payments 응답 생성
+            String orderName = validatedOrderItems.get(0).productName() +
+                    (validatedOrderItems.size() > 1 ? String.format(" 외 %d개", validatedOrderItems.size() - 1) : "");
 
-        return response;
+            return tossPaymentResponseBuilder.buildTossPaymentResponse(
+                    savedOrder,
+                    request.getPaymentInfo(),
+                    orderName
+            );
+
+        } catch (Exception e) {
+            log.error("주문 생성 실패: error={}", e.getMessage(), e);
+            throw e instanceof RuntimeException ? (RuntimeException) e :
+                    new RuntimeException("주문 생성 중 서버 오류가 발생했습니다", e);
+        }
     }
 
-    // ===== getOrderDetail 메서드 구현 (배송지 정보 수정) =====
-    /**
-     * 주문 상세 조회 구현 (저장된 배송지 정보 사용)
-     */
+    private Users findUserByPrincipal(UserPrincipal userPrincipal) {
+        BuyerDTO buyer = buyerRepository.findOnlyBuyerByProviderAndProviderId(
+                        userPrincipal.provider(), userPrincipal.providerId())
+                .orElseThrow(() -> new NoSuchElementException("구매자를 찾을 수 없거나 권한이 없습니다"));
+        return userRepository.getReferenceById(buyer.userId());
+    }
+
+    private List<OrderItemInfo> validateAndCollectOrderItems(List<OrderCreateRequest.OrderItemRequest> orderItems) {
+        List<OrderItemInfo> validatedItems = new ArrayList<>();
+        for (OrderCreateRequest.OrderItemRequest item : orderItems) {
+            Products product = productRepository.findById(item.getProductId())
+                    .orElseThrow(() -> new NoSuchElementException("상품을 찾을 수 없습니다: " + item.getProductId()));
+
+            if (item.getQuantity() <= 0) {
+                throw new IllegalArgumentException("주문 수량은 1개 이상이어야 합니다");
+            }
+
+            validatedItems.add(new OrderItemInfo(
+                    product.getId(),
+                    product.getTitle(),
+                    item.getQuantity(),
+                    product.getPrice(),
+                    product.getPrice() * item.getQuantity()
+            ));
+        }
+        return validatedItems;
+    }
+
+    private Long calculateOriginalTotalPrice(List<OrderItemInfo> orderItems) {
+        return orderItems.stream()
+                .mapToLong(item -> item.unitPrice() * item.quantity())
+                .sum();
+    }
+
+    private Long applyCouponDiscount(Long originalTotalPrice, Double couponDiscountRate) {
+        if (couponDiscountRate == null || couponDiscountRate <= 0) {
+            return originalTotalPrice;
+        }
+        if (couponDiscountRate > 100) {
+            throw new IllegalArgumentException("쿠폰 할인율은 100%를 초과할 수 없습니다.");
+        }
+        return Math.round(originalTotalPrice * (1 - couponDiscountRate / 100.0));
+    }
+
+    private Long calculateFinalPaymentAmount(Long discountedTotalPrice) {
+        long deliveryFee = discountedTotalPrice >= 50000 ? 0 : 3000;
+        return discountedTotalPrice + deliveryFee;
+    }
+
+    private Orders createAndSaveOrderOnly(Users user, Long finalPaymentAmount) {
+        Orders order = Orders.builder()
+                .user(user)
+                .orderNumber(generateOrderNumber())
+                .orderStatus(OrderStatus.PAYMENT_PENDING)
+                .totalPrice(finalPaymentAmount)
+                .build();
+        return orderRepository.save(order);
+    }
+
+    private void saveOrderPendingDetails(Orders order, UserPrincipal userPrincipal,
+                                         Long originalTotalPrice, Double couponDiscountRate,
+                                         List<OrderItemInfo> orderItems,
+                                         OrderCreateRequest.ShippingAddressRequest shippingAddress) {
+        try {
+            String orderItemsJson = objectMapper.writeValueAsString(orderItems);
+            String shippingAddressJson = objectMapper.writeValueAsString(shippingAddress);
+
+            OrderPendingDetails pendingDetails = OrderPendingDetails.builder()
+                    .orders(order)
+                    .userProvider(userPrincipal.provider())
+                    .userProviderId(userPrincipal.providerId())
+                    .originalTotalPrice(originalTotalPrice)
+                    .couponDiscountRate(couponDiscountRate)
+                    .orderItemsJson(orderItemsJson)
+                    .shippingAddressJson(shippingAddressJson)
+                    .build();
+
+            orderPendingDetailsRepository.save(pendingDetails);
+        } catch (JsonProcessingException e) {
+            log.error("OrderPendingDetails JSON 직렬화 실패: orderId={}, error={}", order.getId(), e.getMessage());
+            throw new RuntimeException("주문 정보 저장 중 오류가 발생했습니다", e);
+        }
+    }
+
     @Override
     @JpaTransactional(readOnly = true)
     public OrderDetailResponse getOrderDetail(UserPrincipal userPrincipal, Long orderNumber) {
         log.info("주문 상세 조회 시작 - provider: {}, providerId: {}, orderNumber: {}",
                 userPrincipal.provider(), userPrincipal.providerId(), orderNumber);
 
-        // 1. 사용자 인증 및 구매자 권한 확인
-        BuyerDTO buyerDTO = buyerRepository.findOnlyBuyerByProviderAndProviderId(
-                userPrincipal.provider(),
-                userPrincipal.providerId()
-        ).orElseThrow(() -> {
-            log.warn("구매자를 찾을 수 없음 - provider: {}, providerId: {}",
-                    userPrincipal.provider(), userPrincipal.providerId());
-            return new NoSuchElementException("구매자 정보를 찾을 수 없습니다.");
-        });
-
-        Users user = userRepository.findById(buyerDTO.userId())
-                .orElseThrow(() -> {
-                    log.warn("사용자를 찾을 수 없음 - userId: {}", buyerDTO.userId());
-                    return new NoSuchElementException("사용자 정보를 찾을 수 없습니다.");
-                });
-
-        // 2. 주문 조회 (OrderItems와 Products 함께 조회)
+        Users user = findUserByPrincipal(userPrincipal);
         Orders order = orderRepository.findOrderDetailByUserAndOrderNumber(user, orderNumber)
-                .orElseThrow(() -> {
-                    log.warn("주문을 찾을 수 없음 - userId: {}, orderNumber: {}", user.getId(), orderNumber);
-                    return new NoSuchElementException("주문을 찾을 수 없습니다.");
-                });
+                .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없습니다."));
 
-        // 3. 배송 정보 조회
+        if (order.getOrderStatus() == OrderStatus.PAYMENT_PENDING) {
+            return getOrderDetailFromPendingDetails(order);
+        } else {
+            return getOrderDetailFromEntities(order);
+        }
+    }
+
+    private OrderDetailResponse getOrderDetailFromPendingDetails(Orders order) {
+        OrderPendingDetails pendingDetails = orderPendingDetailsRepository.findByOrderId(order.getId())
+                .orElseThrow(() -> new NoSuchElementException("주문 대기 정보를 찾을 수 없습니다."));
+
+        try {
+            List<OrderItemInfo> orderItems = objectMapper.readValue(
+                    pendingDetails.getOrderItemsJson(),
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, OrderItemInfo.class)
+            );
+
+            OrderCreateRequest.ShippingAddressRequest shippingAddress = objectMapper.readValue(
+                    pendingDetails.getShippingAddressJson(),
+                    OrderCreateRequest.ShippingAddressRequest.class
+            );
+
+            List<OrderDetailResponse.OrderItemDetail> orderItemDetails = orderItems.stream()
+                    .map(item -> new OrderDetailResponse.OrderItemDetail(
+                            null,
+                            item.productId(),
+                            item.productName(),
+                            item.quantity(),
+                            item.unitPrice(),
+                            item.totalPrice()
+                    )).toList();
+
+            Long totalProductPrice = calculateOriginalTotalPrice(orderItems);
+            Long discountAmount = calculateDiscountAmount(order, totalProductPrice);
+            Long deliveryFee = calculateDeliveryFee(totalProductPrice);
+
+            OrderDetailResponse.RecipientInfo recipientInfo = createRecipientInfoFromShippingAddress(shippingAddress);
+            OrderDetailResponse.PaymentInfo paymentInfo = OrderDetailResponse.PaymentInfo.of(
+                    totalProductPrice, discountAmount, deliveryFee);
+
+            return new OrderDetailResponse(
+                    order.getId(),
+                    order.getOrderNumber(),
+                    order.getCreatedAt().toLocalDateTime(),
+                    order.getOrderStatus(),
+                    recipientInfo,
+                    paymentInfo,
+                    orderItemDetails
+            );
+
+        } catch (Exception e) {
+            log.error("OrderPendingDetails JSON 역직렬화 실패: orderId={}, error={}", order.getId(), e.getMessage());
+            throw new RuntimeException("주문 정보 조회 중 오류가 발생했습니다", e);
+        }
+    }
+
+    private OrderDetailResponse getOrderDetailFromEntities(Orders order) {
         Shipments shipment = shipmentRepository.findByOrders(order).orElse(null);
 
-
-        // 4. 주문 상품 정보 변환
         List<OrderDetailResponse.OrderItemDetail> orderItemDetails = order.getOrderItems().stream()
                 .map(orderItem -> new OrderDetailResponse.OrderItemDetail(
                         orderItem.getId(),
@@ -161,24 +282,18 @@ public class OrderServiceImpl implements OrderService {
                         orderItem.getPrice() * orderItem.getQuantity()
                 )).toList();
 
-        // 5. 총 상품 가격 계산
         Long totalProductPrice = orderItemDetails.stream()
                 .mapToLong(OrderDetailResponse.OrderItemDetail::totalPrice)
                 .sum();
 
-        // 6. 할인 금액 및 배송비 계산
         Long discountAmount = calculateDiscountAmount(order, totalProductPrice);
-        Long deliveryFee = calculateDeliveryFee(totalProductPrice); // order 매개변수 제거
+        Long deliveryFee = calculateDeliveryFee(totalProductPrice);
 
-        // 7. 받는 사람 정보 생성
         OrderDetailResponse.RecipientInfo recipientInfo = createRecipientInfoFromShipment(shipment);
-
-        // 8. 결제 정보 생성
         OrderDetailResponse.PaymentInfo paymentInfo = OrderDetailResponse.PaymentInfo.of(
                 totalProductPrice, discountAmount, deliveryFee);
 
-        // 9. 응답 DTO 생성
-        OrderDetailResponse response = new OrderDetailResponse(
+        return new OrderDetailResponse(
                 order.getId(),
                 order.getOrderNumber(),
                 order.getCreatedAt().toLocalDateTime(),
@@ -187,105 +302,8 @@ public class OrderServiceImpl implements OrderService {
                 paymentInfo,
                 orderItemDetails
         );
-
-        log.info("주문 상세 조회 완료 - orderId: {}, orderNumber: {}, 상품 개수: {}",
-                order.getId(), order.getOrderNumber(), orderItemDetails.size());
-
-        return response;
     }
 
-    // ===== 새로 추가된 메서드들 =====
-
-    /**
-     * 배송비 포함 최종 결제 금액 계산
-     * @param discountedPrice 쿠폰 할인 적용된 상품 금액
-     * @param originalTotalPrice 원가 총 금액 (배송비 계산 기준용)
-     * @return 배송비 포함된 최종 결제 금액
-     */
-    private Long calculateFinalPaymentAmount(Long discountedPrice, Long originalTotalPrice) {
-        // 배송비 계산 (원가 기준으로 계산하되, 할인된 금액에 추가)
-        Long deliveryFee = calculateDeliveryFee(originalTotalPrice);
-        Long finalPaymentAmount = discountedPrice + deliveryFee;
-
-        log.debug("최종 결제 금액 계산 완료: 할인적용금액={}원, 배송비={}원, 최종결제금액={}원",
-                discountedPrice, deliveryFee, finalPaymentAmount);
-
-        return finalPaymentAmount;
-    }
-
-    // 기존 createAndSaveOrderWithShipping 메서드를 다음 두 메서드로 분리:
-
-    /**
-     * Orders 엔티티 생성 및 저장 (주문 정보만)
-     */
-    private Orders createAndSaveOrder(Users user, Long finalPaymentAmount) {
-        Orders order = Orders.builder()
-                .user(user)
-                .orderNumber(generateOrderNumber())
-                .orderStatus(OrderStatus.PAYMENT_PENDING)
-                .totalPrice(finalPaymentAmount)
-                .build();
-
-        Orders savedOrder = orderRepository.save(order);
-        log.debug("주문 엔티티 저장 완료: orderId={}, orderNumber={}, 최종결제금액={}원",
-                savedOrder.getId(), savedOrder.getOrderNumber(), finalPaymentAmount);
-
-        return savedOrder;
-    }
-
-    /**
-     * Shipments 엔티티 생성 및 저장 (배송지 정보)
-     */
-    private Shipments createAndSaveShipment(Orders order, OrderCreateRequest.ShippingAddressRequest shippingAddress) {
-        Shipments shipment = Shipments.builder()
-                .orders(order)
-                .user(order.getUser())
-                .recipientName(shippingAddress.getRecipientName())
-                .recipientPhone(shippingAddress.getRecipientPhone())
-                .postalCode(shippingAddress.getPostalCode())
-                .shippingAddress(shippingAddress.getStreetAddress())
-                .detailAddress(shippingAddress.getDetailAddress())
-                .deliveryNote(shippingAddress.getDeliveryNote())
-                .build();
-
-        Shipments savedShipment = shipmentRepository.save(shipment);
-        log.debug("배송 엔티티 저장 완료: shipmentId={}, orderId={}, 수령인={}",
-                savedShipment.getId(), order.getId(), savedShipment.getRecipientName());
-
-        return savedShipment;
-    }
-
-    // 기존 createRecipientInfoFromOrder 메서드를 다음으로 교체:
-
-    /**
-     * Shipments에서 받는 사람 정보 생성
-     * @param shipment 배송 엔티티 (배송지 정보 포함)
-     * @return 받는 사람 정보 DTO
-     */
-    private OrderDetailResponse.RecipientInfo createRecipientInfoFromShipment(Shipments shipment) {
-        // 배송 정보가 있는 경우
-        if (shipment != null && shipment.getRecipientName() != null && !shipment.getRecipientName().trim().isEmpty()) {
-            return new OrderDetailResponse.RecipientInfo(
-                    shipment.getRecipientName(),
-                    shipment.getRecipientPhone(),
-                    shipment.getFullShippingAddress(),
-                    shipment.getDeliveryNote() != null ? shipment.getDeliveryNote() : "배송 요청사항 없음"
-            );
-        }
-
-        // 배송 정보가 없는 경우 기본값
-        return new OrderDetailResponse.RecipientInfo(
-                "수령인 미등록",
-                "연락처 미등록",
-                "주소 미등록",
-                "배송 요청사항 없음"
-        );
-    }
-
-    /**
-     * 주문 내역 삭제 (논리적 삭제 방식 + 상태별 제한) - 단일 주문 처리
-     * 주문 상세 페이지에서 사용되는 단일 주문 삭제 기능입니다.
-     */
     @Override
     @JpaTransactional
     public OrderDeleteResponse deleteOrder(UserPrincipal userPrincipal, Long orderNumber) {
@@ -293,37 +311,21 @@ public class OrderServiceImpl implements OrderService {
                 userPrincipal.provider(), userPrincipal.providerId(), orderNumber);
 
         try {
-            // 1. 구매자 검증
-            BuyerDTO buyer = findBuyerByPrincipal(userPrincipal);
-            Users user = userRepository.findById(buyer.userId())
-                    .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다"));
-
-            // 2. 주문 조회 및 소유권 검증
+            Users user = findUserByPrincipal(userPrincipal);
             Orders order = orderRepository.findOrderDetailByUserAndOrderNumber(user, orderNumber)
                     .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없거나 접근 권한이 없습니다"));
 
-            // 3. 주문 상태별 삭제 가능 여부 확인 (새로 추가된 로직)
             if (isDeletionRestricted(order.getOrderStatus())) {
-                String restrictionMessage = getDeletionRestrictionMessage(order.getOrderStatus());
-                log.warn("주문 삭제 제한 - orderNumber: {}, status: {}, reason: {}",
-                        orderNumber, order.getOrderStatus(), restrictionMessage);
-                throw new IllegalArgumentException(restrictionMessage);
+                throw new IllegalArgumentException(getDeletionRestrictionMessage(order.getOrderStatus()));
             }
 
-            // 4. 이미 숨겨진 주문인지 확인
             if (order.isOrderHidden()) {
-                log.warn("이미 삭제된 주문 삭제 시도 - orderNumber: {}", orderNumber);
                 throw new IllegalArgumentException("이미 삭제된 주문 내역입니다");
             }
 
-            // 5. 주문 숨김 처리
-            order.hideOrder();  // 엔티티의 편의 메서드 사용
+            order.hideOrder();
             Orders savedOrder = orderRepository.save(order);
 
-            log.info("주문 내역 삭제 완료 - orderNumber: {}, orderId: {}, status: {}, hiddenAt: {}",
-                    savedOrder.getOrderNumber(), savedOrder.getId(), savedOrder.getOrderStatus(), savedOrder.getHiddenAt());
-
-            // 6. 성공 응답 반환
             return OrderDeleteResponse.success(
                     savedOrder.getOrderNumber(),
                     savedOrder.getId(),
@@ -340,218 +342,65 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    /**
-     * 주문 상태별 삭제 제한 여부 확인
-     * @param orderStatus 주문 상태
-     * @return true: 삭제 제한, false: 삭제 허용
-     */
     private boolean isDeletionRestricted(OrderStatus orderStatus) {
-        return orderStatus == OrderStatus.PAYMENT_COMPLETED ||
-                orderStatus == OrderStatus.PREPARING ||
-                orderStatus == OrderStatus.READY_FOR_SHIPMENT ||
-                orderStatus == OrderStatus.IN_DELIVERY ||
-                orderStatus == OrderStatus.REFUND_PROCESSING;
+        return List.of(
+                OrderStatus.PAYMENT_COMPLETED,
+                OrderStatus.PREPARING,
+                OrderStatus.READY_FOR_SHIPMENT,
+                OrderStatus.IN_DELIVERY,
+                OrderStatus.REFUND_PROCESSING
+        ).contains(orderStatus);
     }
 
-    /**
-     * 주문 상태별 삭제 제한 메시지 반환
-     * @param orderStatus 주문 상태
-     * @return 제한 사유 메시지
-     */
     private String getDeletionRestrictionMessage(OrderStatus orderStatus) {
         return switch (orderStatus) {
-            case PAYMENT_COMPLETED ->
-                    "결제가 완료된 주문은 삭제할 수 없습니다. 상품 준비 진행상황을 확인해주세요.";
-            case PREPARING ->
-                    "상품 준비 중인 주문은 삭제할 수 없습니다.";
-            case READY_FOR_SHIPMENT ->
-                    "배송 준비가 완료된 주문은 삭제할 수 없습니다.";
-            case IN_DELIVERY ->
-                    "배송 중인 주문은 삭제할 수 없습니다. 배송 조회 페이지에서 배송상황을 확인해주세요.";
-            case REFUND_PROCESSING ->
-                    "환불 처리 중인 주문은 삭제할 수 없습니다. 환불 진행상황을 확인해주세요.";
-            default ->
-                    "현재 상태에서는 주문을 삭제할 수 없습니다.";
+            case PAYMENT_COMPLETED -> "결제가 완료된 주문은 삭제할 수 없습니다. 상품 준비 진행상황을 확인해주세요.";
+            case PREPARING -> "상품 준비 중인 주문은 삭제할 수 없습니다.";
+            case READY_FOR_SHIPMENT -> "배송 준비가 완료된 주문은 삭제할 수 없습니다.";
+            case IN_DELIVERY -> "배송 중인 주문은 삭제할 수 없습니다. 배송 조회 페이지에서 배송상황을 확인해주세요.";
+            case REFUND_PROCESSING -> "환불 처리 중인 주문은 삭제할 수 없습니다. 환불 진행상황을 확인해주세요.";
+            default -> "현재 상태에서는 주문을 삭제할 수 없습니다.";
         };
     }
 
-    /**
-     * UserPrincipal로 구매자 조회 및 검증 (BuyerRepository 활용)
-     * 한 번의 쿼리로 구매자 존재 여부와 권한을 동시에 확인합니다.
-     */
-    private BuyerDTO findBuyerByPrincipal(UserPrincipal userPrincipal) {
-        return buyerRepository.findOnlyBuyerByProviderAndProviderId(
-                        userPrincipal.provider(), userPrincipal.providerId())
-                .orElseThrow(() -> new NoSuchElementException("구매자를 찾을 수 없거나 권한이 없습니다"));
-    }
-
-    /**
-     * 주문 상품들 검증 및 정보 수집 (원가 기준)
-     * 상품별 할인을 제거하고 모든 상품을 원가로 계산합니다.
-     * 재고 차감은 StockEventListener에서 처리됩니다.
-     */
-    private List<DetailedOrderItemInfo> validateAndCollectOrderItems(List<OrderCreateRequest.OrderItemRequest> orderItems) {
-        List<DetailedOrderItemInfo> detailedOrderItems = new ArrayList<>();
-
-        for (OrderCreateRequest.OrderItemRequest orderItem : orderItems) {
-            // 상품 존재 여부 및 기본 정보 검증
-            Products product = productRepository.findById(orderItem.getProductId())
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            String.format("상품을 찾을 수 없습니다: %s", orderItem.getProductId())));
-
-            // 수량 검증
-            if (orderItem.getQuantity() <= 0) {
-                throw new IllegalArgumentException("주문 수량은 1개 이상이어야 합니다");
-            }
-
-            // DetailedOrderItemInfo 생성 (원가 기준)
-            DetailedOrderItemInfo detailedItem = DetailedOrderItemInfo.of(
-                    product.getId(),
-                    product.getTitle(),
-                    orderItem.getQuantity(),
-                    product.getPrice()  // 원가 사용
-            );
-
-            detailedOrderItems.add(detailedItem);
-
-            log.debug("상품 정보 수집 완료: 상품={}, 수량={}, 단가={}원",
-                    product.getTitle(), orderItem.getQuantity(), product.getPrice());
-        }
-
-        log.debug("전체 주문 상품 검증 완료: 상품 개수={}", detailedOrderItems.size());
-        return detailedOrderItems;
-    }
-
-    /**
-     * 원가 기준 총 주문 금액 계산
-     */
-    private Long calculateOriginalTotalPrice(List<DetailedOrderItemInfo> detailedOrderItems) {
-        Long originalTotalPrice = detailedOrderItems.stream()
-                .mapToLong(DetailedOrderItemInfo::totalPrice)
-                .sum();
-
-        log.debug("원가 총 금액 계산 완료: {}원", originalTotalPrice);
-        return originalTotalPrice;
-    }
-
-    /**
-     * 쿠폰 할인 적용
-     * 전체 주문 금액에서 쿠폰 할인률만큼 할인합니다.
-     * @param originalTotalPrice 원가 총 금액
-     * @param couponDiscountRate 쿠폰 할인률 (%, null이면 할인 없음)
-     * @return 할인 적용된 최종 금액
-     */
-    private Long applyCouponDiscount(Long originalTotalPrice, Double couponDiscountRate) {
-        // 쿠폰 할인이 없는 경우
-        if (couponDiscountRate == null || couponDiscountRate <= 0) {
-            log.debug("쿠폰 할인 없음: 최종 금액 = {}원", originalTotalPrice);
-            return originalTotalPrice;
-        }
-
-        // 할인율 유효성 검증
-        if (couponDiscountRate > 100) {
-            throw new IllegalArgumentException("쿠폰 할인률은 100%를 초과할 수 없습니다: " + couponDiscountRate);
-        }
-
-        // 할인 금액 계산 (소수점 반올림)
-        double discountMultiplier = 1.0 - (couponDiscountRate / 100.0);
-        long finalTotalPrice = Math.round(originalTotalPrice * discountMultiplier);
-
-        // 최소 결제 금액 검증 (1원 이상)
-        if (finalTotalPrice < 1) {
-            finalTotalPrice = 1L;
-        }
-
-        Long discountAmount = originalTotalPrice - finalTotalPrice;
-
-        log.debug("쿠폰 할인 적용 완료: 원가={}원, 할인률={}%, 할인금액={}원, 최종금액={}원",
-                originalTotalPrice, couponDiscountRate, discountAmount, finalTotalPrice);
-
-        return finalTotalPrice;
-    }
-
-    /**
-     * 토스 페이먼츠 응답 생성 (배송비 포함된 금액으로)
-     */
-    private OrderCreateResponse buildTossPaymentResponse(Orders savedOrder,
-                                                         OrderCreateRequest.PaymentInfoRequest paymentInfo) {
-
-        // 주문명 생성
-        String orderName = generateOrderName(paymentInfo.getOrderName(), savedOrder.getOrderNumber());
-
-        // TossPaymentResponseBuilder의 실제 메서드 호출
-        return tossPaymentResponseBuilder.buildTossPaymentResponse(savedOrder, paymentInfo, orderName);
-    }
-
-    /**
-     * OrderCreatedEvent 발행 (쿠폰 할인 정보 포함)
-     */
-    private void publishOrderCreatedEvent(Orders savedOrder, Users user, UserPrincipal userPrincipal,
-                                          List<DetailedOrderItemInfo> detailedOrderItems, Long originalTotalPrice,
-                                          Double couponDiscountRate, Long finalTotalPrice) {
-
-        // DetailedOrderItemInfo → OrderItemInfo 변환
-        List<OrderItemInfo> orderItems = detailedOrderItems.stream()
-                .map(DetailedOrderItemInfo::toOrderItemInfo)
-                .toList();
-
-        // 쿠폰 할인 정보를 포함한 이벤트 생성
-        OrderCreatedEvent event = OrderCreatedEvent.of(
-                savedOrder.getId(),
-                savedOrder.getOrderNumber(),
-                user.getId(),
-                userPrincipal.provider(),
-                userPrincipal.providerId(),
-                originalTotalPrice,      // 원가 총 금액
-                couponDiscountRate,      // 쿠폰 할인률
-                finalTotalPrice,         // 배송비 포함된 최종 결제 금액
-                orderItems
-        );
-
-        eventPublisher.publishEvent(event);
-
-        log.debug("OrderCreatedEvent 발행 완료: orderId={}, 원가={}원, 쿠폰할인={}%, 최종={}원 (배송비포함)",
-                savedOrder.getId(), originalTotalPrice,
-                couponDiscountRate != null ? couponDiscountRate : 0, finalTotalPrice);
-    }
-
-    /**
-     * 할인 금액 계산 (비즈니스 로직에 따라 구현)
-     */
     private Long calculateDiscountAmount(Orders order, Long totalProductPrice) {
-        // 현재는 주문 금액에서 실제 결제 금액을 빼서 할인 금액 계산
-        // 단, 이제 order.getTotalPrice()는 배송비 포함이므로 배송비를 제외해야 함
         Long deliveryFee = calculateDeliveryFee(totalProductPrice);
-        Long discountedAmount = order.getTotalPrice() - deliveryFee; // 배송비 제외한 실제 상품 금액
+        Long discountedAmount = order.getTotalPrice() - deliveryFee;
         return Math.max(0L, totalProductPrice - discountedAmount);
     }
 
-    /**
-     * 배송비 계산 (비즈니스 로직에 따라 구현)
-     */
     private Long calculateDeliveryFee(Long totalProductPrice) {
-        // 현재는 기본 배송비 설정 (3,000원, 30,000원 이상 무료배송)
-        return totalProductPrice >= 30000L ? 0L : 3000L;
+        return totalProductPrice >= 50000L ? 0L : 3000L;
     }
 
-    /**
-     * 주문 번호 생성 (기존 로직 유지)
-     * 현재 시간 기반으로 고유한 주문 번호를 생성합니다.
-     */
-    private Long generateOrderNumber() {
-        LocalDateTime now = LocalDateTime.now();
-        String timeString = now.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        int randomSuffix = ThreadLocalRandom.current().nextInt(100, 1000);
-        return Long.parseLong(timeString + randomSuffix);
-    }
-
-    /**
-     * 주문명 생성 (기존 로직 유지)
-     */
-    private String generateOrderName(String baseOrderName, Long orderNumber) {
-        if (baseOrderName != null && !baseOrderName.trim().isEmpty()) {
-            return baseOrderName.trim();
+    private OrderDetailResponse.RecipientInfo createRecipientInfoFromShipment(Shipments shipment) {
+        if (shipment != null) {
+            return new OrderDetailResponse.RecipientInfo(
+                    shipment.getRecipientName(),
+                    shipment.getRecipientPhone(),
+                    shipment.getFullShippingAddress(),
+                    shipment.getDeliveryNote() != null ? shipment.getDeliveryNote() : "배송 요청사항 없음"
+            );
         }
-        return "주문번호 " + orderNumber;
+        return new OrderDetailResponse.RecipientInfo("수령인 미등록", "연락처 미등록", "주소 미등록", "배송 요청사항 없음");
+    }
+
+    private OrderDetailResponse.RecipientInfo createRecipientInfoFromShippingAddress(
+            OrderCreateRequest.ShippingAddressRequest shippingAddress) {
+        if (shippingAddress != null) {
+            return new OrderDetailResponse.RecipientInfo(
+                    shippingAddress.getRecipientName(),
+                    shippingAddress.getRecipientPhone(),
+                    shippingAddress.getStreetAddress() + " " + (shippingAddress.getDetailAddress() != null ? shippingAddress.getDetailAddress() : ""),
+                    shippingAddress.getDeliveryNote() != null ? shippingAddress.getDeliveryNote() : "배송 요청사항 없음"
+            );
+        }
+        return new OrderDetailResponse.RecipientInfo("수령인 미등록", "연락처 미등록", "주소 미등록", "배송 요청사항 없음");
+    }
+
+    private Long generateOrderNumber() {
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        int randomSuffix = ThreadLocalRandom.current().nextInt(10000, 100000);
+        return Long.parseLong(timestamp + randomSuffix);
     }
 }
