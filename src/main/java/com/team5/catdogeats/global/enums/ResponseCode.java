@@ -66,6 +66,21 @@ public enum ResponseCode {
     NOTIFICATION_SUCCESS(HttpStatus.OK, "알림이 성공적으로 전송되었습니다."),
     NOTIFICATION_READ_SUCCESS(HttpStatus.OK, "알림을 읽음 처리했습니다."),
 
+    // === 신고 관련 응답 ===
+    REPORT_SUCCESS(HttpStatus.OK, "신고가 성공적으로 접수되었습니다."),
+    REPORT_CREATE_SUCCESS(HttpStatus.CREATED, "신고가 성공적으로 생성되었습니다."),
+    REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 신고를 찾을 수 없습니다."),
+    REPORT_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 신고한 대상입니다."),
+    REPORT_STATUS_UPDATE_SUCCESS(HttpStatus.OK, "신고 상태가 성공적으로 변경되었습니다."),
+    REPORT_LIST_SUCCESS(HttpStatus.OK, "신고 목록 조회 성공"),
+    REPORT_DETAIL_SUCCESS(HttpStatus.OK, "신고 상세 조회 성공"),
+    REPORT_STATS_SUCCESS(HttpStatus.OK, "신고 통계 조회 성공"),
+
+    // === 신고 대상 관련 오류 ===
+    REPORT_TARGET_NOT_FOUND(HttpStatus.NOT_FOUND, "신고 대상을 찾을 수 없습니다."),
+    INVALID_REPORT_TYPE(HttpStatus.BAD_REQUEST, "유효하지 않은 신고 유형입니다."),
+    INVALID_REPORT_STATUS(HttpStatus.BAD_REQUEST, "유효하지 않은 신고 상태입니다."),
+
     // 추가적인 도메인별 에러 코드 정의 가능
     ;
 
