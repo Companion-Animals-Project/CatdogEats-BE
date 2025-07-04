@@ -10,12 +10,15 @@ import com.team5.catdogeats.payments.domain.enums.PaymentStatus;
 import com.team5.catdogeats.payments.dto.request.TossPaymentConfirmRequest;
 import com.team5.catdogeats.payments.dto.response.PaymentConfirmResponse;
 import com.team5.catdogeats.payments.dto.response.TossPaymentConfirmResponse;
+import com.team5.catdogeats.payments.event.PaymentCompletedEvent;
+import com.team5.catdogeats.payments.event.PaymentFailedEvent;
 import com.team5.catdogeats.payments.repository.PaymentRepository;
 import com.team5.catdogeats.payments.service.PaymentService;
 import com.team5.catdogeats.products.service.ProductStockManager;
 import com.team5.catdogeats.products.service.StockReservationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.ZonedDateTime;
@@ -35,6 +38,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final StockReservationService stockReservationService;
     private final ProductStockManager productStockManager;
     private final TossPaymentsClient tossPaymentsClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @JpaTransactional
@@ -50,27 +54,60 @@ public class PaymentServiceImpl implements PaymentService {
         validatePaymentStatus(payment, order);
         validatePaymentAmount(order, amount);
 
-        TossPaymentConfirmResponse tossResponse = callTossPaymentConfirm(paymentKey, orderId, amount);
-        validateTossResponse(tossResponse, order, amount);
+        try {
+            // Toss Payments API 호출
+            TossPaymentConfirmResponse tossResponse = callTossPaymentConfirm(paymentKey, orderId, amount);
+            validateTossResponse(tossResponse, order, amount);
 
-        updateOrderStatus(order, OrderStatus.PAYMENT_COMPLETED);
-        updatePaymentStatus(payment, tossResponse);
+            // 결제 정보 업데이트
+            updatePaymentStatus(payment, tossResponse);
 
-        stockReservationService.confirmReservations(orderId);
-        productStockManager.decrementStockForConfirmedReservations(orderId); // 수정
+            // 재고 관련 처리 (기존 로직 유지)
+            stockReservationService.confirmReservations(orderId);
+            productStockManager.decrementStockForConfirmedReservations(orderId);
 
-        log.info("결제 승인 완료: orderId={}, paymentId={}, tossPaymentKey={}",
-                orderId, payment.getId(), tossResponse.getPaymentKey());
+            log.info("결제 승인 완료: orderId={}, paymentId={}, tossPaymentKey={}",
+                    orderId, payment.getId(), tossResponse.getPaymentKey());
 
-        return PaymentConfirmResponse.builder()
-                .paymentId(payment.getId())
-                .orderId(orderId)
-                .orderNumber(order.getOrderNumber())
-                .amount(amount)
-                .status(PaymentStatus.SUCCESS)
-                .paidAt(ZonedDateTime.now())
-                .tossPaymentKey(tossResponse.getPaymentKey())
-                .build();
+            // 결제 완료 이벤트 발행 (새로 추가)
+            PaymentCompletedEvent completedEvent = PaymentCompletedEvent.of(
+                    orderId,
+                    order.getOrderNumber(),
+                    order.getUser().getId(),
+                    amount,
+                    tossResponse.getPaymentKey()
+            );
+            eventPublisher.publishEvent(completedEvent);
+
+            log.info("결제 완료 이벤트 발행: orderId={}", orderId);
+
+            return PaymentConfirmResponse.builder()
+                    .paymentId(payment.getId())
+                    .orderId(orderId)
+                    .orderNumber(order.getOrderNumber())
+                    .amount(amount)
+                    .status(PaymentStatus.SUCCESS)
+                    .paidAt(ZonedDateTime.now())
+                    .tossPaymentKey(tossResponse.getPaymentKey())
+                    .build();
+
+        } catch (Exception e) {
+            log.error("결제 승인 실패: orderId={}, error={}", orderId, e.getMessage(), e);
+
+            // 결제 실패 이벤트 발행
+            PaymentFailedEvent failedEvent = PaymentFailedEvent.of(
+                    orderId,
+                    order.getOrderNumber(),
+                    order.getUser().getId(),
+                    "PAYMENT_APPROVAL_FAILED",
+                    e.getMessage()
+            );
+            eventPublisher.publishEvent(failedEvent);
+
+            log.info("결제 실패 이벤트 발행: orderId={}", orderId);
+
+            throw e;
+        }
     }
 
     @Override
@@ -79,14 +116,10 @@ public class PaymentServiceImpl implements PaymentService {
         log.info("결제 실패 처리 시작: orderId={}, code={}, message={}", orderId, code, message);
 
         try {
-            // 주문 정보 조회 (String 타입으로 직접 사용)
             Orders order = orderRepository.findById(orderId)
                     .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없습니다: " + orderId));
 
-            // 주문 상태를 취소로 변경
-            updateOrderStatus(order, OrderStatus.CANCELLED);
-
-            // 결제 정보가 있다면 실패 상태로 업데이트 (String 타입으로 직접 사용)
+            // 결제 정보가 있다면 실패 상태로 업데이트
             paymentRepository.findByOrdersId(orderId)
                     .ifPresent(payment -> {
                         payment.setStatus(PaymentStatus.FAILED);
@@ -94,10 +127,22 @@ public class PaymentServiceImpl implements PaymentService {
                         log.info("결제 정보 실패 상태 업데이트: paymentId={}", payment.getId());
                     });
 
-            // 재고 예약 취소 (String 타입으로 직접 사용)
+            // 재고 예약 취소
             stockReservationService.cancelReservations(orderId);
 
             log.info("결제 실패 처리 완료: orderId={}", orderId);
+
+            // 결제 실패 이벤트 발행 (새로 추가)
+            PaymentFailedEvent failedEvent = PaymentFailedEvent.of(
+                    orderId,
+                    order.getOrderNumber(),
+                    order.getUser().getId(),
+                    code != null ? code : "PAYMENT_FAILED",
+                    message != null ? message : "결제 처리 중 오류가 발생했습니다"
+            );
+            eventPublisher.publishEvent(failedEvent);
+
+            log.info("결제 실패 이벤트 발행: orderId={}", orderId);
 
         } catch (Exception e) {
             log.error("결제 실패 처리 중 오류: orderId={}, error={}", orderId, e.getMessage(), e);
