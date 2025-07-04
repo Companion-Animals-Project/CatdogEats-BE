@@ -282,21 +282,16 @@ public class OrderEventListener {
     }
 
     private Shipments createShipment(Orders order, OrderCreateRequest.ShippingAddressRequest shippingAddress) {
-        Shipments shipment = Shipments.builder()
+        return Shipments.builder()
                 .orders(order)
                 .user(order.getUser())
+                .recipientName(shippingAddress.getRecipientName())
+                .recipientPhone(shippingAddress.getRecipientPhone())
+                .postalCode(shippingAddress.getPostalCode())
+                .shippingAddress(shippingAddress.getStreetAddress())
+                .detailAddress(shippingAddress.getDetailAddress())
+                .deliveryNote(shippingAddress.getDeliveryNote())
                 .build();
-
-        shipment.setShippingInfo(
-                shippingAddress.getRecipientName(),
-                shippingAddress.getRecipientPhone(),
-                shippingAddress.getPostalCode(),
-                shippingAddress.getStreetAddress(),
-                shippingAddress.getDetailAddress(),
-                shippingAddress.getDeliveryNote()
-        );
-
-        return shipment;
     }
 
     @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
