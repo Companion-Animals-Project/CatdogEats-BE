@@ -55,16 +55,7 @@ public class ReviewController {
         try {
             Page<MyReviewResponseDto> reviews = reviewService.getReviewsByBuyer(userPrincipal, page, size);
 
-            // Page 객체를 PageResponseDto로 변환
-            PageResponseDto<MyReviewResponseDto> reviewPageResponse = new PageResponseDto<>(
-                    reviews.getContent(),
-                    reviews.getNumber(),
-                    reviews.getSize(),
-                    reviews.getTotalElements(),
-                    reviews.getTotalPages(),
-                    reviews.isLast()
-            );
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, reviewPageResponse));
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, PageResponseDto.from(reviews)));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
@@ -78,7 +69,7 @@ public class ReviewController {
 
     @Operation(summary = "상품에 대한 리뷰 목록 조회 (페이징)", description = "특정 상품에 대한 모든 리뷰 목록을 조회합니다.")
     @GetMapping("/{productNumber}/list")
-    public ResponseEntity<ApiResponse<PageResponseDto<ProductReviewResponseDto>>> getReviewsByBuyer(
+    public ResponseEntity<ApiResponse<PageResponseDto<ProductReviewResponseDto>>> getReviewsByProduct(
             @Parameter(description = "조회할 상품 Number", required = true)
             @PathVariable Long productNumber,
             @RequestParam(defaultValue = "0") int page,
@@ -86,16 +77,7 @@ public class ReviewController {
         try {
             Page<ProductReviewResponseDto> reviews = reviewService.getReviewsByProductNumber(productNumber, page, size);
 
-            // Page 객체를 PageResponseDto로 변환
-            PageResponseDto<ProductReviewResponseDto> reviewPageResponse = new PageResponseDto<>(
-                    reviews.getContent(),
-                    reviews.getNumber(),
-                    reviews.getSize(),
-                    reviews.getTotalElements(),
-                    reviews.getTotalPages(),
-                    reviews.isLast()
-            );
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, reviewPageResponse));
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, PageResponseDto.from(reviews)));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())

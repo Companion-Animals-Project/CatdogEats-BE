@@ -16,7 +16,8 @@ import javax.sql.DataSource;
         basePackages = {"com.team5.catdogeats.users.mapper",
                         "com.team5.catdogeats.batch.mapper",
                         "com.team5.catdogeats.products.mapper",
-                        "com.team5.catdogeats.orders.mapper"},
+                        "com.team5.catdogeats.orders.mapper",
+                        "com.team5.catdogeats.reviews.mapper"},
 
         sqlSessionFactoryRef = "sqlSessionFactory"
 )
@@ -25,12 +26,16 @@ public class MyBatisConfig {
 
 
     @Bean
-    public SqlSessionFactory sqlSessionFactory(DataSource dataSource) throws Exception {
+    public SqlSessionFactory sqlSessionFactory(DataSource dataSource) {
         SqlSessionFactoryBean factoryBean = new SqlSessionFactoryBean();
         factoryBean.setDataSource(dataSource);
 
         // YAML 설정에서 가져온 type-aliases-package 적용
-        return factoryBean.getObject();
+        try {
+            return factoryBean.getObject();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Bean
