@@ -50,20 +50,4 @@ public class OrderPendingDetails extends BaseEntity {
     @Lob
     @Column(name = "shipping_address_json", columnDefinition = "TEXT")
     private String shippingAddressJson;
-
-    /**
-     * 편의 메서드: 주문 대기 정보 설정
-     */
-    public void setPendingInfo(Orders orders, String userProvider, String userProviderId,
-                               Long originalTotalPrice, Double couponDiscountRate,
-                               String orderItemsJson, String shippingAddressJson) {
-        this.orders = orders;
-        this.orderId = orders.getId();
-        this.userProvider = userProvider;
-        this.userProviderId = userProviderId;
-        this.originalTotalPrice = originalTotalPrice;
-        this.couponDiscountRate = couponDiscountRate;
-        this.orderItemsJson = orderItemsJson;
-        this.shippingAddressJson = shippingAddressJson;
-    }
 }

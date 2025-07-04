@@ -21,11 +21,8 @@ import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.products.service.ProductStockManager;
 import com.team5.catdogeats.products.service.StockReservationService;
-import com.team5.catdogeats.users.domain.Users;
-import com.team5.catdogeats.users.domain.dto.BuyerDTO;
 import com.team5.catdogeats.users.domain.mapping.Buyers;
 import com.team5.catdogeats.users.repository.BuyerRepository;
-import com.team5.catdogeats.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -52,7 +49,6 @@ public class OrderEventListener {
     private final ProductRepository productRepository;
     private final StockReservationService stockReservationService;
     private final ProductStockManager productStockManager;
-    private final UserRepository userRepository;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
