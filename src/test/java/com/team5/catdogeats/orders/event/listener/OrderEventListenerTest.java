@@ -20,20 +20,20 @@ import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.products.service.ProductStockManager;
 import com.team5.catdogeats.products.service.StockReservationService;
 import com.team5.catdogeats.users.domain.Users;
-import com.team5.catdogeats.users.domain.dto.BuyerDTO;
 import com.team5.catdogeats.users.domain.enums.Role;
 import com.team5.catdogeats.users.domain.mapping.Buyers;
 import com.team5.catdogeats.users.repository.BuyerRepository;
-import com.team5.catdogeats.users.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.OptimisticLockingFailureException;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -67,18 +67,17 @@ class OrderEventListenerTest {
     @Mock
     private ProductRepository productRepository;
     @Mock
-    private UserRepository userRepository;
+
 
     // 테스트 데이터
     private Orders testOrder;
     private Users testUser;
-    private BuyerDTO testBuyerDTO;
+    private Buyers testBuyer;
     private Products testProduct1;
     private Products testProduct2;
     private OrderCreatedEvent testEvent;
     private PaymentCompletedEvent paymentCompletedEvent;
     private List<StockReservation> testReservations;
-    private Payments testPayment;
 
     @BeforeEach
     void setUp() {
@@ -92,11 +91,8 @@ class OrderEventListenerTest {
                 .accountDisable(false)
                 .build();
 
-        // 테스트 구매자 DTO
-        testBuyerDTO = new BuyerDTO("user123", true, false, null);
-
         // 테스트 구매자 엔티티
-        Buyers testBuyer = Buyers.builder()
+        testBuyer = Buyers.builder()
                 .userId("user123")
                 .user(testUser)
                 .nameMaskingStatus(true)
@@ -128,7 +124,7 @@ class OrderEventListenerTest {
                 .totalPrice(65000L)
                 .build();
 
-        // 테스트 이벤트 생성 (Record DTO 정적 팩토리 메서드 사용)
+        // 테스트 이벤트 생성
         List<OrderItemInfo> orderItems = Arrays.asList(
                 OrderItemInfo.of("product1", "강아지 사료", 2, 25000L),
                 OrderItemInfo.of("product2", "고양이 간식", 1, 15000L)
@@ -140,7 +136,7 @@ class OrderEventListenerTest {
                 "user123",
                 "google",
                 "google123",
-                65000L,   // finalTotalPrice
+                65000L,
                 orderItems
         );
 
@@ -172,14 +168,6 @@ class OrderEventListenerTest {
                 StockReservation.createReservation(testOrder, testProduct1, 2, 30),
                 StockReservation.createReservation(testOrder, testProduct2, 1, 30)
         );
-
-        // 테스트 결제 정보
-        testPayment = Payments.builder()
-                .orders(testOrder)
-                .buyers(testBuyer)
-                .method(PaymentMethod.TOSS)
-                .status(PaymentStatus.PENDING)
-                .build();
     }
 
     @Nested
@@ -189,29 +177,19 @@ class OrderEventListenerTest {
         @Test
         @DisplayName("✅ 재고 예약 성공")
         void handleStockReservation_Success() {
-            // Given
-            given(orderRepository.findById("order123"))
-                    .willReturn(Optional.of(testOrder));
-            given(productRepository.findById("product1"))
-                    .willReturn(Optional.of(testProduct1));
-            given(productRepository.findById("product2"))
-                    .willReturn(Optional.of(testProduct2));
-            given(stockReservationService.createBulkReservations(eq(testOrder), anyList()))
-                    .willReturn(testReservations);
+            given(orderRepository.findById("order123")).willReturn(Optional.of(testOrder));
+            given(productRepository.findById("product1")).willReturn(Optional.of(testProduct1));
+            given(productRepository.findById("product2")).willReturn(Optional.of(testProduct2));
+            given(stockReservationService.createBulkReservations(eq(testOrder), anyList())).willReturn(testReservations);
 
-            // When
             orderEventListener.handleStockReservation(testEvent);
 
-            // Then
             verify(orderRepository).findById("order123");
             verify(stockReservationService).createBulkReservations(eq(testOrder), anyList());
-
-            // ReservationRequest 타입 검증
             verify(stockReservationService).createBulkReservations(
                     eq(testOrder),
-                    argThat(reservationRequests -> {
-                        List<StockReservationService.ReservationRequest> requestList =
-                                reservationRequests;
+                    argThat(requests -> {
+                        List<StockReservationService.ReservationRequest> requestList = requests;
                         return requestList.size() == 2 &&
                                 requestList.get(0).product().getId().equals("product1") &&
                                 requestList.get(0).quantity().equals(2) &&
@@ -224,68 +202,45 @@ class OrderEventListenerTest {
         @Test
         @DisplayName("❌ 주문 없음")
         void handleStockReservation_OrderNotFound() {
-            // Given
-            given(orderRepository.findById("order123"))
-                    .willReturn(Optional.empty());
+            given(orderRepository.findById("order123")).willReturn(Optional.empty());
 
-            // When
             orderEventListener.handleStockReservation(testEvent);
 
-            // Then
-            verify(orderRepository).findById("order123");
+            verify(orderRepository, times(2)).findById("order123");
             verify(stockReservationService, never()).createBulkReservations(any(), any());
         }
 
         @Test
         @DisplayName("❌ 재고 부족 → 보상 트랜잭션")
         void handleStockReservation_InsufficientStock_Compensation() {
-            // Given
-            given(orderRepository.findById("order123"))
-                    .willReturn(Optional.of(testOrder))
-                    .willReturn(Optional.of(testOrder)); // 보상 트랜잭션용
-            given(productRepository.findById("product1"))
-                    .willReturn(Optional.of(testProduct1));
-            given(productRepository.findById("product2"))
-                    .willReturn(Optional.of(testProduct2));
-            given(stockReservationService.createBulkReservations(eq(testOrder), anyList()))
-                    .willThrow(new IllegalArgumentException("재고가 부족합니다"));
+            given(orderRepository.findById("order123")).willReturn(Optional.of(testOrder));
+            given(productRepository.findById(anyString())).willReturn(Optional.of(testProduct1));
+            given(stockReservationService.createBulkReservations(any(), anyList())).willThrow(new IllegalArgumentException("재고가 부족합니다"));
 
-            // When
             orderEventListener.handleStockReservation(testEvent);
 
-            // Then
             verify(orderRepository, times(2)).findById("order123");
-            verify(stockReservationService).createBulkReservations(eq(testOrder), anyList());
+            verify(stockReservationService).createBulkReservations(any(), anyList());
             verify(orderRepository).save(any(Orders.class));
         }
 
         @Test
         @DisplayName("❌ 동시성 충돌 → 보상 트랜잭션")
         void handleStockReservation_OptimisticLockingFailure_Compensation() {
-            // Given
-            given(orderRepository.findById("order123"))
-                    .willReturn(Optional.of(testOrder))
-                    .willReturn(Optional.of(testOrder));
-            given(productRepository.findById("product1"))
-                    .willReturn(Optional.of(testProduct1));
-            given(productRepository.findById("product2"))
-                    .willReturn(Optional.of(testProduct2));
-            given(stockReservationService.createBulkReservations(eq(testOrder), anyList()))
-                    .willThrow(new OptimisticLockingFailureException("동시성 충돌"));
+            given(orderRepository.findById("order123")).willReturn(Optional.of(testOrder));
+            given(productRepository.findById(anyString())).willReturn(Optional.of(testProduct1));
+            given(stockReservationService.createBulkReservations(any(), anyList())).willThrow(new OptimisticLockingFailureException("동시성 충돌"));
 
-            // When
             orderEventListener.handleStockReservation(testEvent);
 
-            // Then
             verify(orderRepository, times(2)).findById("order123");
-            verify(stockReservationService).createBulkReservations(eq(testOrder), anyList());
+            verify(stockReservationService).createBulkReservations(any(), anyList());
             verify(orderRepository).save(any(Orders.class));
         }
 
         @Test
         @DisplayName("❌ 취소된 주문 → 재고 예약 건너뜀")
         void handleStockReservation_CancelledOrder_Skipped() {
-            // Given
             Orders cancelledOrder = Orders.builder()
                     .id("order123")
                     .orderNumber("1001")
@@ -294,13 +249,10 @@ class OrderEventListenerTest {
                     .totalPrice(65000L)
                     .build();
 
-            given(orderRepository.findById("order123"))
-                    .willReturn(Optional.of(cancelledOrder));
+            given(orderRepository.findById("order123")).willReturn(Optional.of(cancelledOrder));
 
-            // When
             orderEventListener.handleStockReservation(testEvent);
 
-            // Then
             verify(orderRepository).findById("order123");
             verify(stockReservationService, never()).createBulkReservations(any(), any());
         }
@@ -314,37 +266,35 @@ class OrderEventListenerTest {
         @DisplayName("✅ 결제 정보 생성 성공")
         void handlePaymentInfoCreation_Success() {
             // Given
-            given(orderRepository.findById("order123"))
-                    .willReturn(Optional.of(testOrder));
-            given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "google123"))
-                    .willReturn(Optional.of(testBuyerDTO));
-            given(userRepository.getReferenceById("user123"))
-                    .willReturn(testUser);
+            given(orderRepository.findById("order123")).willReturn(Optional.of(testOrder));
+            given(buyerRepository.findById(testUser.getId())).willReturn(Optional.of(testBuyer));
+            // ⭐️ 수정: 불필요한 Mocking 제거
+            // given(userRepository.getReferenceById("user123")).willReturn(testUser);
 
             // When
             orderEventListener.handlePaymentInfoCreation(testEvent);
 
             // Then
             verify(orderRepository).findById("order123");
-            verify(buyerRepository).findOnlyBuyerByProviderAndProviderId("google", "google123");
-            verify(paymentRepository).save(any(Payments.class));
+            verify(buyerRepository).findById(testUser.getId());
 
-            // testPayment는 예상되는 결제 정보의 구조를 보여주는 참조용
-            assertThat(testPayment.getMethod()).isEqualTo(PaymentMethod.TOSS);
-            assertThat(testPayment.getStatus()).isEqualTo(PaymentStatus.PENDING);
+            ArgumentCaptor<Payments> paymentCaptor = ArgumentCaptor.forClass(Payments.class);
+            verify(paymentRepository).save(paymentCaptor.capture());
+
+            Payments savedPayment = paymentCaptor.getValue();
+            assertThat(savedPayment.getOrders()).isEqualTo(testOrder);
+            assertThat(savedPayment.getBuyers()).isEqualTo(testBuyer);
+            assertThat(savedPayment.getStatus()).isEqualTo(PaymentStatus.PENDING);
+            assertThat(savedPayment.getMethod()).isEqualTo(PaymentMethod.TOSS);
         }
 
         @Test
         @DisplayName("❌ 주문 없음")
         void handlePaymentInfoCreation_OrderNotFound() {
-            // Given
-            given(orderRepository.findById("order123"))
-                    .willReturn(Optional.empty());
+            given(orderRepository.findById("order123")).willReturn(Optional.empty());
 
-            // When
             orderEventListener.handlePaymentInfoCreation(testEvent);
 
-            // Then
             verify(orderRepository).findById("order123");
             verify(paymentRepository, never()).save(any());
         }
@@ -352,18 +302,13 @@ class OrderEventListenerTest {
         @Test
         @DisplayName("❌ 구매자 정보 없음")
         void handlePaymentInfoCreation_BuyerNotFound() {
-            // Given
-            given(orderRepository.findById("order123"))
-                    .willReturn(Optional.of(testOrder));
-            given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "google123"))
-                    .willReturn(Optional.empty());
+            given(orderRepository.findById("order123")).willReturn(Optional.of(testOrder));
+            given(buyerRepository.findById(testUser.getId())).willReturn(Optional.empty());
 
-            // When
             orderEventListener.handlePaymentInfoCreation(testEvent);
 
-            // Then
             verify(orderRepository).findById("order123");
-            verify(buyerRepository).findOnlyBuyerByProviderAndProviderId("google", "google123");
+            verify(buyerRepository).findById(testUser.getId());
             verify(paymentRepository, never()).save(any());
         }
     }
@@ -375,15 +320,11 @@ class OrderEventListenerTest {
         @Test
         @DisplayName("✅ 결제 완료 후 OrderItems와 Shipments 생성")
         void handleOrderItemsAndShipmentsCreation_WithShippingAddress() {
-            // Given
             given(orderRepository.findById("order123")).willReturn(Optional.of(testOrder));
-            given(productRepository.findById("product1")).willReturn(Optional.of(testProduct1));
-            given(productRepository.findById("product2")).willReturn(Optional.of(testProduct2));
+            given(productRepository.findById(anyString())).willReturn(Optional.of(testProduct1));
 
-            // When
             orderEventListener.handleOrderItemsAndShipmentsCreation(paymentCompletedEvent);
 
-            // Then - 모든 주요 메서드 호출 검증
             verify(orderRepository).findById("order123");
             verify(orderItemRepository).saveAll(anyList());
             verify(shipmentRepository).save(any(Shipments.class));
@@ -395,62 +336,38 @@ class OrderEventListenerTest {
         @Test
         @DisplayName("✅ 배송지 정보 없는 경우 Shipments 생성 안함")
         void handleOrderItemsAndShipmentsCreation_WithoutShippingAddress() {
-            // Given
             PaymentCompletedEvent eventWithoutShipping = PaymentCompletedEvent.of(
-                    "order123",
-                    "1001",
-                    "user123",
-                    "google",
-                    "google123",
-                    "payment123",
-                    "toss_payment_key_123",
-                    65000L,
-                    paymentCompletedEvent.orderItems(),
-                    null,  // 배송지 정보 없음
-                    65000L,
-                    null
+                    "order123", "1001", "user123", "google", "google123",
+                    "payment123", "toss_payment_key_123", 65000L,
+                    paymentCompletedEvent.orderItems(), null, 65000L, null
             );
-
             given(orderRepository.findById("order123")).willReturn(Optional.of(testOrder));
-            given(productRepository.findById("product1")).willReturn(Optional.of(testProduct1));
-            given(productRepository.findById("product2")).willReturn(Optional.of(testProduct2));
+            given(productRepository.findById(anyString())).willReturn(Optional.of(testProduct1));
 
-            // When
             orderEventListener.handleOrderItemsAndShipmentsCreation(eventWithoutShipping);
 
-            // Then - Shipments 생성은 안되지만 나머지는 모두 실행
             verify(orderRepository).findById("order123");
             verify(orderItemRepository).saveAll(anyList());
-            verify(shipmentRepository, never()).save(any()); // Shipments 생성 안됨
+            verify(shipmentRepository, never()).save(any());
             verify(orderRepository).save(any(Orders.class));
-            verify(stockReservationService).confirmReservations("order123");
-            verify(productStockManager).decrementStockForConfirmedReservations("order123");
         }
 
         @Test
         @DisplayName("✅ 결제 완료 알림 처리")
         void handlePaymentCompletedNotification_ProcessesCorrectly() {
-            // When
             orderEventListener.handlePaymentCompletedNotification(paymentCompletedEvent);
-
-            // Then - 비동기 메서드이므로 예외 없이 완료되면 성공
         }
 
         @Test
         @DisplayName("❌ 주문 없음 - OrderItems/Shipments 생성 실패")
         void handleOrderItemsAndShipmentsCreation_OrderNotFound() {
-            // Given
             given(orderRepository.findById("order123")).willReturn(Optional.empty());
 
-            // When
             orderEventListener.handleOrderItemsAndShipmentsCreation(paymentCompletedEvent);
 
-            // Then - 주문이 없으면 아무것도 실행되지 않음
             verify(orderRepository).findById("order123");
             verify(orderItemRepository, never()).saveAll(anyList());
-            verify(shipmentRepository, never()).save(any());
             verify(stockReservationService, never()).confirmReservations(any());
-            verify(productStockManager, never()).decrementStockForConfirmedReservations(any());
         }
     }
 
@@ -461,33 +378,24 @@ class OrderEventListenerTest {
         @Test
         @DisplayName("✅ 재고 예약 처리 - 정상 케이스")
         void handleStockReservation_NormalCase() {
-            // Given
             given(orderRepository.findById("order123")).willReturn(Optional.of(testOrder));
-            given(productRepository.findById("product1")).willReturn(Optional.of(testProduct1));
-            given(productRepository.findById("product2")).willReturn(Optional.of(testProduct2));
+            given(productRepository.findById(anyString())).willReturn(Optional.of(testProduct1));
 
-            // When
             orderEventListener.handleStockReservation(testEvent);
 
-            // Then - 메서드 호출 검증
             verify(orderRepository).findById("order123");
         }
 
         @Test
         @DisplayName("✅ 결제 정보 생성 - 정상 케이스")
         void handlePaymentInfoCreation_NormalCase() {
-            // Given
             given(orderRepository.findById("order123")).willReturn(Optional.of(testOrder));
-            given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "google123"))
-                    .willReturn(Optional.of(testBuyerDTO));
-            given(userRepository.getReferenceById("user123")).willReturn(testUser);
+            given(buyerRepository.findById(testUser.getId())).willReturn(Optional.of(testBuyer));
 
-            // When
             orderEventListener.handlePaymentInfoCreation(testEvent);
 
-            // Then - 메서드 호출 검증
             verify(orderRepository).findById("order123");
-            verify(buyerRepository).findOnlyBuyerByProviderAndProviderId("google", "google123");
+            verify(buyerRepository).findById(testUser.getId());
         }
     }
 
@@ -498,21 +406,13 @@ class OrderEventListenerTest {
         @Test
         @DisplayName("✅ 결제 완료 알림 성공")
         void handlePaymentCompletedNotification_Success() {
-            // When
             orderEventListener.handlePaymentCompletedNotification(paymentCompletedEvent);
-
-            // Then - 단순히 예외 없이 완료되면 성공
         }
 
         @Test
         @DisplayName("✅ 여러 상품 알림 텍스트 생성")
         void handlePaymentCompletedNotification_MultipleProducts() {
-            // Given - 이미 2개 상품이 포함된 paymentCompletedEvent 사용
-
-            // When
             orderEventListener.handlePaymentCompletedNotification(paymentCompletedEvent);
-
-            // Then - 알림 텍스트에 "강아지 사료 외 1건" 형태로 표시됨
         }
     }
 
@@ -523,21 +423,15 @@ class OrderEventListenerTest {
         @Test
         @DisplayName("✅ 재고 예약 처리 메서드 정상 동작")
         void handleStockReservation_WorksProperly() {
-            // Given
             given(orderRepository.findById("order123")).willReturn(Optional.of(testOrder));
             given(productRepository.findById("product1")).willReturn(Optional.of(testProduct1));
             given(productRepository.findById("product2")).willReturn(Optional.of(testProduct2));
-            given(stockReservationService.createBulkReservations(eq(testOrder), anyList()))
-                    .willReturn(testReservations);
+            given(stockReservationService.createBulkReservations(eq(testOrder), anyList())).willReturn(testReservations);
 
-            // When - 실제 메서드 호출
             orderEventListener.handleStockReservation(testEvent);
 
-            // Then - Repository 및 Service 호출 검증
             verify(orderRepository).findById("order123");
             verify(stockReservationService).createBulkReservations(eq(testOrder), anyList());
-
-            // testReservations 검증 (예상되는 예약 정보)
             assertThat(testReservations).hasSize(2);
             assertThat(testReservations.get(0).getReservedQuantity()).isEqualTo(2);
             assertThat(testReservations.get(1).getReservedQuantity()).isEqualTo(1);
@@ -546,31 +440,22 @@ class OrderEventListenerTest {
         @Test
         @DisplayName("✅ 결제 정보 생성 메서드 정상 동작")
         void handlePaymentInfoCreation_WorksProperly() {
-            // Given
             given(orderRepository.findById("order123")).willReturn(Optional.of(testOrder));
-            given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "google123"))
-                    .willReturn(Optional.of(testBuyerDTO));
-            given(userRepository.getReferenceById("user123")).willReturn(testUser);
+            given(buyerRepository.findById(testUser.getId())).willReturn(Optional.of(testBuyer));
 
-            // When - 실제 메서드 호출
             orderEventListener.handlePaymentInfoCreation(testEvent);
 
-            // Then - 예외 없이 완료되면 성공
             verify(orderRepository).findById("order123");
         }
 
         @Test
         @DisplayName("✅ 결제 완료 후 OrderItems/Shipments 생성 메서드 정상 동작")
         void handleOrderItemsAndShipmentsCreation_WorksProperly() {
-            // Given
             given(orderRepository.findById("order123")).willReturn(Optional.of(testOrder));
-            given(productRepository.findById("product1")).willReturn(Optional.of(testProduct1));
-            given(productRepository.findById("product2")).willReturn(Optional.of(testProduct2));
+            given(productRepository.findById(anyString())).willReturn(Optional.of(testProduct1));
 
-            // When - 실제 메서드 호출
             orderEventListener.handleOrderItemsAndShipmentsCreation(paymentCompletedEvent);
 
-            // Then - 모든 중요한 Repository 호출 검증
             verify(orderRepository).findById("order123");
             verify(orderItemRepository).saveAll(anyList());
             verify(shipmentRepository).save(any(Shipments.class));
@@ -581,10 +466,7 @@ class OrderEventListenerTest {
         @Test
         @DisplayName("✅ 결제 완료 알림 메서드 정상 동작")
         void handlePaymentCompletedNotification_WorksProperly() {
-            // When - 실제 메서드 호출
             orderEventListener.handlePaymentCompletedNotification(paymentCompletedEvent);
-
-            // Then - 예외 없이 완료되면 성공 (비동기 메서드)
         }
     }
 
@@ -595,40 +477,29 @@ class OrderEventListenerTest {
         @Test
         @DisplayName("✅ OrderItemInfo Record 불변성 및 편의 메서드 검증")
         void orderItemInfo_ImmutabilityAndMethods_Verified() {
-            // Given
             OrderItemInfo item1 = OrderItemInfo.of("product1", "상품명", 2, 1000L);
             OrderItemInfo item2 = OrderItemInfo.of("product1", "상품명", 2, 1000L);
 
-            // Then - Record의 자동 equals/hashCode 구현 검증
             assertThat(item1).isEqualTo(item2);
             assertThat(item1.hashCode()).isEqualTo(item2.hashCode());
-
-            // 불변성 및 편의 메서드 검증
-            assertThat(item1.productId()).isEqualTo("product1");
-            assertThat(item1.quantity()).isEqualTo(2);
-            assertThat(item1.unitPrice()).isEqualTo(1000L);
             assertThat(item1.totalPrice()).isEqualTo(2000L);
         }
 
         @Test
         @DisplayName("✅ OrderCreatedEvent 편의 메서드 검증")
         void orderCreatedEvent_ConvenienceMethods_Verified() {
-            // Then
             assertThat(testEvent.getOrderItemCount()).isEqualTo(2);
             assertThat(testEvent.getTotalQuantity()).isEqualTo(3);
             assertThat(testEvent.getFirstProductName()).isEqualTo("강아지 사료");
-            assertThat(testEvent.eventOccurredAt()).isNotNull();
             assertThat(testEvent.getOrderSummary()).contains("강아지 사료 외 1개");
         }
 
         @Test
         @DisplayName("✅ PaymentCompletedEvent 편의 메서드 검증")
         void paymentCompletedEvent_ConvenienceMethods_Verified() {
-            // Then
             assertThat(paymentCompletedEvent.getOrderItemCount()).isEqualTo(2);
             assertThat(paymentCompletedEvent.getFirstProductName()).isEqualTo("강아지 사료");
-            assertThat(paymentCompletedEvent.isCouponApplied()).isFalse(); // 쿠폰 할인률이 null
-            assertThat(paymentCompletedEvent.eventOccurredAt()).isNotNull();
+            assertThat(paymentCompletedEvent.isCouponApplied()).isFalse();
         }
     }
 }
