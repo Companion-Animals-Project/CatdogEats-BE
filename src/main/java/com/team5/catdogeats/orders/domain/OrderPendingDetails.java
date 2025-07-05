@@ -3,6 +3,7 @@ package com.team5.catdogeats.orders.domain;
 import com.team5.catdogeats.baseEntity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import com.team5.catdogeats.coupons.domain.enums.DiscountType;
 
 /**
  * 주문 대기 상세 정보 엔티티
@@ -38,8 +39,23 @@ public class OrderPendingDetails extends BaseEntity {
     @Column(name = "original_total_price")
     private Long originalTotalPrice;
 
+    /**
+     * 쿠폰 할인 타입 (PERCENT: 정률, AMOUNT: 정액)
+     * null인 경우 기존 방식(정률 할인)으로 처리
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "coupon_type", length = 10)
+    private DiscountType couponType;
+
     @Column(name = "coupon_discount_rate")
-    private Double couponDiscountRate;
+    private Double couponDiscountRate;  // 기존 필드 유지
+
+    /**
+     * 정액 할인 금액 (원)
+     * couponType이 AMOUNT일 때 사용
+     */
+    @Column(name = "coupon_discount_amount")
+    private Long couponDiscountAmount;
 
     // 주문 상품 정보 (JSON 형태로 저장)
     @Lob
