@@ -82,7 +82,7 @@ public record PaymentCompletedEvent(
 
     /**
      * 편의 메서드 - 기존 방식 호출을 위한 오버로딩
-     * 기존 코드 수정을 최소화하기 위해 제공
+     * 기존 코드 수정을 최소화하기 위해
      */
     public static PaymentCompletedEvent of(
             String orderId,
