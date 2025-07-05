@@ -173,5 +173,56 @@ public class OrderCreateRequest {
          * 실패 시 리디렉션 URL (선택사항 - 기본값 사용 가능)
          */
         private String failUrl;
+
+        // ===== 쿠폰 검증 메서드 =====
+
+        /**
+         * 쿠폰 할인이 적용되었는지 확인
+         */
+        public boolean isCouponApplied() {
+            if (couponType == null) {
+                // 기존 방식 (하위 호환성)
+                return couponDiscountRate != null && couponDiscountRate > 0;
+            }
+
+            return switch (couponType) {
+                case PERCENT -> couponDiscountRate != null && couponDiscountRate > 0;
+                case AMOUNT -> couponDiscountAmount != null && couponDiscountAmount > 0;
+            };
+        }
+
+        /**
+         * 쿠폰 설정의 일관성 검증
+         * @throws IllegalArgumentException 일관성에 문제가 있을 경우
+         */
+        public void validateCouponConsistency() {
+            if (couponType == null) {
+                // 기존 방식 - couponDiscountRate만 허용
+                if (couponDiscountAmount != null) {
+                    throw new IllegalArgumentException("쿠폰 타입이 지정되지 않은 경우 정액 할인 금액을 설정할 수 없습니다.");
+                }
+                return;
+            }
+
+            switch (couponType) {
+                case PERCENT:
+                    if (couponDiscountRate == null || couponDiscountRate <= 0) {
+                        throw new IllegalArgumentException("정률 할인 쿠폰은 할인률이 필수입니다.");
+                    }
+                    if (couponDiscountAmount != null) {
+                        throw new IllegalArgumentException("정률 할인 쿠폰에는 할인 금액을 설정할 수 없습니다.");
+                    }
+                    break;
+
+                case AMOUNT:
+                    if (couponDiscountAmount == null || couponDiscountAmount <= 0) {
+                        throw new IllegalArgumentException("정액 할인 쿠폰은 할인 금액이 필수입니다.");
+                    }
+                    if (couponDiscountRate != null) {
+                        throw new IllegalArgumentException("정액 할인 쿠폰에는 할인률을 설정할 수 없습니다.");
+                    }
+                    break;
+            }
+        }
     }
 }
