@@ -66,21 +66,13 @@ public class Orders extends BaseEntity {
     // ===== 주문 내역 숨김 기능 편의 메서드 =====
     /**
      * 주문 내역을 숨김 처리하는 메서드
-     * 숨김 여부를 true로 설정하고 숨김 처리 시각을 현재 시간으로 기록합니다.
+     * 숨김 여부를 true로 설정하고 숨김 처리 시각을 현재 시간으로 기록
      */
     public void hideOrder() {
         this.isHidden = Boolean.TRUE;
         this.hiddenAt = ZonedDateTime.now();
     }
 
-    /**
-     * 주문 내역 숨김을 해제하는 메서드 (복원 기능)
-     * 숨김 여부를 false로 설정하고 숨김 처리 시각을 null로 초기화합니다.
-     */
-    public void unhideOrder() {
-        this.isHidden = Boolean.FALSE;
-        this.hiddenAt = null;
-    }
     /**
      * 주문 내역이 숨겨진 상태인지 확인하는 메서드
      * @return 숨김 상태 여부
