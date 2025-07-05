@@ -1,6 +1,7 @@
 package com.team5.catdogeats.orders.service.impl;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
+import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.orders.domain.Shipments;
 import com.team5.catdogeats.orders.domain.mapping.OrderItems;
 import com.team5.catdogeats.orders.dto.response.SellerOrderDetailResponse;
@@ -13,7 +14,6 @@ import com.team5.catdogeats.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -25,7 +25,7 @@ import java.util.NoSuchElementException;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@JpaTransactional(readOnly = true)
 public class SellerOrderServiceImpl implements SellerOrderService {
 
     private final ShipmentRepository shipmentRepository;
