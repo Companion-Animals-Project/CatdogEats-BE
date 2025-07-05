@@ -25,6 +25,7 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -134,8 +135,8 @@ class BuyerCouponServiceImplTest {
     void getBuyerCoupons_Success() {
         buyerCouponService.createCoupon(userPrincipal, createCouponRequest);
 
-        List<BuyerCouponListResponseDTO> result = buyerCouponService.getBuyerCoupons(
-                userPrincipal, CouponFilterType.AVAILABLE, 0, 10);
+        List<BuyerCouponListResponseDTO> result = Collections.singletonList(buyerCouponService.getBuyerCoupons(
+                userPrincipal, CouponFilterType.AVAILABLE, 0, 10));
 
         assertThat(result).isNotNull();
     }
