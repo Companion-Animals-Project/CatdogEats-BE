@@ -1,6 +1,8 @@
 package com.team5.catdogeats.orders.controller;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
+import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.enums.ResponseCode;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.team5.catdogeats.orders.dto.response.SellerOrderDetailResponse;
 import com.team5.catdogeats.orders.service.SellerOrderService;
@@ -38,7 +40,7 @@ public class SellerOrderController {
      * @return 판매자용 주문 상세 정보 (배송지 정보 + 해당 판매자 상품 목록)
      */
     @GetMapping("/{order-number}")
-    public ResponseEntity<SellerOrderDetailResponse> getSellerOrderDetail(
+    public ResponseEntity<ApiResponse<SellerOrderDetailResponse>> getSellerOrderDetail(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @PathVariable("order-number") String orderNumber) {
 
@@ -51,19 +53,29 @@ public class SellerOrderController {
             log.info("배송 고객 주소 조회 성공 - orderNumber: {}, itemCount: {}, totalAmount: {}원",
                     orderNumber, response.orderItems().size(), response.totalAmount());
 
-            return ResponseEntity.ok(response);
+            // ApiResponse 래핑 추가
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.ORDER_SUCCESS, response));
 
         } catch (NoSuchElementException e) {
             log.warn("배송 고객 주소 조회 실패 - orderNumber: {}, reason: {}", orderNumber, e.getMessage());
-            return ResponseEntity.notFound().build();
+            // 구매자용과 동일한 패턴 적용
+            return ResponseEntity
+                    .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
 
         } catch (IllegalArgumentException e) {
             log.warn("배송 고객 주소 조회 권한 오류 - orderNumber: {}, reason: {}", orderNumber, e.getMessage());
-            return ResponseEntity.status(403).build(); // Forbidden
+            // 구매자용과 동일한 패턴 적용
+            return ResponseEntity
+                    .status(ResponseCode.ACCESS_DENIED.getStatus())
+                    .body(ApiResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage()));
 
         } catch (Exception e) {
             log.error("배송 고객 주소 조회 중 서버 오류 - orderNumber: {}", orderNumber, e);
-            return ResponseEntity.internalServerError().build();
+            // 구매자용과 동일한 패턴 적용
+            return ResponseEntity
+                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "주문 상세 조회 중 서버 오류가 발생했습니다."));
         }
     }
 }
