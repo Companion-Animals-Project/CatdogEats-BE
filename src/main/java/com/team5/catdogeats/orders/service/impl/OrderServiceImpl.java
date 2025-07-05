@@ -67,18 +67,24 @@ public class OrderServiceImpl implements OrderService {
             // 2. 주문 상품들 검증 및 정보 수집 (원가 기준)
             List<OrderItemInfo> validatedOrderItems = validateAndCollectOrderItems(request.getOrderItems());
 
-            // 3. 주문 금액 계산
+            // 3. 쿠폰 할인 검증 (추가)
+            validateCouponRequest(request.getPaymentInfo());
+
+            // 4. 주문 금액 계산 (메서드 시그니처 변경)
             Long originalTotalPrice = calculateOriginalTotalPrice(validatedOrderItems);
-            Double couponDiscountRate = request.getPaymentInfo() != null ?
-                    request.getPaymentInfo().getCouponDiscountRate() : null;
-            Long discountedTotalPrice = applyCouponDiscount(originalTotalPrice, couponDiscountRate);
+            Long discountedTotalPrice = applyCouponDiscount(originalTotalPrice, request.getPaymentInfo());
             Long finalPaymentAmount = calculateFinalPaymentAmount(discountedTotalPrice);
 
             log.debug("주문 금액 계산: 원가={}원, 할인후={}원, 최종={}원",
                     originalTotalPrice, discountedTotalPrice, finalPaymentAmount);
 
-            // 4. Orders 엔티티만 생성 및 저장 (PAYMENT_PENDING 상태)
+            // 5. Orders 엔티티만 생성 및 저장 (PAYMENT_PENDING 상태)
             Orders savedOrder = createAndSaveOrderOnly(user, finalPaymentAmount);
+
+            // 6. OrderPendingDetails에 임시 정보 저장 (메서드 시그니처 변경)
+            saveOrderPendingDetails(savedOrder, userPrincipal, originalTotalPrice,
+                    request.getPaymentInfo(), validatedOrderItems, request.getShippingAddress());
+
 
             // 5. OrderPendingDetails에 임시 정보 저장
             saveOrderPendingDetails(savedOrder, userPrincipal, originalTotalPrice,
@@ -119,6 +125,53 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
+    /**
+     * 쿠폰 할인 요청 검증
+     */
+    private void validateCouponRequest(OrderCreateRequest.PaymentInfoRequest paymentInfo) {
+        if (paymentInfo != null) {
+            paymentInfo.validateCouponConsistency();
+        }
+    }
+
+    /**
+     * 쿠폰 설명 문자열 생성 (로그용)
+     */
+    private String getCouponDescription(OrderCreateRequest.PaymentInfoRequest paymentInfo) {
+        if (paymentInfo == null || !paymentInfo.isCouponApplied()) {
+            return "없음";
+        }
+
+        if (paymentInfo.getCouponType() == null) {
+            // 기존 방식
+            return paymentInfo.getCouponDiscountRate() + "%";
+        }
+
+        return switch (paymentInfo.getCouponType()) {
+            case PERCENT -> paymentInfo.getCouponDiscountRate() + "%";
+            case AMOUNT -> String.format("%,d원", paymentInfo.getCouponDiscountAmount());
+        };
+    }
+
+    /**
+     * 쿠폰 할인 적용 (새 버전 - PaymentInfoRequest 전체를 받음)
+     */
+    private Long applyCouponDiscount(Long originalTotalPrice, OrderCreateRequest.PaymentInfoRequest paymentInfo) {
+        if (paymentInfo == null || !paymentInfo.isCouponApplied()) {
+            return originalTotalPrice;
+        }
+
+        if (paymentInfo.getCouponType() == null) {
+            // 기존 방식 (하위 호환성)
+            return applyCouponDiscountLegacy(originalTotalPrice, paymentInfo.getCouponDiscountRate());
+        }
+
+        return switch (paymentInfo.getCouponType()) {
+            case PERCENT -> applyCouponDiscountPercent(originalTotalPrice, paymentInfo.getCouponDiscountRate());
+            case AMOUNT -> applyCouponDiscountAmount(originalTotalPrice, paymentInfo.getCouponDiscountAmount());
+        };
+    }
+
     private Users findUserByPrincipal(UserPrincipal userPrincipal) {
         BuyerDTO buyer = buyerRepository.findOnlyBuyerByProviderAndProviderId(
                         userPrincipal.provider(), userPrincipal.providerId())
@@ -153,7 +206,7 @@ public class OrderServiceImpl implements OrderService {
                 .sum();
     }
 
-    private Long applyCouponDiscount(Long originalTotalPrice, Double couponDiscountRate) {
+    private Long applyCouponDiscountLegacy(Long originalTotalPrice, Double couponDiscountRate) {
         if (couponDiscountRate == null || couponDiscountRate <= 0) {
             return originalTotalPrice;
         }
@@ -161,6 +214,42 @@ public class OrderServiceImpl implements OrderService {
             throw new IllegalArgumentException("쿠폰 할인율은 100%를 초과할 수 없습니다.");
         }
         return Math.round(originalTotalPrice * (1 - couponDiscountRate / 100.0));
+    }
+
+    /**
+     * 정률 할인 적용
+     */
+    private Long applyCouponDiscountPercent(Long originalTotalPrice, Double couponDiscountRate) {
+        if (couponDiscountRate == null || couponDiscountRate <= 0) {
+            return originalTotalPrice;
+        }
+        if (couponDiscountRate > 100) {
+            throw new IllegalArgumentException("쿠폰 할인율은 100%를 초과할 수 없습니다.");
+        }
+
+        Long discountedAmount = Math.round(originalTotalPrice * (1 - couponDiscountRate / 100.0));
+        log.debug("정률 할인 적용: {}% → {}원 할인 ({}원 → {}원)",
+                couponDiscountRate, originalTotalPrice - discountedAmount, originalTotalPrice, discountedAmount);
+
+        return discountedAmount;
+    }
+
+    /**
+     * 정액 할인 적용
+     */
+    private Long applyCouponDiscountAmount(Long originalTotalPrice, Long couponDiscountAmount) {
+        if (couponDiscountAmount == null || couponDiscountAmount <= 0) {
+            return originalTotalPrice;
+        }
+        if (couponDiscountAmount > originalTotalPrice) {
+            throw new IllegalArgumentException("쿠폰 할인 금액이 주문 총액을 초과할 수 없습니다.");
+        }
+
+        Long discountedAmount = originalTotalPrice - couponDiscountAmount;
+        log.debug("정액 할인 적용: {}원 할인 ({}원 → {}원)",
+                couponDiscountAmount, originalTotalPrice, discountedAmount);
+
+        return discountedAmount;
     }
 
     private Long calculateFinalPaymentAmount(Long discountedTotalPrice) {
@@ -181,24 +270,31 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private void saveOrderPendingDetails(Orders order, UserPrincipal userPrincipal,
-                                         Long originalTotalPrice, Double couponDiscountRate,
+                                         Long originalTotalPrice,
+                                         OrderCreateRequest.PaymentInfoRequest paymentInfo,
                                          List<OrderItemInfo> orderItems,
                                          OrderCreateRequest.ShippingAddressRequest shippingAddress) {
         try {
             String orderItemsJson = objectMapper.writeValueAsString(orderItems);
             String shippingAddressJson = objectMapper.writeValueAsString(shippingAddress);
 
-            OrderPendingDetails pendingDetails = OrderPendingDetails.builder()
+            OrderPendingDetails.OrderPendingDetailsBuilder builder = OrderPendingDetails.builder()
                     .orders(order)
                     .userProvider(userPrincipal.provider())
                     .userProviderId(userPrincipal.providerId())
                     .originalTotalPrice(originalTotalPrice)
-                    .couponDiscountRate(couponDiscountRate)
                     .orderItemsJson(orderItemsJson)
-                    .shippingAddressJson(shippingAddressJson)
-                    .build();
+                    .shippingAddressJson(shippingAddressJson);
 
-            orderPendingDetailsRepository.save(pendingDetails);
+            // 쿠폰 정보 설정
+            if (paymentInfo != null && paymentInfo.isCouponApplied()) {
+                builder.couponType(paymentInfo.getCouponType())
+                        .couponDiscountRate(paymentInfo.getCouponDiscountRate())
+                        .couponDiscountAmount(paymentInfo.getCouponDiscountAmount());
+            }
+
+            orderPendingDetailsRepository.save(builder.build());
+
         } catch (JsonProcessingException e) {
             log.error("OrderPendingDetails JSON 직렬화 실패: orderId={}, error={}", order.getId(), e.getMessage());
             throw new RuntimeException("주문 정보 저장 중 오류가 발생했습니다", e);
