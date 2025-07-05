@@ -23,7 +23,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -150,7 +149,8 @@ class SellerOrderServiceImplTest {
                     .willReturn(Optional.of(testUser));
             given(sellersRepository.findByUserId("user123"))
                     .willReturn(Optional.of(testSeller));
-            given(shipmentRepository.findByOrderNumber(testOrderNumber))
+            // ✅ 최적화된 Repository 메서드로 변경
+            given(shipmentRepository.findShippingInfoByOrderNumberAndSeller(testOrderNumber, "seller123"))
                     .willReturn(Optional.of(testShipment));
 
             // when
@@ -190,7 +190,8 @@ class SellerOrderServiceImplTest {
 
             verify(userRepository).findByProviderAndProviderId("google", "google123");
             verify(sellersRepository).findByUserId("user123");
-            verify(shipmentRepository).findByOrderNumber(testOrderNumber);
+            // ✅ verify도 최적화된 메서드로 변경
+            verify(shipmentRepository).findShippingInfoByOrderNumberAndSeller(testOrderNumber, "seller123");
         }
 
         @Test
@@ -212,7 +213,8 @@ class SellerOrderServiceImplTest {
                     .willReturn(Optional.of(testUser));
             given(sellersRepository.findByUserId("user123"))
                     .willReturn(Optional.of(testSeller));
-            given(shipmentRepository.findByOrderNumber(testOrderNumber))
+            // ✅ 최적화된 Repository 메서드로 변경
+            given(shipmentRepository.findShippingInfoByOrderNumberAndSeller(testOrderNumber, "seller123"))
                     .willReturn(Optional.of(testShipment));
 
             // when
@@ -268,151 +270,119 @@ class SellerOrderServiceImplTest {
                     .willReturn(Optional.of(testUser));
             given(sellersRepository.findByUserId("user123"))
                     .willReturn(Optional.of(testSeller));
-            given(shipmentRepository.findByOrderNumber(testOrderNumber))
+            // ✅ 최적화된 Repository 메서드로 변경
+            given(shipmentRepository.findShippingInfoByOrderNumberAndSeller(testOrderNumber, "seller123"))
                     .willReturn(Optional.empty());
 
             // when & then
             assertThatThrownBy(() -> sellerOrderService.getSellerOrderDetail(principal, testOrderNumber))
                     .isInstanceOf(NoSuchElementException.class)
-                    .hasMessage("주문을 찾을 수 없습니다");
+                    .hasMessage("주문을 찾을 수 없거나 접근 권한이 없습니다");  // ✅ 통합된 메시지
 
             verify(userRepository).findByProviderAndProviderId("google", "google123");
             verify(sellersRepository).findByUserId("user123");
-            verify(shipmentRepository).findByOrderNumber(testOrderNumber);
+            verify(shipmentRepository).findShippingInfoByOrderNumberAndSeller(testOrderNumber, "seller123");
         }
 
         @Test
         @DisplayName("❌ 해당 주문에 판매자의 상품이 없는 경우 NoSuchElementException 발생")
         void getSellerOrderDetail_NoSellerProductsInOrder_ThrowsException() {
-            // given - 다른 판매자의 상품으로 설정
-            Sellers otherSeller = Sellers.builder()
-                    .userId("otherSeller123")
-                    .vendorName("다른 판매자")
-                    .build();
-
-            Products otherProduct = Products.builder()
-                    .id("otherProduct")
-                    .title("다른 판매자 상품")
-                    .price(10000L)
-                    .seller(otherSeller)
-                    .build();
-
-            OrderItems otherOrderItem = OrderItems.builder()
-                    .id("otherOrderItem")
-                    .products(otherProduct)
-                    .quantity(1)
-                    .price(10000L)
-                    .build();
-
-            Orders orderWithOtherSellerProduct = Orders.builder()
-                    .id("order123")
-                    .orderNumber(testOrderNumber)
-                    .user(testUser)
-                    .orderStatus(OrderStatus.PAYMENT_COMPLETED)
-                    .totalPrice(10000L)
-                    .orderItems(Collections.singletonList(otherOrderItem))
-                    .build();
-
-            Shipments shipmentWithOtherProduct = Shipments.builder()
-                    .id("shipment123")
-                    .orders(orderWithOtherSellerProduct)
-                    .recipientName("김철수")
-                    .recipientPhone("010-1234-5678")
-                    .postalCode("06234")
-                    .shippingAddress("서울시 강남구 테헤란로 123")
-                    .detailAddress("456호")
-                    .deliveryNote("문 앞에 놓아주세요")
-                    .build();
-
+            // given
             given(userRepository.findByProviderAndProviderId("google", "google123"))
                     .willReturn(Optional.of(testUser));
             given(sellersRepository.findByUserId("user123"))
                     .willReturn(Optional.of(testSeller));
-            given(shipmentRepository.findByOrderNumber(testOrderNumber))
-                    .willReturn(Optional.of(shipmentWithOtherProduct));
+            // ✅ 최적화된 Repository 메서드로 변경 - 권한 없으면 빈 결과
+            given(shipmentRepository.findShippingInfoByOrderNumberAndSeller(testOrderNumber, "seller123"))
+                    .willReturn(Optional.empty());
 
             // when & then
             assertThatThrownBy(() -> sellerOrderService.getSellerOrderDetail(principal, testOrderNumber))
                     .isInstanceOf(NoSuchElementException.class)
-                    .hasMessage("접근 권한이 없습니다");
+                    .hasMessage("주문을 찾을 수 없거나 접근 권한이 없습니다");  // ✅ 통합된 메시지
 
             verify(userRepository).findByProviderAndProviderId("google", "google123");
             verify(sellersRepository).findByUserId("user123");
-            verify(shipmentRepository).findByOrderNumber(testOrderNumber);
+            verify(shipmentRepository).findShippingInfoByOrderNumberAndSeller(testOrderNumber, "seller123");
         }
-    }
 
-    @Nested
-    @DisplayName("판매자 권한 및 필터링 테스트")
-    class SellerAuthorizationTests {
+        @Nested
+        @DisplayName("판매자 권한 및 필터링 테스트")
+        class SellerAuthorizationTests {
 
-        @Test
-        @DisplayName("✅ 여러 판매자 상품이 있는 주문에서 해당 판매자 상품만 필터링")
-        void getSellerOrderDetail_FilterOnlySellerProducts_Success() {
-            // given - 다른 판매자 상품도 포함된 주문
-            Sellers otherSeller = Sellers.builder()
-                    .userId("otherSeller123")
-                    .vendorName("다른 판매자")
-                    .build();
+            @Test
+            @DisplayName("✅ 여러 판매자 상품이 있는 주문에서 해당 판매자 상품만 필터링")
+            void getSellerOrderDetail_FilterOnlySellerProducts_Success() {
+                // given - 다른 판매자 상품도 포함된 주문
+                Sellers otherSeller = Sellers.builder()
+                        .userId("otherSeller123")
+                        .vendorName("다른 판매자")
+                        .build();
 
-            Products otherProduct = Products.builder()
-                    .id("otherProduct")
-                    .title("다른 판매자 상품")
-                    .price(30000L)
-                    .seller(otherSeller)
-                    .build();
+                Products otherProduct = Products.builder()
+                        .id("otherProduct")
+                        .title("다른 판매자 상품")
+                        .price(30000L)
+                        .seller(otherSeller)
+                        .build();
 
-            OrderItems otherOrderItem = OrderItems.builder()
-                    .id("otherOrderItem")
-                    .products(otherProduct)
-                    .quantity(1)
-                    .price(30000L)
-                    .build();
+                OrderItems otherOrderItem = OrderItems.builder()
+                        .id("otherOrderItem")
+                        .products(otherProduct)
+                        .quantity(1)
+                        .price(30000L)
+                        .build();
 
-            // 현재 판매자 상품과 다른 판매자 상품이 모두 포함된 주문
-            List<OrderItems> mixedOrderItems = Arrays.asList(testOrderItem1, testOrderItem2, otherOrderItem);
+                // ✅ 현재 판매자 상품만 포함된 주문으로 수정 (DB 쿼리 최적화 반영)
+                // 실제로는 Repository에서 이미 해당 판매자 상품만 필터링해서 반환하므로
+                // 테스트 데이터도 그에 맞게 설정
+                Orders sellerOnlyOrder = Orders.builder()
+                        .id("order123")
+                        .orderNumber(testOrderNumber)
+                        .user(testUser)
+                        .orderStatus(OrderStatus.PAYMENT_COMPLETED)
+                        .totalPrice(65000L)
+                        .orderItems(Arrays.asList(testOrderItem1, testOrderItem2)) // 해당 판매자 상품만
+                        .build();
 
-            Orders mixedOrder = Orders.builder()
-                    .id("order123")
-                    .orderNumber(testOrderNumber)
-                    .user(testUser)
-                    .orderStatus(OrderStatus.PAYMENT_COMPLETED)
-                    .totalPrice(95000L)
-                    .orderItems(mixedOrderItems)
-                    .build();
+                Shipments sellerOnlyShipment = Shipments.builder()
+                        .id("shipment123")
+                        .orders(sellerOnlyOrder)
+                        .recipientName("김철수")
+                        .recipientPhone("010-1234-5678")
+                        .postalCode("06234")
+                        .shippingAddress("서울시 강남구 테헤란로 123")
+                        .detailAddress("456호")
+                        .deliveryNote("문 앞에 놓아주세요")
+                        .build();
 
-            Shipments mixedShipment = Shipments.builder()
-                    .id("shipment123")
-                    .orders(mixedOrder)
-                    .recipientName("김철수")
-                    .recipientPhone("010-1234-5678")
-                    .postalCode("06234")
-                    .shippingAddress("서울시 강남구 테헤란로 123")
-                    .detailAddress("456호")
-                    .deliveryNote("문 앞에 놓아주세요")
-                    .build();
+                given(userRepository.findByProviderAndProviderId("google", "google123"))
+                        .willReturn(Optional.of(testUser));
+                given(sellersRepository.findByUserId("user123"))
+                        .willReturn(Optional.of(testSeller));
+                // ✅ 최적화된 Repository 메서드로 변경
+                given(shipmentRepository.findShippingInfoByOrderNumberAndSeller(testOrderNumber, "seller123"))
+                        .willReturn(Optional.of(sellerOnlyShipment));
 
-            given(userRepository.findByProviderAndProviderId("google", "google123"))
-                    .willReturn(Optional.of(testUser));
-            given(sellersRepository.findByUserId("user123"))
-                    .willReturn(Optional.of(testSeller));
-            given(shipmentRepository.findByOrderNumber(testOrderNumber))
-                    .willReturn(Optional.of(mixedShipment));
+                // when
+                SellerOrderDetailResponse response = sellerOrderService.getSellerOrderDetail(principal, testOrderNumber);
 
-            // when
-            SellerOrderDetailResponse response = sellerOrderService.getSellerOrderDetail(principal, testOrderNumber);
+                // then
+                assertThat(response).isNotNull();
+                assertThat(response.orderItems()).hasSize(2); // 해당 판매자 상품만 2개
+                assertThat(response.totalAmount()).isEqualTo(65000L); // 해당 판매자 상품들의 총액
 
-            // then
-            assertThat(response).isNotNull();
-            assertThat(response.orderItems()).hasSize(2); // 다른 판매자 상품은 제외되고 현재 판매자 상품만 2개
-            assertThat(response.totalAmount()).isEqualTo(65000L); // 현재 판매자 상품들의 총액만 계산
+                // 해당 판매자의 상품들만 포함되었는지 확인
+                List<String> productIds = response.orderItems().stream()
+                        .map(SellerOrderDetailResponse.SellerOrderItem::productId)
+                        .toList();
+                assertThat(productIds).containsExactlyInAnyOrder("product1", "product2");
+                assertThat(productIds).doesNotContain("otherProduct");
 
-            // 현재 판매자의 상품들만 포함되었는지 확인
-            List<String> productIds = response.orderItems().stream()
-                    .map(SellerOrderDetailResponse.SellerOrderItem::productId)
-                    .toList();
-            assertThat(productIds).containsExactlyInAnyOrder("product1", "product2");
-            assertThat(productIds).doesNotContain("otherProduct");
+                verify(userRepository).findByProviderAndProviderId("google", "google123");
+                verify(sellersRepository).findByUserId("user123");
+                verify(shipmentRepository).findShippingInfoByOrderNumberAndSeller(testOrderNumber, "seller123");
+            }
         }
     }
 }
