@@ -148,7 +148,7 @@ public class PaymentServiceImpl implements PaymentService {
                 );
             }
 
-            // PaymentCompletedEvent 발행
+            // 🎯 개선: 단일 팩토리 메서드로 통합
             PaymentCompletedEvent event = PaymentCompletedEvent.of(
                     order.getId(),
                     order.getOrderNumber(),
@@ -161,14 +161,21 @@ public class PaymentServiceImpl implements PaymentService {
                     orderItems,
                     shippingAddress,
                     pendingDetails.getOriginalTotalPrice(),
-                    pendingDetails.getCouponDiscountRate()
+                    pendingDetails.getCouponType(),        // null일 수 있음 (기존 방식)
+                    pendingDetails.getCouponDiscountRate(), // null일 수 있음
+                    pendingDetails.getCouponDiscountAmount() // null일 수 있음
             );
 
             eventPublisher.publishEvent(event);
 
-            log.info("PaymentCompletedEvent 발행 완료: orderId={}, paymentId={}, itemCount={}, 배송지={}",
+            // 로그 메시지
+            String couponInfo = pendingDetails.isCouponApplied() ?
+                    pendingDetails.getCouponDescription() : "없음";
+
+            log.info("PaymentCompletedEvent 발행 완료: orderId={}, paymentId={}, itemCount={}, 배송지={}, 쿠폰={}",
                     order.getId(), payment.getId(), orderItems.size(),
-                    shippingAddress != null ? shippingAddress.getRecipientName() : "없음");
+                    shippingAddress != null ? shippingAddress.getRecipientName() : "없음",
+                    couponInfo);
 
         } catch (JsonProcessingException e) {
             log.error("PaymentCompletedEvent 발행 실패 (JSON 역직렬화 오류): orderId={}, error={}",
