@@ -22,25 +22,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @TestPropertySource(properties = {
-        // 데이터베이스 설정 (H2 In-Memory)
         "spring.datasource.url=jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE",
         "spring.datasource.username=sa",
         "spring.datasource.password=",
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "spring.jpa.show-sql=false",
-
-        // AWS 설정 (테스트용 더미값 - Bean 생성 오류 방지용)
         "cloud.aws.credentials.access-key=test-key",
         "cloud.aws.credentials.secret-key=test-secret",
         "cloud.aws.region.static=ap-northeast-2",
         "cloud.aws.s3.bucket=test-bucket",
         "cloud.aws.cloudfront.domain=test.cloudfront.net",
-
-        // 기타 설정 비활성화
-        "spring.batch.job.enabled=false",
-        "spring.rabbitmq.host=localhost",
-        "spring.data.redis.host=localhost"
+        "spring.batch.job.enabled=false"
 })
 @Transactional
 @DisplayName("관리자 문의 CRUD 테스트")
@@ -67,32 +60,33 @@ class InquiryServiceAdminCrudTest {
     }
 
     @Test
-    @DisplayName("전체 문의 목록 조회")
+    @DisplayName("전체 문의 목록 조회 - 긴급도 배치 처리 포함")
     void getAllInquiries() {
-        // given - 사용자가 문의 생성
+        // given
         inquiryService.createInquiry("test-provider-1", new InquiryCreateRequestDTO(
                 InquiryType.PRODUCT, "문의1", "내용1", null, InquiryReceiveMethod.WEB
         ));
 
-        // when - 관리자가 전체 문의 조회
+        // when
         Page<InquiryListResponseDTO> result = inquiryService.getAllInquiries(PageRequest.of(0, 10));
 
         // then
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).title()).isEqualTo("문의1");
         assertThat(result.getContent().get(0).userName()).isEqualTo("테스트사용자");
+        assertThat(result.getContent().get(0).inquiryNumber()).isEqualTo("#001");
     }
 
     @Test
     @DisplayName("관리자 문의 상세 조회")
-    void getInquiryDetail() {
-        // given - 사용자가 문의 생성
+    void getInquiryDetailForAdmin() {
+        // given
         InquiryResponseDTO created = inquiryService.createInquiry("test-provider-1",
                 new InquiryCreateRequestDTO(
                         InquiryType.PRODUCT, "문의제목", "문의내용", null, InquiryReceiveMethod.WEB
                 ));
 
-        // when - 관리자가 상세 조회
+        // when
         InquiryDetailResponseDTO result = inquiryService.getInquiryDetailForAdmin(created.inquiryId());
 
         // then
@@ -100,34 +94,72 @@ class InquiryServiceAdminCrudTest {
         assertThat(result.title()).isEqualTo("문의제목");
         assertThat(result.content()).isEqualTo("문의내용");
         assertThat(result.userName()).isEqualTo("테스트사용자");
-        assertThat(result.replies()).isEmpty();
+        assertThat(result.messages()).isEmpty();
     }
 
     @Test
     @DisplayName("관리자 답변 등록")
-    void createReply() {
-        // given - 사용자가 문의 생성
+    void createAdminReply() {
+        // given
         InquiryResponseDTO inquiry = inquiryService.createInquiry("test-provider-1",
                 new InquiryCreateRequestDTO(
                         InquiryType.PRODUCT, "문의", "내용", null, InquiryReceiveMethod.WEB
                 ));
 
-        InquiryReplyRequestDTO replyRequest = new InquiryReplyRequestDTO(
-                "답변 내용입니다",
-                InquiryUrgentLevel.HIGH
-        );
+        InquiryRequestDTO replyRequest = InquiryRequestDTO.forContent("답변 내용입니다");
 
-        // when - 관리자가 답변 등록
-        InquiryResponseDTO result = inquiryService.createReply(inquiry.inquiryId(), "admin-1", replyRequest);
+        // when
+        InquiryResponseDTO result = inquiryService.createAdminReply(
+                inquiry.inquiryId(), "admin-1", replyRequest);
 
         // then
-        assertThat(result.content()).isEqualTo("답변 내용입니다");
-        assertThat(result.inquiryStatus()).isEqualTo("답변 완료");
-        assertThat(result.urgentLevel()).isEqualTo("높음");
+        assertThat(result.message()).isEqualTo("답변이 성공적으로 등록되었습니다.");
 
         // 원본 문의 상태 확인
         InquiryDetailResponseDTO updated = inquiryService.getInquiryDetailForAdmin(inquiry.inquiryId());
         assertThat(updated.inquiryStatus()).isEqualTo("답변 완료");
-        assertThat(updated.replies()).hasSize(1);
+        assertThat(updated.messages()).hasSize(1);
+        assertThat(updated.messages().get(0).authorType()).isEqualTo("ADMIN");
+    }
+
+    @Test
+    @DisplayName("관리자 강제 종료")
+    void closeInquiryByAdmin() {
+        // given
+        InquiryResponseDTO inquiry = inquiryService.createInquiry("test-provider-1",
+                new InquiryCreateRequestDTO(
+                        InquiryType.PRODUCT, "문의", "내용", null, InquiryReceiveMethod.WEB
+                ));
+
+        InquiryRequestDTO closeRequest = InquiryRequestDTO.forClose("스팸 문의로 판단됨");
+
+        // when
+        InquiryResponseDTO result = inquiryService.closeInquiryByAdmin(
+                inquiry.inquiryId(), "admin-1", closeRequest);
+
+        // then
+        assertThat(result.status()).isEqualTo("강제 종료");
+        assertThat(result.message()).isEqualTo("문의가 성공적으로 종료되었습니다.");
+    }
+
+    @Test
+    @DisplayName("긴급도 수정")
+    void updateUrgentLevel() {
+        // given
+        InquiryResponseDTO inquiry = inquiryService.createInquiry("test-provider-1",
+                new InquiryCreateRequestDTO(
+                        InquiryType.PRODUCT, "문의", "내용", null, InquiryReceiveMethod.WEB
+                ));
+
+        // when
+        InquiryResponseDTO result = inquiryService.updateUrgentLevel(
+                inquiry.inquiryId(), InquiryUrgentLevel.HIGH);
+
+        // then
+        assertThat(result.message()).isEqualTo("긴급도가 성공적으로 수정되었습니다.");
+
+        // 상세 조회로 확인
+        InquiryDetailResponseDTO updated = inquiryService.getInquiryDetailForAdmin(inquiry.inquiryId());
+        assertThat(updated.urgentLevel()).isEqualTo("높음");
     }
 }

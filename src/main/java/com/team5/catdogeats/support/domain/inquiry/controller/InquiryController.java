@@ -9,6 +9,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -150,7 +152,7 @@ public class InquiryController {
         }
     }
 
-    @PostMapping("/{inquiryId}/followup")
+    @PostMapping("/followup")
     @Operation(
             summary = "문의 답글 등록 (유저)",
             description = "사용자가 기존 문의나 관리자 답변에 대한 추가 답글을 등록합니다. "
@@ -158,8 +160,6 @@ public class InquiryController {
                     + "내용은 최소 5자 이상 작성해야 합니다."
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> createFollowup(
-            @Parameter(description = "문의 ID")
-            @PathVariable String inquiryId,
             @Parameter(hidden = true) @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "답글 등록 정보")
             @Valid @RequestBody FollowupRequestWrapper request) {
@@ -169,47 +169,47 @@ public class InquiryController {
             InquiryRequestDTO inquiryRequest = InquiryRequestDTO.forContent(request.content());
 
             InquiryResponseDTO response = inquiryService.createUserFollowup(
-                    inquiryId, userPrincipal.providerId(), inquiryRequest);
+                    request.inquiryId(), userPrincipal.providerId(), inquiryRequest);
 
             log.info("사용자 답글 등록 완료 - inquiryId: {}, providerId: {}, followupId: {}",
-                    inquiryId, userPrincipal.providerId(), response.inquiryId());
+                    request.inquiryId(), userPrincipal.providerId(), response.inquiryId());
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
                     ApiResponse.success(ResponseCode.CREATED, response)
             );
         } catch (EntityNotFoundException e) {
-            log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
+            log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                     ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
             );
         } catch (AccessDeniedException e) {
             log.warn("접근 권한 없음 - inquiryId: {}, providerId: {}, error: {}",
-                    inquiryId, userPrincipal.providerId(), e.getMessage());
+                    request.inquiryId(), userPrincipal.providerId(), e.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
                     ApiResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage())
             );
         } catch (IllegalStateException e) { // ✅ 추가: 종료된 문의 예외 처리
             log.warn("종료된 문의에 답글 시도 - inquiryId: {}, providerId: {}, error: {}",
-                    inquiryId, userPrincipal.providerId(), e.getMessage());
+                    request.inquiryId(), userPrincipal.providerId(), e.getMessage());
             return ResponseEntity.badRequest().body(
                     ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (IllegalArgumentException e) {
             log.warn("사용자 답글 등록 실패 - inquiryId: {}, providerId: {}, error: {}",
-                    inquiryId, userPrincipal.providerId(), e.getMessage());
+                    request.inquiryId(), userPrincipal.providerId(), e.getMessage());
             return ResponseEntity.badRequest().body(
                     ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
             log.error("사용자 답글 등록 중 서버 오류 - inquiryId: {}, providerId: {}",
-                    inquiryId, userPrincipal.providerId(), e);
+                    request.inquiryId(), userPrincipal.providerId(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                     ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
         }
     }
 
-    @PatchMapping("/{inquiryId}/close")
+    @PatchMapping("/close")
     @Operation(
             summary = "문의 종료 (유저)",
             description = "사용자가 본인의 문의를 종료합니다.<br />"
@@ -217,50 +217,58 @@ public class InquiryController {
                     + "이미 종료된 문의는 종료할 수 없습니다."
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> closeInquiry(
-            @Parameter(description = "문의 ID")
-            @PathVariable String inquiryId,
-            @Parameter(hidden = true) @AuthenticationPrincipal UserPrincipal userPrincipal) {
+            @Parameter(hidden = true) @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @Parameter(description = "문의 종료 요청(유저)") @Valid @RequestBody CloseInquiryRequestWrapper request) {
 
         try {
             InquiryResponseDTO response = inquiryService.closeInquiryByUser(
-                    inquiryId, userPrincipal.providerId());
+                    request.inquiryId(), userPrincipal.providerId());
 
             log.info("사용자 문의 종료 완료 - inquiryId: {}, providerId: {}",
-                    inquiryId, userPrincipal.providerId());
+                    request.inquiryId(), userPrincipal.providerId());
 
             return ResponseEntity.ok(
                     ApiResponse.success(ResponseCode.SUCCESS, response)
             );
         } catch (EntityNotFoundException e) {
-            log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
+            log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                     ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
             );
         } catch (AccessDeniedException e) {
             log.warn("접근 권한 없음 - inquiryId: {}, providerId: {}, error: {}",
-                    inquiryId, userPrincipal.providerId(), e.getMessage());
+                    request.inquiryId(), userPrincipal.providerId(), e.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
                     ApiResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage())
             );
         } catch (IllegalStateException e) {
             log.warn("문의 종료 실패 - inquiryId: {}, providerId: {}, error: {}",
-                    inquiryId, userPrincipal.providerId(), e.getMessage());
+                    request.inquiryId(), userPrincipal.providerId(), e.getMessage());
             return ResponseEntity.badRequest().body(
                     ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
             log.error("문의 종료 중 서버 오류 - inquiryId: {}, providerId: {}",
-                    inquiryId, userPrincipal.providerId(), e);
+                    request.inquiryId(), userPrincipal.providerId(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                     ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
         }
     }
 
+
     // 컨트롤러 전용 래퍼 클래스들 (간단한 요청을 위해)
     public record FollowupRequestWrapper(
-            @jakarta.validation.constraints.NotBlank(message = "내용은 필수입니다")
-            @jakarta.validation.constraints.Size(min = 5, max = 2000, message = "내용은 5자 이상 2,000자 이하로 입력해주세요")
+            @NotBlank(message = "문의 ID는 필수입니다")
+            String inquiryId,
+
+            @NotBlank(message = "내용은 필수입니다")
+            @Size(min = 5, max = 2000, message = "내용은 5자 이상 2,000자 이하로 입력해주세요")
             String content
+    ) {}
+
+    public record CloseInquiryRequestWrapper(
+            @NotBlank(message = "문의 ID는 필수입니다")
+            String inquiryId
     ) {}
 }

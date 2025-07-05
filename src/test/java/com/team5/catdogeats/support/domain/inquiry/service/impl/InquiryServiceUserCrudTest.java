@@ -12,38 +12,63 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
+@Import(InquiryServiceUserCrudTest.TestMailConfig.class)
 @SpringBootTest
 @TestPropertySource(properties = {
-        // 데이터베이스 설정 (H2 In-Memory)
+        // 기본 DB 설정
         "spring.datasource.url=jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE",
         "spring.datasource.username=sa",
         "spring.datasource.password=",
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.jpa.show-sql=false",
 
-        // AWS 설정 (테스트용 더미값 - Bean 생성 오류 방지용)
+        // 누락된 설정값들 추가 (이것이 핵심!)
+        "jwt.secret=test-secret-key-for-testing-purposes-only",
+        "jwt.access-token-validity=3600",
+        "jwt.refresh-token-validity=86400",
+
+        // AWS 설정
         "cloud.aws.credentials.access-key=test-key",
         "cloud.aws.credentials.secret-key=test-secret",
         "cloud.aws.region.static=ap-northeast-2",
         "cloud.aws.s3.bucket=test-bucket",
-        "cloud.aws.cloudfront.domain=test.cloudfront.net",
 
-        // 기타 설정 비활성화
+        // 메일 설정
+        "spring.mail.host=localhost",
+        "spring.mail.port=587",
+        "spring.mail.username=test",
+        "spring.mail.password=test",
+
+        // 기타 설정들
         "spring.batch.job.enabled=false",
-        "spring.rabbitmq.host=localhost",
-        "spring.data.redis.host=localhost"
+        "logging.level.org.springframework.web=DEBUG"
 })
-@Transactional  // 일반 @Transactional 사용 (jpaTransactionManager 대신)
+@Transactional
 @DisplayName("사용자 문의 CRUD 테스트")
 class InquiryServiceUserCrudTest {
+
+    @TestConfiguration
+    static class TestMailConfig {
+        @Bean
+        @Primary
+        public JavaMailSender javaMailSender() {
+            return mock(JavaMailSender.class);
+        }
+    }
 
     @Autowired
     private InquiryService inquiryService;
@@ -83,10 +108,8 @@ class InquiryServiceUserCrudTest {
         // then
         assertThat(result.inquiryId()).isNotNull();
         assertThat(result.title()).isEqualTo("사용자 문의");
-        assertThat(result.content()).isEqualTo("사용자 문의 내용");
-        assertThat(result.userName()).isEqualTo("테스트사용자");
-        assertThat(result.inquiryStatus()).isEqualTo("답변 대기");
-        assertThat(result.inquiryType()).isEqualTo("제품");
+        assertThat(result.status()).isEqualTo("답변 대기");
+        assertThat(result.message()).isEqualTo("문의가 성공적으로 등록되었습니다.");
     }
 
     @Test
@@ -101,7 +124,7 @@ class InquiryServiceUserCrudTest {
         ));
 
         // when
-        Page<UserInquiryListResponseDTO> result = inquiryService.getUserInquiries("test-provider-1", PageRequest.of(0, 10));
+        Page<InquiryListResponseDTO> result = inquiryService.getUserInquiries("test-provider-1", PageRequest.of(0, 10));
 
         // then
         assertThat(result.getContent()).hasSize(2);
@@ -119,7 +142,7 @@ class InquiryServiceUserCrudTest {
                 ));
 
         // when
-        UserInquiryDetailResponseDTO result = inquiryService.getUserInquiryDetail(
+        InquiryDetailResponseDTO result = inquiryService.getUserInquiryDetail(
                 created.inquiryId(), "test-provider-1");
 
         // then
@@ -127,7 +150,64 @@ class InquiryServiceUserCrudTest {
         assertThat(result.title()).isEqualTo("상세조회 테스트");
         assertThat(result.content()).isEqualTo("상세내용");
         assertThat(result.inquiryStatus()).isEqualTo("답변 대기");
-        assertThat(result.replies()).isEmpty();
+        assertThat(result.messages()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("사용자 답글 등록")
+    void createUserFollowup() {
+        // given
+        InquiryResponseDTO inquiry = inquiryService.createInquiry("test-provider-1",
+                new InquiryCreateRequestDTO(
+                        InquiryType.PRODUCT, "문의", "내용", null, InquiryReceiveMethod.WEB
+                ));
+
+        InquiryRequestDTO followupRequest = InquiryRequestDTO.forContent("추가 문의 내용입니다");
+
+        // when
+        InquiryResponseDTO result = inquiryService.createUserFollowup(
+                inquiry.inquiryId(), "test-provider-1", followupRequest);
+
+        // then
+        assertThat(result.message()).isEqualTo("답글이 성공적으로 등록되었습니다.");
+    }
+
+    @Test
+    @DisplayName("사용자 문의 종료")
+    void closeInquiryByUser() {
+        // given
+        InquiryResponseDTO inquiry = inquiryService.createInquiry("test-provider-1",
+                new InquiryCreateRequestDTO(
+                        InquiryType.PRODUCT, "문의", "내용", null, InquiryReceiveMethod.WEB
+                ));
+
+        // when
+        InquiryResponseDTO result = inquiryService.closeInquiryByUser(
+                inquiry.inquiryId(), "test-provider-1");
+
+        // then
+        assertThat(result.status()).isEqualTo("문의 종료");
+        assertThat(result.message()).isEqualTo("문의가 성공적으로 종료되었습니다.");
+    }
+
+    @Test
+    @DisplayName("종료된 문의에 답글 등록 시 예외 발생")
+    void createFollowupOnClosedInquiry() {
+        // given
+        InquiryResponseDTO inquiry = inquiryService.createInquiry("test-provider-1",
+                new InquiryCreateRequestDTO(
+                        InquiryType.PRODUCT, "문의", "내용", null, InquiryReceiveMethod.WEB
+                ));
+
+        inquiryService.closeInquiryByUser(inquiry.inquiryId(), "test-provider-1");
+
+        InquiryRequestDTO followupRequest = InquiryRequestDTO.forContent("종료된 문의에 답글");
+
+        // when & then
+        assertThatThrownBy(() -> inquiryService.createUserFollowup(
+                inquiry.inquiryId(), "test-provider-1", followupRequest))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("종료된 문의에는 답글을 등록할 수 없습니다.");
     }
 
     @Test
@@ -136,7 +216,7 @@ class InquiryServiceUserCrudTest {
         // given - 문의를 등록하지 않음
 
         // when
-        Page<UserInquiryListResponseDTO> result = inquiryService.getUserInquiries("test-provider-1", PageRequest.of(0, 10));
+        Page<InquiryListResponseDTO> result = inquiryService.getUserInquiries("test-provider-1", PageRequest.of(0, 10));
 
         // then
         assertThat(result.getContent()).isEmpty();

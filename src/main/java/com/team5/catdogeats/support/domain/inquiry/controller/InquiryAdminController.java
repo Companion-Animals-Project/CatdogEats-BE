@@ -13,6 +13,9 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -98,18 +101,17 @@ public class InquiryAdminController {
         }
     }
 
-    @PatchMapping("/{inquiryId}/urgent-level")
+    @PatchMapping("/urgent-level")
     @Operation(
             summary = "문의 긴급도 수정 (관리자)",
             description = "관리자가 특정 문의의 긴급도를 별도로 수정합니다.<br />"
                     + "긴급도 레벨: HIGH, MIDDLE, LOW"
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> updateUrgentLevel(
-            @PathVariable String inquiryId,
-            @Valid @RequestBody UrgentLevelRequestWrapper request) {
+            @Parameter(description = "긴급도 수정 요청") @Valid @RequestBody UrgentLevelRequestWrapper request) {
 
         try {
-            InquiryResponseDTO response = inquiryService.updateUrgentLevel(inquiryId, request.urgentLevel());
+            InquiryResponseDTO response = inquiryService.updateUrgentLevel(request.inquiryId(), request.urgentLevel());
 
             return ResponseEntity.ok(
                     ApiResponse.success(ResponseCode.SUCCESS, response)
@@ -125,7 +127,7 @@ public class InquiryAdminController {
         }
     }
 
-    @PostMapping("/{inquiryId}/reply")
+    @PostMapping("/reply")
     @Operation(
             summary = "문의 답변 등록 (관리자)",
             description = "관리자가 문의에 대한 답변을 등록합니다.<br /> "
@@ -133,11 +135,8 @@ public class InquiryAdminController {
                     + "내용은 최소 5자 이상 작성해야 합니다."
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> createReply(
-            @Parameter(description = "문의 ID")
-            @PathVariable String inquiryId,
             @Parameter(hidden = true) @AuthenticationPrincipal Object adminPrincipal,
-            @Parameter(description = "답변 등록 정보")
-            @Valid @RequestBody ReplyRequestWrapper request) {
+            @Parameter(description = "답변 등록 정보") @Valid @RequestBody ReplyRequestWrapper request) {
 
         try {
             String adminId = adminPrincipal != null ? adminPrincipal.toString() : "SYSTEM";
@@ -145,38 +144,39 @@ public class InquiryAdminController {
             // InquiryRequestDTO 생성
             InquiryRequestDTO inquiryRequest = InquiryRequestDTO.forContent(request.content());
 
-            InquiryResponseDTO response = inquiryService.createAdminReply(inquiryId, adminId, inquiryRequest);
+            InquiryResponseDTO response = inquiryService.createAdminReply(request.inquiryId(), adminId, inquiryRequest);
+
             log.info("관리자 답변 등록 완료 - inquiryId: {}, adminId: {}, replyId: {}",
-                    inquiryId, adminId, response.inquiryId());
+                    request.inquiryId(), adminId, response.inquiryId());
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
                     ApiResponse.success(ResponseCode.CREATED, response)
             );
         } catch (EntityNotFoundException e) {
-            log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
+            log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                     ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
             );
         } catch (IllegalStateException e) { // ✅ 추가: 종료된 문의 예외 처리
-            log.warn("종료된 문의에 답변 시도 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
+            log.warn("종료된 문의에 답변 시도 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.badRequest().body(
                     ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (IllegalArgumentException e) {
             log.warn("관리자 답변 등록 실패 - inquiryId: {}, error: {}",
-                    inquiryId, e.getMessage());
+                    request.inquiryId(), e.getMessage());
             return ResponseEntity.badRequest().body(
                     ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
-            log.error("관리자 답변 등록 중 서버 오류 - inquiryId: {}", inquiryId, e);
+            log.error("관리자 답변 등록 중 서버 오류 - inquiryId: {}", request.inquiryId(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                     ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
         }
     }
 
-    @PatchMapping("/{inquiryId}/close")
+    @PatchMapping("/close")
     @Operation(
             summary = "문의 강제 종료 (관리자)",
             description = "관리자가 문의를 강제로 종료합니다.<br />"
@@ -184,8 +184,6 @@ public class InquiryAdminController {
                     + "종료 사유는 필수입니다."
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> forceCloseInquiry(
-            @Parameter(description = "문의 ID")
-            @PathVariable String inquiryId,
             @Parameter(hidden = true) @AuthenticationPrincipal Object adminPrincipal,
             @Parameter(description = "종료 사유 (필수)")
             @Valid @RequestBody CloseRequestWrapper request) {
@@ -197,27 +195,27 @@ public class InquiryAdminController {
             InquiryRequestDTO inquiryRequest = InquiryRequestDTO.forClose(request.reason());
 
             InquiryResponseDTO response = inquiryService.closeInquiryByAdmin(
-                    inquiryId, adminId, inquiryRequest);
+                    request.inquiryId(), adminId, inquiryRequest);
 
             log.info("관리자 문의 강제 종료 완료 - inquiryId: {}, adminId: {}, reason: {}",
-                    inquiryId, adminId, request.reason());
+                    request.inquiryId(), adminId, request.reason());
 
             return ResponseEntity.ok(
                     ApiResponse.success(ResponseCode.SUCCESS, response)
             );
         } catch (EntityNotFoundException e) {
-            log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
+            log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                     ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
             );
         } catch (IllegalStateException e) {
             log.warn("문의 강제 종료 실패 - inquiryId: {}, error: {}",
-                    inquiryId, e.getMessage());
+                    request.inquiryId(), e.getMessage());
             return ResponseEntity.badRequest().body(
                     ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
-            log.error("문의 강제 종료 중 서버 오류 - inquiryId: {}", inquiryId, e);
+            log.error("문의 강제 종료 중 서버 오류 - inquiryId: {}", request.inquiryId(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                     ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
@@ -226,19 +224,28 @@ public class InquiryAdminController {
 
     // 컨트롤러 전용 래퍼 클래스들
     public record ReplyRequestWrapper(
-            @jakarta.validation.constraints.NotBlank(message = "답변 내용은 필수입니다")
-            @jakarta.validation.constraints.Size(max = 2000, message = "답변 내용은 2,000자를 초과할 수 없습니다")
+            @NotBlank(message = "문의 ID는 필수입니다")
+            String inquiryId,
+
+            @NotBlank(message = "답변 내용은 필수입니다")
+            @Size(max = 2000, message = "답변 내용은 2,000자를 초과할 수 없습니다")
             String content
     ) {}
 
     public record CloseRequestWrapper(
-            @jakarta.validation.constraints.NotBlank(message = "강제 종료 시, 사유는 필수입니다.")
-            @jakarta.validation.constraints.Size(max = 200, message = "종료 사유는 200자 이내로 입력해주세요.")
+            @NotBlank(message = "문의 ID는 필수입니다")
+            String inquiryId,
+
+            @NotBlank(message = "강제 종료 시, 사유는 필수입니다.")
+            @Size(max = 200, message = "종료 사유는 200자 이내로 입력해주세요.")
             String reason
     ) {}
 
     public record UrgentLevelRequestWrapper(
-            @jakarta.validation.constraints.NotNull(message = "긴급도는 필수입니다")
+            @NotBlank(message = "문의 ID는 필수입니다")
+            String inquiryId,
+
+            @NotNull(message = "긴급도는 필수입니다")
             InquiryUrgentLevel urgentLevel
     ) {}
 }
