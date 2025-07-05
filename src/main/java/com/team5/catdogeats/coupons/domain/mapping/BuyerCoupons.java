@@ -9,13 +9,21 @@ import lombok.*;
 import java.time.ZonedDateTime;
 
 @Entity
-@Table(name = "user_coupons")
+@Table(
+        name = "buyer_coupons",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_buyer_coupon",
+                        columnNames = {"buyer_id", "coupon_id"}
+                )
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
-public class UserCoupons extends BaseEntity {
+public class BuyerCoupons extends BaseEntity {
 
     @Id
     @Column(length = 36)
@@ -23,17 +31,18 @@ public class UserCoupons extends BaseEntity {
     private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false,
-            foreignKey = @ForeignKey(name = "fk_user_coupons_user_id"))
+    @JoinColumn(name = "buyer_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_buyer_coupons_buyer_id"))
     private Buyers buyers;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "coupon_id", nullable = false,
-            foreignKey = @ForeignKey(name = "fk_user_coupons_coupon_id"))
+            foreignKey = @ForeignKey(name = "fk_buyer_coupons_coupon_id"))
     private Coupons coupons;
 
     @Column(name = "is_used", nullable = false)
-    private boolean isUsed;
+    @Builder.Default
+    private boolean isUsed = false;
 
     @Column(name = "used_at")
     private ZonedDateTime usedAt;
