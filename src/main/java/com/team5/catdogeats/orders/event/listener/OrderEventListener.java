@@ -195,13 +195,17 @@ public class OrderEventListener {
 
         try {
             String productInfo = event.getFirstProductName() +
-                    (event.getOrderItemCount() > 1 ? String.format(" 외 %d개", event.getOrderItemCount() - 1) : "");
+                    (event.getOrderItemCount() > 1 ?
+                            String.format(" 외 %d개", event.getOrderItemCount() - 1) : "");
 
+            // 할인 정보 개선 (쿠폰 타입 지원)
             String discountInfo = "";
             if (event.isCouponApplied()) {
-                Long discountAmount = event.originalTotalPrice() - event.finalAmount();
-                discountInfo = String.format("\n🎟️ 쿠폰 할인: %.1f%% (-%,d원)",
-                        event.couponDiscountRate(), discountAmount);
+                Long discountAmount = event.getDiscountAmount();
+                String couponDescription = event.getCouponDescription();
+
+                discountInfo = String.format("\n🎟️ 쿠폰 할인: %s (-%,d원)",
+                        couponDescription, discountAmount);
             }
 
             log.info("""
@@ -217,9 +221,12 @@ public class OrderEventListener {
                     String.format("%,d", event.finalAmount())
             );
 
+            // 로그 메시지도 개선
+            String couponLogInfo = event.isCouponApplied() ?
+                    event.getCouponDescription() : "없음";
+
             log.info("결제 완료 알림 발송 완료: orderId={}, paymentId={}, itemCount={}, 쿠폰할인={}",
-                    orderId, event.paymentId(), event.getOrderItemCount(),
-                    event.isCouponApplied() ? event.couponDiscountRate() + "%" : "없음");
+                    orderId, event.paymentId(), event.getOrderItemCount(), couponLogInfo);
 
         } catch (Exception e) {
             log.error("결제 완료 알림 발송 실패: orderId={}, error={}", orderId, e.getMessage(), e);
