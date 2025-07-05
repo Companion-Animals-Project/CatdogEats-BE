@@ -43,7 +43,7 @@ public class InquiryServiceImpl implements InquiryService {
         return inquiries.map(UserInquiryListResponseDTO::from);
     }
 
-    // 사용자용 상세 조회 (간소화)
+    // 사용자용 상세 조회
     @Override
     @JpaTransactional(readOnly = true)
     public UserInquiryDetailResponseDTO getUserInquiryDetail(String inquiryId, String providerId) {
@@ -67,7 +67,8 @@ public class InquiryServiceImpl implements InquiryService {
         log.info("문의 상세 조회 - inquiryId: {}, userId: {}, hasReplies: {}",
                 inquiryId, userId, !replies.isEmpty());
 
-        return UserInquiryDetailResponseDTO.from(inquiry, replies);
+        List<InquiryAttachmentDTO> attachedImages = new ArrayList<>();
+        return UserInquiryDetailResponseDTO.from(inquiry, replies, attachedImages);
     }
 
     private void validateUserAccess(Inquires inquiry, String providerId) {
@@ -209,7 +210,8 @@ public class InquiryServiceImpl implements InquiryService {
             }
         }
 
-        return InquiryDetailResponseDTO.from(inquiry, replies);
+        List<InquiryAttachmentDTO> attachedImages = new ArrayList<>();
+        return InquiryDetailResponseDTO.from(inquiry, replies, attachedImages);
     }
 
 

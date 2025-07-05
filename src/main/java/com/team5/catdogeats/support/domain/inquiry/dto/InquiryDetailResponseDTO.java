@@ -26,7 +26,10 @@ public record InquiryDetailResponseDTO(
         OrderInfo orderInfo,
 
         // 답변들
-        List<InquiryReplyResponseDTO> replies) {
+        List<InquiryReplyResponseDTO> replies,
+
+        List<InquiryAttachmentDTO> attachedImages
+) {
 
     // 주문 정보 DTO
     public record OrderInfo(
@@ -36,7 +39,7 @@ public record InquiryDetailResponseDTO(
     }
 
     // Inquires 엔티티에서 DTO 생성
-    public static InquiryDetailResponseDTO from(Inquires inquiry, List<InquiryReplyResponseDTO> replies) {
+    public static InquiryDetailResponseDTO from(Inquires inquiry, List<InquiryReplyResponseDTO> replies, List<InquiryAttachmentDTO> attachedImages) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         ZoneId koreaZone = ZoneId.of("Asia/Seoul");
 
@@ -63,7 +66,8 @@ public record InquiryDetailResponseDTO(
                 inquiry.getUpdatedAt().withZoneSameInstant(koreaZone).format(formatter),
                 inquiry.getUsers().getName(),
                 orderInfo,
-                replies
+                replies,
+                attachedImages
         );
     }
 }

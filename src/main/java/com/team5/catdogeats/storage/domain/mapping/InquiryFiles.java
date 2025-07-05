@@ -1,6 +1,8 @@
 package com.team5.catdogeats.storage.domain.mapping;
 
 import com.team5.catdogeats.baseEntity.BaseEntity;
+import com.team5.catdogeats.storage.domain.Files;
+import com.team5.catdogeats.storage.domain.Images;
 import com.team5.catdogeats.support.domain.Inquires;
 import jakarta.persistence.*;
 import lombok.*;
@@ -20,4 +22,8 @@ public class InquiryFiles extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "inquiry_id", nullable = false)
     private Inquires inquires;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "image_id", nullable = false)
+    private Images images;
 }

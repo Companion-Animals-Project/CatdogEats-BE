@@ -2,7 +2,7 @@ package com.team5.catdogeats.storage.service.impl;
 
 import com.team5.catdogeats.storage.domain.Files;
 import com.team5.catdogeats.storage.repository.FileRepository;
-import com.team5.catdogeats.storage.service.NoticeFileManagementService;
+import com.team5.catdogeats.storage.service.NoticeFileService;
 import com.team5.catdogeats.storage.service.ObjectStorageService;
 import com.team5.catdogeats.support.domain.notice.dto.NoticeFileDownloadResponseDTO;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class NoticeFileManagementServiceImpl implements NoticeFileManagementService {
+public class NoticeFileServiceImpl implements NoticeFileService {
 
     private final FileRepository fileRepository;
     private final ObjectStorageService objectStorageService;

@@ -11,6 +11,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +22,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import org.springframework.security.access.AccessDeniedException;  // 👈 이거 추가
+import org.springframework.web.multipart.MultipartFile;
 
 //  1:1 문의 사용자 Controller
 //  로그인한 사용자(판매자, 구매자)가 사용하는 CRUD 기능
@@ -127,12 +129,14 @@ public class InquiryController {
     @PostMapping
     @Operation(
             summary = "1:1 문의 등록",
-            description = "새로운 1:1 문의를 등록합니다. 문의 유형, 제목, 내용은 필수이며, 주문 관련 문의인 경우 주문 ID를 포함할 수 있습니다. 파일 첨부는 별도 API에서 처리됩니다."
+            description = "새로운 1:1 문의를 등록합니다. 문의 유형, 제목, 내용은 필수이며, 주문 관련 문의인 경우 주문 ID를 포함할 수 있습니다."
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> createInquiry(
-            @Parameter(hidden = true) @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "문의 등록 정보")
-            @Valid @ModelAttribute InquiryCreateRequestDTO request) {
+            @Valid @ModelAttribute InquiryCreateRequestDTO request,
+            @RequestParam(value = "images", required = false) MultipartFile[] imageFiles) {
 
         try {
             InquiryResponseDTO response = inquiryService.createInquiry(userPrincipal.providerId(), request);
@@ -152,5 +156,15 @@ public class InquiryController {
                     ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
         }
+    }
+
+    // 이미지 다운로드
+    @GetMapping("/{inquiryId}/images/{imageId}")
+    public ResponseEntity<Resource> downloadImage(
+            @PathVariable String inquiryId,
+            @PathVariable String imageId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        // 권한 검증 + 이미지 다운로드
+        return null;
     }
 }
