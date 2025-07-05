@@ -30,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -341,7 +341,7 @@ public class OrderServiceImpl implements OrderService {
         return new OrderDetailResponse(
                 order.getId(),
                 order.getOrderNumber(),
-                order.getCreatedAt().toLocalDateTime(),
+                order.getCreatedAt(),
                 order.getOrderStatus(),
                 recipientInfo,
                 paymentInfo,
@@ -431,7 +431,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private String generateOrderNumber() {
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        String timestamp = ZonedDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         int randomSuffix = ThreadLocalRandom.current().nextInt(10000, 100000);
         return timestamp + randomSuffix;
     }
