@@ -55,10 +55,10 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @JpaTransactional
     public OrderCreateResponse createOrderByUserPrincipal(UserPrincipal userPrincipal, OrderCreateRequest request) {
-        log.info("주문 생성 요청: provider={}, providerId={}, itemCount={}, 쿠폰할인={}%",
+        log.info("주문 생성 요청: provider={}, providerId={}, itemCount={}, 쿠폰할인={}",
                 userPrincipal.provider(), userPrincipal.providerId(),
                 request.getOrderItems().size(),
-                request.getPaymentInfo() != null ? request.getPaymentInfo().getCouponDiscountRate() : 0);
+                getCouponDescription(request.getPaymentInfo())); // 로그 메시지 개선
 
         try {
             // 1. 구매자 검증
@@ -84,11 +84,6 @@ public class OrderServiceImpl implements OrderService {
             // 6. OrderPendingDetails에 임시 정보 저장 (메서드 시그니처 변경)
             saveOrderPendingDetails(savedOrder, userPrincipal, originalTotalPrice,
                     request.getPaymentInfo(), validatedOrderItems, request.getShippingAddress());
-
-
-            // 5. OrderPendingDetails에 임시 정보 저장
-            saveOrderPendingDetails(savedOrder, userPrincipal, originalTotalPrice,
-                    couponDiscountRate, validatedOrderItems, request.getShippingAddress());
 
             log.info("주문 생성 완료: orderId={}, orderNumber={}, status={}, 최종금액={}원",
                     savedOrder.getId(), savedOrder.getOrderNumber(), savedOrder.getOrderStatus(), finalPaymentAmount);
