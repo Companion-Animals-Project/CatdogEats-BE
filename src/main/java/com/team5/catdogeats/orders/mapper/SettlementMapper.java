@@ -27,11 +27,13 @@ public interface SettlementMapper {
             st.commission_amount as commission,
             st.settlement_amount,
             o.created_at::timestamp as order_date,
+            s.delivered_at::timestamp as delivery_date,
             st.settlement_status
         FROM settlements st
         INNER JOIN order_items oi ON st.order_item_id = oi.id
         INNER JOIN orders o ON oi.order_id = o.id
         INNER JOIN products p ON oi.product_id = p.id
+        LEFT JOIN shipments s ON o.id = s.order_id
         WHERE st.seller_id = #{sellerId}
         AND o.order_status != 'CANCELLED'
         AND o.is_hidden = false
@@ -45,6 +47,7 @@ public interface SettlementMapper {
             @Arg(column = "commission", javaType = Long.class),
             @Arg(column = "settlement_amount", javaType = Long.class),
             @Arg(column = "order_date", javaType = java.time.LocalDateTime.class),
+            @Arg(column = "delivery_date", javaType = java.time.LocalDateTime.class),
             @Arg(column = "settlement_status", javaType = com.team5.catdogeats.orders.domain.enums.SettlementStatus.class)
     })
     List<SettlementItemDto> findSettlementsBySellerId(
@@ -113,11 +116,13 @@ public interface SettlementMapper {
             st.commission_amount as commission,
             st.settlement_amount,
             o.created_at::timestamp as order_date,
+            s.delivered_at::timestamp as delivery_date,
             st.settlement_status
         FROM settlements st
         INNER JOIN order_items oi ON st.order_item_id = oi.id
         INNER JOIN orders o ON oi.order_id = o.id
         INNER JOIN products p ON oi.product_id = p.id
+        LEFT JOIN shipments s ON o.id = s.order_id
         WHERE st.seller_id = #{sellerId}
         AND o.order_status != 'CANCELLED'
         AND o.is_hidden = false
@@ -132,6 +137,7 @@ public interface SettlementMapper {
             @Arg(column = "commission", javaType = Long.class),
             @Arg(column = "settlement_amount", javaType = Long.class),
             @Arg(column = "order_date", javaType = java.time.LocalDateTime.class),
+            @Arg(column = "delivery_date", javaType = java.time.LocalDateTime.class),
             @Arg(column = "settlement_status", javaType = com.team5.catdogeats.orders.domain.enums.SettlementStatus.class)
     })
     List<SettlementItemDto> findSettlementsBySellerIdAndPeriod(
@@ -252,11 +258,13 @@ public interface SettlementMapper {
             st.commission_amount as commission,
             st.settlement_amount,
             o.created_at::timestamp as order_date,
+            s.delivered_at::timestamp as delivery_date,
             st.settlement_status
         FROM settlements st
         INNER JOIN order_items oi ON st.order_item_id = oi.id
         INNER JOIN orders o ON oi.order_id = o.id
         INNER JOIN products p ON oi.product_id = p.id
+        LEFT JOIN shipments s ON o.id = s.order_id
         WHERE st.seller_id = #{sellerId}
         AND o.order_status != 'CANCELLED'
         AND o.is_hidden = false
@@ -271,6 +279,7 @@ public interface SettlementMapper {
             @Arg(column = "commission", javaType = Long.class),
             @Arg(column = "settlement_amount", javaType = Long.class),
             @Arg(column = "order_date", javaType = java.time.LocalDateTime.class),
+            @Arg(column = "delivery_date", javaType = java.time.LocalDateTime.class),
             @Arg(column = "settlement_status", javaType = com.team5.catdogeats.orders.domain.enums.SettlementStatus.class)
     })
     List<SettlementItemDto> findMonthlySettlements(

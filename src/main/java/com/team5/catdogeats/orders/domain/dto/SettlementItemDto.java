@@ -3,7 +3,6 @@ package com.team5.catdogeats.orders.domain.dto;
 import com.team5.catdogeats.orders.domain.enums.SettlementStatus;
 
 import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
 
 /**
  * 정산 아이템 상세 정보 DTO
@@ -16,6 +15,7 @@ public record SettlementItemDto(
         Long commission,         // 수수료 (10%)
         Long settlementAmount,   // 정산금액 (주문금액 - 수수료)
         LocalDateTime orderDate, // 주문일
+        LocalDateTime deliveryDate, // 배송완료일
         SettlementStatus status  // 정산상태
 ) {
 }
