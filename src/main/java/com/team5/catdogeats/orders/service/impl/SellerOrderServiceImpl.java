@@ -17,6 +17,7 @@ import com.team5.catdogeats.global.annotation.JpaTransactional;
 
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 /**
  * 판매자용 주문 관리 서비스 구현체
@@ -44,45 +45,63 @@ public class SellerOrderServiceImpl implements SellerOrderService {
         try {
             // 1. 판매자 검증 및 조회
             Sellers seller = findSellerByPrincipal(userPrincipal);
-            log.debug("판매자 인증 성공 - sellerId: {}, userName: {}", seller.getUserId(), seller.getUser().getName());
+            log.debug("판매자 인증 성공 - sellerId: {}, vendorName: {}", seller.getUserId(), seller.getVendorName());
 
-            // 2. 주문번호로 배송정보 조회 (판매자 권한 검증 포함)
-            log.debug("배송정보 조회 시도 - orderNumber: {}, sellerId: {}", orderNumber, seller.getUserId());
+            // 2. 단계별 디버깅: 주문 존재 여부 확인
+            log.debug("1단계: 주문 존재 여부 확인 - orderNumber: {}", orderNumber);
+            Optional<Shipments> shipmentOpt = shipmentRepository.findByOrderNumber(orderNumber);
+            if (shipmentOpt.isEmpty()) {
+                log.warn("주문 번호에 해당하는 배송정보가 없습니다 - orderNumber: {}", orderNumber);
+                throw new NoSuchElementException("주문을 찾을 수 없습니다");
+            }
 
-            Shipments shipment = shipmentRepository.findShippingInfoByOrderNumberAndSeller(
-                            orderNumber, seller.getUserId())
-                    .orElseThrow(() -> {
-                        log.warn("배송정보 조회 실패 - orderNumber: {}, sellerId: {}", orderNumber, seller.getUserId());
-                        return new NoSuchElementException("주문을 찾을 수 없거나 접근 권한이 없습니다");
-                    });
-
+            Shipments shipment = shipmentOpt.get();
             log.debug("배송정보 조회 성공 - shipmentId: {}, orderId: {}",
                     shipment.getId(), shipment.getOrders().getId());
 
-            // 3. 배송지 정보 생성
+            // 3. 판매자 권한 확인: 해당 주문에 판매자의 상품이 있는지 확인
+            log.debug("2단계: 판매자 권한 확인 - sellerId: {}", seller.getUserId());
+            List<OrderItems> sellerOrderItems = shipment.getOrders().getOrderItems().stream()
+                    .filter(orderItem -> {
+                        String itemSellerId = orderItem.getProducts().getSeller().getUserId();
+                        log.debug("주문상품 확인 - productId: {}, productSellerId: {}, targetSellerId: {}",
+                                orderItem.getProducts().getId(), itemSellerId, seller.getUserId());
+                        return seller.getUserId().equals(itemSellerId);
+                    })
+                    .toList();
+
+            if (sellerOrderItems.isEmpty()) {
+                log.warn("해당 주문에 판매자의 상품이 없습니다 - orderNumber: {}, sellerId: {}",
+                        orderNumber, seller.getUserId());
+                throw new NoSuchElementException("접근 권한이 없습니다");
+            }
+
+            log.debug("판매자 권한 확인 성공 - 판매자 상품 수: {}", sellerOrderItems.size());
+
+            // 4. 배송지 정보 생성
             SellerOrderDetailResponse.RecipientInfo recipientInfo = createRecipientInfo(shipment);
 
-            // 4. 해당 판매자의 주문 상품만 필터링
-            List<SellerOrderDetailResponse.SellerOrderItem> sellerOrderItems =
-                    filterSellerOrderItems(shipment, seller.getUserId());
+            // 5. 판매자 주문 상품 변환
+            List<SellerOrderDetailResponse.SellerOrderItem> sellerOrderItemDTOs =
+                    sellerOrderItems.stream()
+                            .map(this::convertToSellerOrderItem)
+                            .toList();
 
-            log.debug("판매자 상품 필터링 완료 - 상품 수: {}", sellerOrderItems.size());
+            // 6. 총 금액 계산
+            Long totalAmount = calculateSellerTotalAmount(sellerOrderItemDTOs);
 
-            // 5. 해당 판매자 상품들의 총 금액 계산
-            Long totalAmount = calculateSellerTotalAmount(sellerOrderItems);
-
-            // 6. 응답 생성 - success 메서드에 올바른 파라미터 개수 전달
+            // 7. 응답 생성
             SellerOrderDetailResponse response = SellerOrderDetailResponse.success(
                     shipment.getOrders().getOrderNumber(),
                     shipment.getOrders().getCreatedAt(),
                     shipment.getOrders().getOrderStatus(),
                     recipientInfo,
-                    sellerOrderItems,
+                    sellerOrderItemDTOs,
                     totalAmount
             );
 
             log.info("판매자용 주문 상세 조회 완료 - orderNumber: {}, sellerId: {}, itemCount: {}, totalAmount: {}원",
-                    orderNumber, seller.getUserId(), sellerOrderItems.size(), totalAmount);
+                    orderNumber, seller.getUserId(), sellerOrderItemDTOs.size(), totalAmount);
 
             return response;
 
@@ -123,18 +142,6 @@ public class SellerOrderServiceImpl implements SellerOrderService {
                 .deliveryNote(shipment.getDeliveryNote() != null ?
                         shipment.getDeliveryNote() : "배송 요청사항 없음")
                 .build();
-    }
-
-    /**
-     * 해당 판매자의 주문 상품만 필터링
-     */
-    private List<SellerOrderDetailResponse.SellerOrderItem> filterSellerOrderItems(
-            Shipments shipment, String sellerId) {
-
-        return shipment.getOrders().getOrderItems().stream()
-                .filter(orderItem -> sellerId.equals(orderItem.getProducts().getSeller().getUserId()))
-                .map(this::convertToSellerOrderItem)
-                .toList();
     }
 
     /**
