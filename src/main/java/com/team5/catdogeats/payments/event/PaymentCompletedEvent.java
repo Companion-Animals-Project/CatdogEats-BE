@@ -3,7 +3,7 @@ package com.team5.catdogeats.payments.event;
 import com.team5.catdogeats.orders.dto.common.OrderItemInfo;
 import com.team5.catdogeats.orders.dto.request.OrderCreateRequest;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 /**
@@ -39,7 +39,7 @@ public record PaymentCompletedEvent(
         Double couponDiscountRate,
 
         // 이벤트 발생 시각
-        LocalDateTime eventOccurredAt
+        ZonedDateTime eventOccurredAt
 ) {
 
     /**
@@ -72,7 +72,7 @@ public record PaymentCompletedEvent(
                 shippingAddress,
                 originalTotalPrice,
                 couponDiscountRate,
-                LocalDateTime.now()
+                ZonedDateTime.now()
         );
     }
 

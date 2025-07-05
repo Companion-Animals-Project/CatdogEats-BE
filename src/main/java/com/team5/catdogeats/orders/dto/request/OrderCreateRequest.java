@@ -1,5 +1,6 @@
 package com.team5.catdogeats.orders.dto.request;
 
+import com.team5.catdogeats.coupons.domain.enums.DiscountType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -127,14 +128,31 @@ public class OrderCreateRequest {
         @NotBlank(message = "주문명은 필수입니다")
         private String orderName;
 
+        // ===== 쿠폰 할인 정보 확장 =====
+
         /**
-         * 쿠폰 할인률 (%) - 전체 주문 금액에 적용
+         * 쿠폰 할인 타입 (선택사항)
+         * PERCENT: 정률 할인 (%), AMOUNT: 정액 할인 (원)
+         * null인 경우: 기존 방식으로 couponDiscountRate 사용 (하위 호환성)
+         */
+        private DiscountType couponType;
+
+        /**
+         * 쿠폰 할인률 (%) - couponType이 PERCENT이거나 null일 때 사용
          * 0~100 사이의 값, null이면 할인 없음
          * 예: 10.0 = 10% 할인
          */
         @DecimalMin(value = "0.0", message = "쿠폰 할인률은 0% 이상이어야 합니다")
         @DecimalMax(value = "100.0", message = "쿠폰 할인률은 100% 이하여야 합니다")
         private Double couponDiscountRate;
+
+        /**
+         * 쿠폰 할인 금액 (원) - couponType이 AMOUNT일 때 사용
+         * 0원 이상의 값, null이면 할인 없음
+         * 예: 5000L = 5,000원 할인
+         */
+        private Long couponDiscountAmount;
+
 
         /**
          * 구매자 이메일 (토스 페이먼츠 결제창에 미리 입력)

@@ -1,6 +1,6 @@
 package com.team5.catdogeats.payments.event;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 /**
  * 결제 실패 이벤트
@@ -19,7 +19,7 @@ public record PaymentFailedEvent(
         String errorMessage,
 
         // 이벤트 발생 시각
-        LocalDateTime eventOccurredAt
+        ZonedDateTime eventOccurredAt
 ) {
 
     /**
@@ -31,7 +31,7 @@ public record PaymentFailedEvent(
                 orderNumber,
                 errorCode,
                 errorMessage,
-                LocalDateTime.now()
+                ZonedDateTime.now()
         );
     }
 }
