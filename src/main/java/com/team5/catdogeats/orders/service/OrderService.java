@@ -49,7 +49,7 @@ public interface OrderService {
      * @throws NoSuchElementException 주문이 존재하지 않거나 본인 주문이 아닌 경우
      * @throws IllegalArgumentException 구매자 권한이 없는 경우
      */
-    OrderDetailResponse getOrderDetail(UserPrincipal userPrincipal, Long orderNumber);
+    OrderDetailResponse getOrderDetail(UserPrincipal userPrincipal, String orderNumber);
 
     /**
      * 주문 내역 삭제 (구매자) - 논리적 삭제 방식 + 상태별 제한
@@ -82,5 +82,5 @@ public interface OrderService {
      * @throws NoSuchElementException 사용자를 찾을 수 없거나 주문이 존재하지 않는 경우
      * @throws IllegalArgumentException 구매자 권한이 없는 경우, 이미 삭제된 주문인 경우, 삭제 제한 상태인 경우
      */
-    OrderDeleteResponse deleteOrder(UserPrincipal userPrincipal, Long orderNumber);
+    OrderDeleteResponse deleteOrder(UserPrincipal userPrincipal, String orderNumber);
 }
