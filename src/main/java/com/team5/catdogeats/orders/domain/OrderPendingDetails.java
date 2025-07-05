@@ -66,4 +66,37 @@ public class OrderPendingDetails extends BaseEntity {
     @Lob
     @Column(name = "shipping_address_json", columnDefinition = "TEXT")
     private String shippingAddressJson;
+
+    /**
+     * 쿠폰 할인 적용 여부 확인
+     */
+    public boolean isCouponApplied() {
+        if (couponType == null) {
+            // 기존 방식
+            return couponDiscountRate != null && couponDiscountRate > 0;
+        }
+
+        return switch (couponType) {
+            case PERCENT -> couponDiscountRate != null && couponDiscountRate > 0;
+            case AMOUNT -> couponDiscountAmount != null && couponDiscountAmount > 0;
+        };
+    }
+
+    /**
+     * 쿠폰 설명 문자열 (알림용)
+     */
+    public String getCouponDescription() {
+        if (!isCouponApplied()) {
+            return "";
+        }
+
+        if (couponType == null) {
+            return String.format("%.1f%% 할인", couponDiscountRate);
+        }
+
+        return switch (couponType) {
+            case PERCENT -> String.format("%.1f%% 할인", couponDiscountRate);
+            case AMOUNT -> String.format("%,d원 할인", couponDiscountAmount);
+        };
+    }
 }
