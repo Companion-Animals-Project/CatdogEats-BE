@@ -126,6 +126,7 @@ public class SecurityConfig {
                             .requestMatchers("/v1/buyers/reviews/{product-id}/list").permitAll()
                             .requestMatchers("/v1/buyers/reviews/{product-number}").permitAll()
                             .requestMatchers("/v1/users/page/{vendor-name}").permitAll()
+                            .requestMatchers("/v1/sellers/coupons/{vendor-name}").permitAll()
                             .requestMatchers("/withdraw").permitAll()
                             .requestMatchers("/v1/buyers/payments/success").permitAll()
                             .requestMatchers("/v1/users/**").hasAnyRole("BUYER", "SELLER")
