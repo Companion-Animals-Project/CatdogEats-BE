@@ -1,7 +1,6 @@
 package com.team5.catdogeats.orders.service.impl;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.orders.domain.Shipments;
 import com.team5.catdogeats.orders.domain.mapping.OrderItems;
 import com.team5.catdogeats.orders.dto.response.SellerOrderDetailResponse;
@@ -14,6 +13,7 @@ import com.team5.catdogeats.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import com.team5.catdogeats.global.annotation.JpaTransactional;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -44,12 +44,20 @@ public class SellerOrderServiceImpl implements SellerOrderService {
         try {
             // 1. 판매자 검증 및 조회
             Sellers seller = findSellerByPrincipal(userPrincipal);
+            log.debug("판매자 인증 성공 - sellerId: {}, userName: {}", seller.getUserId(), seller.getUser().getName());
 
             // 2. 주문번호로 배송정보 조회 (판매자 권한 검증 포함)
+            log.debug("배송정보 조회 시도 - orderNumber: {}, sellerId: {}", orderNumber, seller.getUserId());
+
             Shipments shipment = shipmentRepository.findShippingInfoByOrderNumberAndSeller(
                             orderNumber, seller.getUserId())
-                    .orElseThrow(() -> new NoSuchElementException(
-                            "주문을 찾을 수 없거나 접근 권한이 없습니다"));
+                    .orElseThrow(() -> {
+                        log.warn("배송정보 조회 실패 - orderNumber: {}, sellerId: {}", orderNumber, seller.getUserId());
+                        return new NoSuchElementException("주문을 찾을 수 없거나 접근 권한이 없습니다");
+                    });
+
+            log.debug("배송정보 조회 성공 - shipmentId: {}, orderId: {}",
+                    shipment.getId(), shipment.getOrders().getId());
 
             // 3. 배송지 정보 생성
             SellerOrderDetailResponse.RecipientInfo recipientInfo = createRecipientInfo(shipment);
@@ -58,10 +66,12 @@ public class SellerOrderServiceImpl implements SellerOrderService {
             List<SellerOrderDetailResponse.SellerOrderItem> sellerOrderItems =
                     filterSellerOrderItems(shipment, seller.getUserId());
 
+            log.debug("판매자 상품 필터링 완료 - 상품 수: {}", sellerOrderItems.size());
+
             // 5. 해당 판매자 상품들의 총 금액 계산
             Long totalAmount = calculateSellerTotalAmount(sellerOrderItems);
 
-            // 6. 응답 생성
+            // 6. 응답 생성 - success 메서드에 올바른 파라미터 개수 전달
             SellerOrderDetailResponse response = SellerOrderDetailResponse.success(
                     shipment.getOrders().getOrderNumber(),
                     shipment.getOrders().getCreatedAt(),
@@ -90,12 +100,12 @@ public class SellerOrderServiceImpl implements SellerOrderService {
      * UserPrincipal로 판매자 조회 및 검증
      */
     private Sellers findSellerByPrincipal(UserPrincipal userPrincipal) {
-        // 1. UserPrincipal로 Users 조회
+        // 1. Users 조회
         Users user = userRepository.findByProviderAndProviderId(
                         userPrincipal.provider(), userPrincipal.providerId())
                 .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다"));
 
-        // 2. Users로 Sellers 조회
+        // 2. Sellers 조회
         return sellersRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new IllegalArgumentException("판매자 권한이 없습니다"));
     }
