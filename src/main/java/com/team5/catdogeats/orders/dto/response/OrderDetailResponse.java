@@ -11,7 +11,7 @@ import java.util.List;
  */
 public record OrderDetailResponse(
         String orderId,
-        Long orderNumber,
+        String orderNumber,
         LocalDateTime orderDate,
         OrderStatus orderStatus,
         RecipientInfo recipientInfo,
