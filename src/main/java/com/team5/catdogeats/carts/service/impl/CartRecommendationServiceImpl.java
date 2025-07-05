@@ -31,6 +31,9 @@ public class CartRecommendationServiceImpl implements CartRecommendationService 
     private final CartItemRepository cartItemRepository;
     private final UserRepository userRepository;
 
+    // ㅐ상수로 추천 개수 관리 (향후 설정으로 변경 가능)
+    private static final int DEFAULT_RECOMMENDATION_LIMIT = 4;
+
     @Override
     public List<RecommendationResponse> getCartBasedRecommendations(UserPrincipal userPrincipal) {
         log.debug("장바구니 기반 추천 조회 시작 - provider: {}, providerId: {}",
@@ -103,15 +106,19 @@ public class CartRecommendationServiceImpl implements CartRecommendationService 
 
             // 제외할 상품이 있는지 확인하고 적절한 메서드 호출
             if (excludeProductIds == null || excludeProductIds.isEmpty()) {
-                products = cartRecommendationRepository.findPopularProductsByCategory(petCategory);
+                // DB에서 4개 조회
+                products = cartRecommendationRepository.findTopPopularProductsByCategory(
+                        petCategory.name(), DEFAULT_RECOMMENDATION_LIMIT);
             } else {
-                products = cartRecommendationRepository.findPopularProductsByCategoryExcluding(petCategory, excludeProductIds);
+                // DB에서 4개 조회
+                products = cartRecommendationRepository.findTopPopularProductsByCategoryExcluding(
+                        petCategory.name(), excludeProductIds, DEFAULT_RECOMMENDATION_LIMIT);
             }
 
             return products.stream()
-                    .limit(4) // 4개 제한
                     .map(this::convertToRecommendationResponse)
                     .collect(Collectors.toList());
+
         } catch (Exception e) {
             log.warn("카테고리별 추천 조회 실패, 전체 인기 상품으로 대체 - category: {}", petCategory, e);
             return getPopularProductsAll(excludeProductIds);
@@ -125,15 +132,18 @@ public class CartRecommendationServiceImpl implements CartRecommendationService 
 
             // 제외할 상품이 있는지 확인하고 적절한 메서드 호출
             if (excludeProductIds == null || excludeProductIds.isEmpty()) {
-                products = cartRecommendationRepository.findPopularProductsAll();
+                // DB에서 4개 조회
+                products = cartRecommendationRepository.findTopPopularProductsAll(DEFAULT_RECOMMENDATION_LIMIT);
             } else {
-                products = cartRecommendationRepository.findPopularProductsExcluding(excludeProductIds);
+                // DB에서 4개 조회
+                products = cartRecommendationRepository.findTopPopularProductsExcluding(
+                        excludeProductIds, DEFAULT_RECOMMENDATION_LIMIT);
             }
 
             return products.stream()
-                    .limit(4) // 4개 제한
                     .map(this::convertToRecommendationResponse)
                     .collect(Collectors.toList());
+
         } catch (Exception e) {
             log.error("전체 인기 상품 조회 실패", e);
             return Collections.emptyList();

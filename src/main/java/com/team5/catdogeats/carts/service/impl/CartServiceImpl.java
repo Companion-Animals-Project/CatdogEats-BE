@@ -10,7 +10,7 @@ import com.team5.catdogeats.carts.dto.response.CartResponse;
 import com.team5.catdogeats.carts.repository.CartItemRepository;
 import com.team5.catdogeats.carts.repository.CartRepository;
 import com.team5.catdogeats.carts.service.CartService;
-import com.team5.catdogeats.global.config.JpaTransactional;
+import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.users.domain.Users;
