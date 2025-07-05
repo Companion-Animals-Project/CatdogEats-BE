@@ -325,4 +325,179 @@ class OrderServiceTest {
             verify(orderRepository, never()).save(any());
         }
     }
+    @Nested
+    @DisplayName("주문 생성 테스트 - 쿠폰 타입 확장")
+    class CreateOrderWithCouponTypeTests {
+
+        @Test
+        @DisplayName("정액 할인 쿠폰 적용된 주문 생성 성공")
+        void createOrderWithAmountCoupon_Success() throws Exception {
+            // Given
+            OrderCreateRequest requestWithAmountCoupon = OrderCreateRequest.builder()
+                    .orderItems(Arrays.asList(
+                            OrderCreateRequest.OrderItemRequest.builder().productId("product1").quantity(2).build(),
+                            OrderCreateRequest.OrderItemRequest.builder().productId("product2").quantity(1).build()))
+                    .paymentInfo(OrderCreateRequest.PaymentInfoRequest.builder()
+                            .orderName("강아지 사료 외 1건")
+                            .couponType(DiscountType.AMOUNT)
+                            .couponDiscountAmount(5000L) // 5,000원 할인
+                            .build())
+                    .shippingAddress(OrderCreateRequest.ShippingAddressRequest.builder()
+                            .recipientName("김철수").recipientPhone("010-1234-5678")
+                            .postalCode("06234").streetAddress("서울시 강남구 테헤란로 123")
+                            .detailAddress("456호").deliveryNote("문 앞에 놓아주세요").build())
+                    .build();
+
+            Orders savedOrder = Orders.builder()
+                    .id("order123").orderNumber("1001").user(user)
+                    .orderStatus(OrderStatus.PAYMENT_PENDING).totalPrice(58000L) // 65000 - 5000 - 3000(배송비) + 1000
+                    .build();
+
+            OrderCreateResponse mockResponse = OrderCreateResponse.builder()
+                    .orderId("order123").orderNumber("1001").totalPrice(58000L)
+                    .orderStatus(OrderStatus.PAYMENT_PENDING).build();
+
+            given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "google123")).willReturn(Optional.of(buyerDTO));
+            given(userRepository.getReferenceById("user123")).willReturn(user);
+            given(productRepository.findById("product1")).willReturn(Optional.of(product1));
+            given(productRepository.findById("product2")).willReturn(Optional.of(product2));
+            given(orderRepository.save(any(Orders.class))).willReturn(savedOrder);
+            doReturn("[]").when(objectMapper).writeValueAsString(any());
+            given(tossPaymentResponseBuilder.buildTossPaymentResponse(any(Orders.class), any(), anyString())).willReturn(mockResponse);
+
+            // When
+            OrderCreateResponse response = orderService.createOrderByUserPrincipal(principal, requestWithAmountCoupon);
+
+            // Then
+            assertThat(response).isNotNull();
+            assertThat(response.getOrderId()).isEqualTo("order123");
+            assertThat(response.getTotalPrice()).isEqualTo(58000L); // 정액 할인 적용된 금액
+            verify(orderRepository).save(any(Orders.class));
+            verify(orderPendingDetailsRepository).save(any());
+
+            // OrderPendingDetails 저장 검증
+            ArgumentCaptor<OrderPendingDetails> pendingDetailsCaptor = ArgumentCaptor.forClass(OrderPendingDetails.class);
+            verify(orderPendingDetailsRepository).save(pendingDetailsCaptor.capture());
+            OrderPendingDetails savedPendingDetails = pendingDetailsCaptor.getValue();
+            assertThat(savedPendingDetails.getCouponType()).isEqualTo(DiscountType.AMOUNT);
+            assertThat(savedPendingDetails.getCouponDiscountAmount()).isEqualTo(5000L);
+            assertThat(savedPendingDetails.getCouponDiscountRate()).isNull();
+        }
+
+        @Test
+        @DisplayName("새로운 방식 정률 할인 쿠폰 적용된 주문 생성 성공")
+        void createOrderWithPercentCouponType_Success() throws Exception {
+            // Given
+            OrderCreateRequest requestWithPercentCoupon = OrderCreateRequest.builder()
+                    .orderItems(Arrays.asList(
+                            OrderCreateRequest.OrderItemRequest.builder().productId("product1").quantity(2).build()))
+                    .paymentInfo(OrderCreateRequest.PaymentInfoRequest.builder()
+                            .orderName("강아지 사료")
+                            .couponType(DiscountType.PERCENT)
+                            .couponDiscountRate(20.0) // 20% 할인
+                            .build())
+                    .build();
+
+            given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "google123")).willReturn(Optional.of(buyerDTO));
+            given(userRepository.getReferenceById("user123")).willReturn(user);
+            given(productRepository.findById("product1")).willReturn(Optional.of(product1));
+            given(orderRepository.save(any(Orders.class))).willReturn(any(Orders.class));
+            doReturn("[]").when(objectMapper).writeValueAsString(any());
+            given(tossPaymentResponseBuilder.buildTossPaymentResponse(any(Orders.class), any(), anyString())).willReturn(any());
+
+            // When
+            OrderCreateResponse response = orderService.createOrderByUserPrincipal(principal, requestWithPercentCoupon);
+
+            // Then
+            verify(orderPendingDetailsRepository).save(any());
+            ArgumentCaptor<OrderPendingDetails> pendingDetailsCaptor = ArgumentCaptor.forClass(OrderPendingDetails.class);
+            verify(orderPendingDetailsRepository).save(pendingDetailsCaptor.capture());
+            OrderPendingDetails savedPendingDetails = pendingDetailsCaptor.getValue();
+            assertThat(savedPendingDetails.getCouponType()).isEqualTo(DiscountType.PERCENT);
+            assertThat(savedPendingDetails.getCouponDiscountRate()).isEqualTo(20.0);
+            assertThat(savedPendingDetails.getCouponDiscountAmount()).isNull();
+        }
+
+        @Test
+        @DisplayName("정액 할인이 주문 총액 초과 시 예외 발생")
+        void createOrderWithAmountCouponExceedingTotal_ThrowsException() {
+            // Given
+            OrderCreateRequest invalidRequest = OrderCreateRequest.builder()
+                    .orderItems(Collections.singletonList(
+                            OrderCreateRequest.OrderItemRequest.builder().productId("product1").quantity(1).build()))
+                    .paymentInfo(OrderCreateRequest.PaymentInfoRequest.builder()
+                            .orderName("강아지 사료")
+                            .couponType(DiscountType.AMOUNT)
+                            .couponDiscountAmount(50000L) // 상품 가격(10000원)보다 큰 할인
+                            .build())
+                    .build();
+
+            given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "google123")).willReturn(Optional.of(buyerDTO));
+            given(userRepository.getReferenceById("user123")).willReturn(user);
+            given(productRepository.findById("product1")).willReturn(Optional.of(product1));
+
+            // When & Then
+            assertThatThrownBy(() -> orderService.createOrderByUserPrincipal(principal, invalidRequest))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("쿠폰 할인 금액이 주문 총액을 초과할 수 없습니다.");
+        }
+
+        @Test
+        @DisplayName("쿠폰 타입과 할인 값 불일치 시 예외 발생")
+        void createOrderWithInconsistentCouponData_ThrowsException() {
+            // Given - PERCENT 타입인데 amount 값 설정
+            OrderCreateRequest invalidRequest = OrderCreateRequest.builder()
+                    .orderItems(Collections.singletonList(
+                            OrderCreateRequest.OrderItemRequest.builder().productId("product1").quantity(1).build()))
+                    .paymentInfo(OrderCreateRequest.PaymentInfoRequest.builder()
+                            .orderName("강아지 사료")
+                            .couponType(DiscountType.PERCENT)
+                            .couponDiscountAmount(5000L) // PERCENT 타입에 amount 설정 (잘못됨)
+                            .build())
+                    .build();
+
+            given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "google123")).willReturn(Optional.of(buyerDTO));
+            given(userRepository.getReferenceById("user123")).willReturn(user);
+            given(productRepository.findById("product1")).willReturn(Optional.of(product1));
+
+            // When & Then
+            assertThatThrownBy(() -> orderService.createOrderByUserPrincipal(principal, invalidRequest))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("정률 할인 쿠폰에는 할인 금액을 설정할 수 없습니다.");
+        }
+
+        @Test
+        @DisplayName("기존 방식 정률 할인 하위 호환성 확인")
+        void createOrderWithLegacyPercentCoupon_BackwardCompatibility() throws Exception {
+            // Given - couponType 없이 기존 방식
+            OrderCreateRequest legacyRequest = OrderCreateRequest.builder()
+                    .orderItems(Collections.singletonList(
+                            OrderCreateRequest.OrderItemRequest.builder().productId("product1").quantity(1).build()))
+                    .paymentInfo(OrderCreateRequest.PaymentInfoRequest.builder()
+                            .orderName("강아지 사료")
+                            .couponDiscountRate(15.0) // 기존 방식
+                            // couponType은 null
+                            .build())
+                    .build();
+
+            given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "google123")).willReturn(Optional.of(buyerDTO));
+            given(userRepository.getReferenceById("user123")).willReturn(user);
+            given(productRepository.findById("product1")).willReturn(Optional.of(product1));
+            given(orderRepository.save(any(Orders.class))).willReturn(any(Orders.class));
+            doReturn("[]").when(objectMapper).writeValueAsString(any());
+            given(tossPaymentResponseBuilder.buildTossPaymentResponse(any(Orders.class), any(), anyString())).willReturn(any());
+
+            // When
+            OrderCreateResponse response = orderService.createOrderByUserPrincipal(principal, legacyRequest);
+
+            // Then
+            verify(orderPendingDetailsRepository).save(any());
+            ArgumentCaptor<OrderPendingDetails> pendingDetailsCaptor = ArgumentCaptor.forClass(OrderPendingDetails.class);
+            verify(orderPendingDetailsRepository).save(pendingDetailsCaptor.capture());
+            OrderPendingDetails savedPendingDetails = pendingDetailsCaptor.getValue();
+            assertThat(savedPendingDetails.getCouponType()).isNull(); // 기존 방식
+            assertThat(savedPendingDetails.getCouponDiscountRate()).isEqualTo(15.0);
+            assertThat(savedPendingDetails.getCouponDiscountAmount()).isNull();
+        }
+    }
 }
