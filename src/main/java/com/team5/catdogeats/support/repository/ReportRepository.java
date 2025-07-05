@@ -39,24 +39,6 @@ public interface ReportRepository extends JpaRepository<Reports, String> {
     // 특정 대상에 대한 신고 목록 조회
     List<Reports> findByTargetIdOrderByCreatedAtDesc(String targetId);
 
-    // 신고 상태별 개수 조회
-    @Query("SELECT r.reportStatus, COUNT(r) FROM Reports r GROUP BY r.reportStatus")
-    List<Object[]> countReportsByStatus();
-
-    // 신고 유형별 개수 조회
-    @Query("SELECT r.reportType, COUNT(r) FROM Reports r GROUP BY r.reportType")
-    List<Object[]> countReportsByType();
-
-    // 최근 7일간 신고 개수 조회
-    @Query("SELECT DATE(r.createdAt), COUNT(r) FROM Reports r " +
-            "WHERE r.createdAt >= :startDate " +
-            "GROUP BY DATE(r.createdAt) " +
-            "ORDER BY DATE(r.createdAt)")
-    List<Object[]> countReportsLast7Days(@Param("startDate") ZonedDateTime startDate);
-
-    // 처리 대기 중인 신고 개수
-    long countByReportStatus(ReportStatus status);
-
     // 특정 사용자가 특정 대상에 대해 이미 신고했는지 확인
     @Query("SELECT r FROM Reports r " +
             "WHERE r.reporter.id = :reporterId " +

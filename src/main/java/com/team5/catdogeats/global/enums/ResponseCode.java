@@ -75,7 +75,6 @@ public enum ResponseCode {
     REPORT_STATUS_UPDATE_SUCCESS(HttpStatus.OK, "신고 상태가 성공적으로 변경되었습니다."),
     REPORT_LIST_SUCCESS(HttpStatus.OK, "신고 목록 조회 성공"),
     REPORT_DETAIL_SUCCESS(HttpStatus.OK, "신고 상세 조회 성공"),
-    REPORT_STATS_SUCCESS(HttpStatus.OK, "신고 통계 조회 성공"),
 
     // === 신고 대상 관련 오류 ===
     REPORT_TARGET_NOT_FOUND(HttpStatus.NOT_FOUND, "신고 대상을 찾을 수 없습니다."),

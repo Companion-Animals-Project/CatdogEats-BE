@@ -148,30 +148,6 @@ public class AdminReportController {
         }
     }
 
-    // 신고 통계 조회 (관리자 대시보드용)
-    @GetMapping("/reports/stats")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<ReportStatsResponseDto>> getReportStats(
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
-
-        try {
-            String adminId = getUserIdFromPrincipal(userPrincipal);
-
-            log.info("신고 통계 조회: adminId={}", adminId);
-
-            ReportStatsResponseDto stats = adminReportService.getReportStats();
-
-            return ResponseEntity.ok(
-                    ApiResponse.success(ResponseCode.REPORT_STATS_SUCCESS, stats)
-            );
-
-        } catch (Exception e) {
-            log.error("신고 통계 조회 중 오류 발생", e);
-            return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 통계 조회 중 오류가 발생했습니다."));
-        }
-    }
-
     // === 헬퍼 메서드 ===
 
     // UserPrincipal에서 실제 사용자 ID 추출

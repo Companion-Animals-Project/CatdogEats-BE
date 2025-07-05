@@ -16,7 +16,4 @@ public interface AdminReportService {
 
     // 신고 상태 변경 (관리자)
     void updateReportStatus(String reportId, ReportStatusUpdateDto updateDto, String adminId);
-
-    // 신고 통계 조회 (관리자 대시보드용)
-    ReportStatsResponseDto getReportStats();
 }

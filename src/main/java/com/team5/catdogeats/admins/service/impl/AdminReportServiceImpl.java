@@ -83,29 +83,6 @@ public class AdminReportServiceImpl implements AdminReportService {
         log.info("신고 상태 변경 완료: ID={}, 새 상태={}", reportId, updateDto.reportStatus());
     }
 
-    @Override
-    public ReportStatsResponseDto getReportStats() {
-        // 상태별 통계
-        List<Object[]> statusStats = reportRepository.countReportsByStatus();
-
-        // 타입별 통계
-        List<Object[]> typeStats = reportRepository.countReportsByType();
-
-        // 최근 7일 통계
-        ZonedDateTime weekAgo = ZonedDateTime.now().minusDays(7);
-        List<Object[]> weeklyStats = reportRepository.countReportsLast7Days(weekAgo);
-
-        // 처리 대기 건수
-        long pendingCount = reportRepository.countByReportStatus(ReportStatus.PENDING);
-
-        return ReportStatsResponseDto.builder()
-                .statusStats(statusStats)
-                .typeStats(typeStats)
-                .weeklyStats(weeklyStats)
-                .pendingCount(pendingCount)
-                .build();
-    }
-
     // === 헬퍼 메서드 ===
 
     // Reports 엔티티를 ReportListResponseDto로 변환
