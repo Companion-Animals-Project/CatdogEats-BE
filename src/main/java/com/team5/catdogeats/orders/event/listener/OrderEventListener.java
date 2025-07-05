@@ -22,6 +22,7 @@ import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.products.service.ProductStockManager;
 import com.team5.catdogeats.products.service.StockReservationService;
 import com.team5.catdogeats.users.domain.mapping.Buyers;
+import com.team5.catdogeats.users.domain.mapping.Sellers;
 import com.team5.catdogeats.users.repository.BuyerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -166,7 +167,8 @@ public class OrderEventListener {
             log.info("OrderItems 생성 완료: orderId={}, itemCount={}", orderId, orderItems.size());
 
             if (event.shippingAddress() != null) {
-                Shipments shipment = createShipment(order, event.shippingAddress());
+                Sellers seller = getSellerFromOrderItems(orderItems);
+                Shipments shipment = createShipment(order, event.shippingAddress(), seller);
                 shipmentRepository.save(shipment);
                 log.info("Shipments 생성 완료: orderId={}, shipmentId={}, 수령인={}",
                         orderId, shipment.getId(), shipment.getRecipientName());
@@ -288,10 +290,11 @@ public class OrderEventListener {
                 .collect(Collectors.toList());
     }
 
-    private Shipments createShipment(Orders order, OrderCreateRequest.ShippingAddressRequest shippingAddress) {
+    private Shipments createShipment(Orders order, OrderCreateRequest.ShippingAddressRequest shippingAddress, Sellers seller) {
         return Shipments.builder()
                 .orders(order)
                 .user(order.getUser())
+                .seller(seller)
                 .recipientName(shippingAddress.getRecipientName())
                 .recipientPhone(shippingAddress.getRecipientPhone())
                 .postalCode(shippingAddress.getPostalCode())
@@ -316,5 +319,17 @@ public class OrderEventListener {
             log.error("재고 예약 보상 처리 실패: orderId={}, reason={}, error={}",
                     orderId, reason, e.getMessage(), e);
         }
+    }
+    /**
+     * OrderItems에서 seller 정보 추출
+     */
+    private Sellers getSellerFromOrderItems(List<OrderItems> orderItems) {
+        if (orderItems == null || orderItems.isEmpty()) {
+            log.warn("OrderItems가 비어있어 seller 정보를 가져올 수 없습니다");
+            return null;
+        }
+
+        OrderItems firstOrderItem = orderItems.get(0);
+        return firstOrderItem.getProducts().getSeller();
     }
 }
