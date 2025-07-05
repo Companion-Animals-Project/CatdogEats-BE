@@ -1,7 +1,7 @@
 package com.team5.catdogeats.reviews.service.impl;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.global.config.JpaTransactional;
+import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.pets.domain.dto.PetInfoResponseDto;
 import com.team5.catdogeats.pets.domain.enums.Gender;
 import com.team5.catdogeats.products.domain.Products;
@@ -24,7 +24,10 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
 
 @Service
 @RequiredArgsConstructor
@@ -117,6 +120,7 @@ public class ReviewServiceImpl implements ReviewService {
                     new ProductReviewResponseDtoBuilder(
                             row.reviewId,
                             row.writerName,
+                            row.nameMaskingStatus,
                             row.star,
                             row.contents,
                             row.updatedAt

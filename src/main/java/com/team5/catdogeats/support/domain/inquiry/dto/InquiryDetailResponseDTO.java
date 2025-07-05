@@ -7,7 +7,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-//문의 상세 조회용 응답 DTO
+//문의 상세 조회용 응답 DTO (유저/관리자)
 public record InquiryDetailResponseDTO(
         String inquiryId,
         String title,
@@ -24,33 +24,27 @@ public record InquiryDetailResponseDTO(
 
         // 주문 정보 (있는 경우)
         OrderInfo orderInfo,
-
-        // 답변들
-        List<InquiryReplyResponseDTO> replies,
-
-        List<InquiryAttachmentDTO> attachedImages
+        List<InquiryMessageDTO> messages
 ) {
+    private static final DateTimeFormatter ADMIN_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter USER_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
 
-    // 주문 정보 DTO
     public record OrderInfo(
             String orderId,
             String orderNumber,
-            String orderDate) {
-    }
+            String orderDate
+    ) {}
 
-    // Inquires 엔티티에서 DTO 생성
-    public static InquiryDetailResponseDTO from(Inquires inquiry, List<InquiryReplyResponseDTO> replies, List<InquiryAttachmentDTO> attachedImages) {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        ZoneId koreaZone = ZoneId.of("Asia/Seoul");
-
-        // 주문 정보 변환
+    // 관리자 상세 조회
+    public static InquiryDetailResponseDTO forAdmin(Inquires inquiry, List<InquiryMessageDTO> messages) {
         OrderInfo orderInfo = null;
         if (inquiry.getOrders() != null) {
             Orders order = inquiry.getOrders();
             orderInfo = new OrderInfo(
                     order.getId(),
                     order.getOrderNumber().toString(),
-                    order.getCreatedAt().withZoneSameInstant(koreaZone).format(formatter)
+                    order.getCreatedAt().withZoneSameInstant(KOREA_ZONE).format(ADMIN_FORMATTER)
             );
         }
 
@@ -62,12 +56,29 @@ public record InquiryDetailResponseDTO(
                 inquiry.getInquiryStatus().getDisplayName(),
                 inquiry.getInquiryReceiveMethod().getDisplayName(),
                 inquiry.getInquiryUrgentLevel().getDisplayName(),
-                inquiry.getCreatedAt().withZoneSameInstant(koreaZone).format(formatter),
-                inquiry.getUpdatedAt().withZoneSameInstant(koreaZone).format(formatter),
+                inquiry.getCreatedAt().withZoneSameInstant(KOREA_ZONE).format(ADMIN_FORMATTER),
+                inquiry.getUpdatedAt().withZoneSameInstant(KOREA_ZONE).format(ADMIN_FORMATTER),
                 inquiry.getUsers().getName(),
                 orderInfo,
-                replies,
-                attachedImages
+                messages
+        );
+    }
+
+    // 유저 상세 조회 (간소화)
+    public static InquiryDetailResponseDTO forUser(Inquires inquiry, List<InquiryMessageDTO> messages) {
+        return new InquiryDetailResponseDTO(
+                inquiry.getId(),
+                inquiry.getTitle(),
+                inquiry.getContent(),
+                null, // 유저는 유형 불필요
+                inquiry.getInquiryStatus().getDisplayName(),
+                null, // 유저는 수신방법 불필요
+                null, // 유저는 긴급도 불필요
+                inquiry.getCreatedAt().withZoneSameInstant(KOREA_ZONE).format(USER_FORMATTER),
+                null, // 유저는 수정일 불필요
+                null, // 유저는 본인 이름 불필요
+                null, // 유저는 주문정보 간소화 (필요시 별도 처리)
+                messages
         );
     }
 }

@@ -1,5 +1,6 @@
 package com.team5.catdogeats.support.domain.inquiry.service;
 
+import com.team5.catdogeats.support.domain.enums.InquiryUrgentLevel;
 import com.team5.catdogeats.support.domain.inquiry.dto.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -10,13 +11,20 @@ public interface InquiryService {
     // === 사용자 기능 (판매자, 구매자) - 간소화된 정보 ===
 
     // 사용자용 문의 목록 조회 (간소화)
-    Page<UserInquiryListResponseDTO> getUserInquiries(String providerId, Pageable pageable);
+    Page<InquiryListResponseDTO> getUserInquiries(String providerId, Pageable pageable);
 
     // 사용자용 문의 상세 조회 (간소화)
-    UserInquiryDetailResponseDTO getUserInquiryDetail(String inquiryId, String providerId);
+    InquiryDetailResponseDTO getUserInquiryDetail(String inquiryId, String providerId);
 
-    // 문의 등록 (상세한 정보 반환)
+    // 최초 문의 등록 (상세한 정보 반환)
     InquiryResponseDTO createInquiry(String providerId, InquiryCreateRequestDTO request);
+
+    // 사용자용 답글 등록 (스레드 형태)
+    InquiryResponseDTO createUserFollowup(String inquiryId, String providerId, InquiryRequestDTO request);
+
+    // 유저 문의 종료 (사유 없음)
+    InquiryResponseDTO closeInquiryByUser(String inquiryId, String providerId);
+
 
 
     // === 관리자 전용 기능 - 전체 정보 ===
@@ -27,6 +35,13 @@ public interface InquiryService {
     // 관리자용 문의 상세 조회 (전체 정보)
     InquiryDetailResponseDTO getInquiryDetailForAdmin(String inquiryId);
 
-    // 답변 등록 (관리자만)
-    InquiryResponseDTO createReply(String inquiryId, String adminId, InquiryReplyRequestDTO request);
+    // 관리자 답변 (최초/추가)
+    InquiryResponseDTO createAdminReply(String inquiryId, String adminId, InquiryRequestDTO request);
+
+    // 관리자 강제 종료 (사유 필수)
+    InquiryResponseDTO closeInquiryByAdmin(String inquiryId, String adminId, InquiryRequestDTO request);
+
+    // 긴급도 수정
+    InquiryResponseDTO updateUrgentLevel(String inquiryId, InquiryUrgentLevel urgentLevel);
+
 }

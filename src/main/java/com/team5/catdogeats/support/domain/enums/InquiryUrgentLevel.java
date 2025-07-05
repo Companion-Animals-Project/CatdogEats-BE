@@ -4,7 +4,7 @@ package com.team5.catdogeats.support.domain.enums;
 
 public enum InquiryUrgentLevel {
     HIGH("높음"),
-    MEDIUM("중간"),
+    MIDDLE("중간"),
     LOW("낮음");
 
     private final String displayName;

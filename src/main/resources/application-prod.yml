@@ -7,6 +7,29 @@ spring:
     jdbc:
       initialize-schema: always
 
+  # 세션 설정 (Redis 기반)
+  session:
+    store-type: redis
+    timeout: 30m  # 30분 세션 만료
+
+  # 이메일 설정
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+        mime:
+          charset: UTF-8
+    default-encoding: UTF-8
+
+
   # 데이터베이스 연결 설정
   datasource: # 여러 DBaaS에서 가져오기
     url: ${DB_URL} # 데이터베이스 URL
@@ -128,3 +151,55 @@ cloud:
       bucket: ${S3_BUCKET_NAME}
     cloudfront:
       domain: ${CLOUD_FRONT_DOMAIN_NAME}
+
+toss:
+  payments:
+    # 클라이언트 키 (개발환경용 - 환경변수 권장)
+    client-key: ${TOSS_CLIENT_KEY}
+
+    # 시크릿 키 (개발환경용 - 환경변수 권장)
+    secret-key: ${TOSS_SECRET_KEY}
+
+    # 결제 성공 시 리디렉션 URL
+    success-url: http://localhost:8080/v1/buyers/payments/success
+
+    # 결제 실패 시 리디렉션 URL
+    fail-url: http://localhost:8080/v1/buyers/payments/fail
+
+    # 토스 페이먼츠 API 기본 설정
+    api:
+      base-url: https://api.tosspayments.com/
+      version: "2022-11-16"
+
+    # 결제 관련 기본 설정
+    order:
+      # 주문번호 접두사 (선택사항)
+      prefix: "CATDOG"
+
+      # 결제 타임아웃 (분 단위)
+      timeout-minutes: 10
+
+# 관리자 관련 설정
+admin:
+  # 슈퍼관리자 초기 계정 설정
+  super:
+    email: ${ADMIN_SUPER_EMAIL}
+    name: ${ADMIN_SUPER_NAME}
+    password: ${ADMIN_SUPER_PASSWORD}
+
+  # 초대 관련 설정
+  invitation:
+    expiration-hours: ${ADMIN_INVITATION_EXPIRATION_HOURS:1}
+  # Redis 관련 설정
+  redis:
+    verification-code-prefix: ${ADMIN_REDIS_VERIFICATION_PREFIX:admin:verification:}
+  # 세션 관련 설정
+  session:
+    key: ${ADMIN_SESSION_KEY:ADMIN_USER}
+
+
+
+# 애플리케이션 설정
+app:
+  admin:
+    base-url: ${APP_BASE_URL}  # 이메일 링크용 (운영 도메인)

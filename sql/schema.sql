@@ -188,24 +188,26 @@ CREATE TABLE reviews_images (
 -- PAYMENT_PENDING 상태가 장바구니에 있을 때 상태에요
 CREATE TABLE orders (
                         id BIGINT PRIMARY KEY,
+                        order_number BIGINT NOT NULL UNIQUE,               -- 새로 추가됨
                         user_id VARCHAR(36) NOT NULL,
                         order_status ENUM(
-                            'PAYMENT_PENDING',
-                            'PAYMENT_COMPLETED',
-                            'PREPARING',
-                            'READY_FOR_SHIPMENT',
-                            'IN_DELIVERY',
-                            'DELIVERED',
-                            'CANCELLED',
-                            'REFUND_PROCESSING',
-                            'REFUNDED'
-                            ) ,
+                               'PAYMENT_PENDING',
+                               'PAYMENT_COMPLETED',
+                               'PREPARING',
+                               'READY_FOR_SHIPMENT',
+                               'IN_DELIVERY',
+                               'DELIVERED',
+                               'CANCELLED',
+                               'REFUND_PROCESSING',
+                               'REFUNDED'
+                               ),
                         total_price BIGINT NOT NULL,
+                        is_hidden BOOLEAN NOT NULL DEFAULT FALSE,          -- 주문 내역 숨김 기능
+                        hidden_at DATETIME NULL,                           -- 숨김 처리 시각
                         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                         CONSTRAINT fk_orders_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
-
 -- 재고 예약 테이블
 CREATE TABLE IF NOT EXISTS stock_reservations (
                                                   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -272,7 +274,7 @@ CREATE TABLE orders_compare_llm (
 -- 주문 상세 페이지에 사용되는것!
 CREATE TABLE order_items (
                              id VARCHAR(36) PRIMARY KEY,
-                             order_id BIGINT NOT NULL, -- 주문 번호는 유저에게 보이기 때문에 숫자로
+                             order_id VARCHAR(36) NOT NULL, -- 주문 번호는 유저에게 보이기 때문에 숫자로
                              product_id VARCHAR(36) NOT NULL,
                              quantity INT UNSIGNED NOT NULL,
                              price BIGINT NOT NULL,  -- 주문 시점 상품 가격 저장 (변경 대비)
@@ -377,17 +379,29 @@ CREATE TABLE order_issue_items (
 -- 배송 추적은 api를 연동하기 때문에 우리 db는 간단히 저장
 CREATE TABLE shipments (
                            id VARCHAR(36) PRIMARY KEY,
-                           order_id VARCHAR(36) NOT NULL,
-                           seller_id VARCHAR(36) NOT NULL,
-                           courier VARCHAR(50) NOT NULL,            -- 택배사 이름 (e.g., CJ, 로젠, 우체국)
-                           tracking_number VARCHAR(100) NOT NULL,   -- 송장 번호
-                           shipped_at DATETIME,                     -- 발송일자 (선택)
-                           delivered_at DATETIME,                   -- 배송 완료일자 (API 연동 시 업데이트 가능)
+                           order_id BIGINT NOT NULL UNIQUE,                   -- 일대일 관계
+
+    -- 배송지 정보 (orders에서 이전됨)
+                           recipient_name VARCHAR(100) NOT NULL,              -- 받는 사람 이름
+                           recipient_phone VARCHAR(20) NOT NULL,              -- 받는 사람 연락처
+                           postal_code VARCHAR(10) NOT NULL,                  -- 우편번호
+                           shipping_address VARCHAR(500) NOT NULL,            -- 배송 주소
+                           detail_address VARCHAR(200),                       -- 상세 주소
+                           delivery_note VARCHAR(500),                        -- 배송 요청사항
+
+    -- 배송 추적 정보 (기존 유지, NULL 허용으로 변경)
+                           seller_id VARCHAR(36) NULL,                        -- 판매자 ID
+                           courier VARCHAR(50) NULL,                          -- 택배사
+                           tracking_number VARCHAR(100) NULL,                 -- 운송장 번호
+                           shipped_at DATETIME,                               -- 발송일자
+                           delivered_at DATETIME,                             -- 배송 완료일자
+
                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
                            CONSTRAINT fk_shipments_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-                           CONSTRAINT fk_shipments_seller FOREIGN KEY (seller_id) REFERENCES sellers(user_id)
+                           CONSTRAINT fk_shipments_seller FOREIGN KEY (seller_id) REFERENCES sellers(user_id),
+                           CONSTRAINT uk_shipments_order_id UNIQUE (order_id)  -- 일대일 관계 보장
 );
 
 -- 정산 테이블이고 이 테이블은 좀 더 고민해봐야함 사유 : 정산 로직을 정하지 않았기 때문
@@ -512,10 +526,11 @@ CREATE TABLE inquiries (
                            admin_id VARCHAR(36) NULL,
                            title VARCHAR(255) NULL,
                            content TEXT NOT NULL,
-                           status ENUM('pending', 'answered') NOT NULL DEFAULT 'pending',
-                           type ENUM('product', 'order', 'payment', 'delivery', 'return', 'account', 'etc') NOT NULL,
-                           receive_method ENUM('web', 'call', 'sms', 'none') NOT NULL DEFAULT 'web',
-                           urgent_level ENUM('high', 'medium', 'low') NOT NULL DEFAULT 'medium',
+                           status ENUM('PENDING', 'ANSWERED', 'FOLLOWUP', 'CLOSED', 'FORCE_CLOSED') NOT NULL DEFAULT 'PENDING',
+                           type ENUM('PRODUCT', 'ORDER', 'PAYMENT', 'DELIVERY', 'RETURN', 'ACCOUNT', 'ETC') NOT NULL,
+                           receive_method ENUM('WEB', 'CALL', 'SMS', 'NONE') NOT NULL DEFAULT 'WEB',
+                           urgent_level ENUM('HIGH', 'MIDDLE', 'LOW') NOT NULL,
+                           message_type ENUM('QUESTION', 'ANSWER', 'USER_FOLLOWUP', 'ADMIN_FOLLOWUP'),
                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                            FOREIGN KEY (user_id) REFERENCES users(id),
