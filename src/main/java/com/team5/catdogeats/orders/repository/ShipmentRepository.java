@@ -65,7 +65,7 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
     AND ps.userId = :sellerId
     """)
     Optional<Shipments> findShippingInfoByOrderNumberAndSeller(
-            @Param("orderNumber") Long orderNumber,
+            @Param("orderNumber") String orderNumber,
             @Param("sellerId") String sellerId
     );
 }

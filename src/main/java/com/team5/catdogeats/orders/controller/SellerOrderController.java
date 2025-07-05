@@ -40,7 +40,7 @@ public class SellerOrderController {
     @GetMapping("/{order-number}")
     public ResponseEntity<SellerOrderDetailResponse> getSellerOrderDetail(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @PathVariable("order-number") Long orderNumber) {
+            @PathVariable("order-number") String orderNumber) {
 
         log.info("배송 고객 주소 조회 요청 - provider: {}, providerId: {}, orderNumber: {}",
                 userPrincipal.provider(), userPrincipal.providerId(), orderNumber);

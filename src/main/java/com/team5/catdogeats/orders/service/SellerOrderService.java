@@ -31,5 +31,5 @@ public interface SellerOrderService {
      * @throws NoSuchElementException 주문이 존재하지 않거나 접근 권한이 없는 경우
      * @throws IllegalArgumentException 판매자 권한이 없는 경우
      */
-    SellerOrderDetailResponse getSellerOrderDetail(UserPrincipal userPrincipal, Long orderNumber);
+    SellerOrderDetailResponse getSellerOrderDetail(UserPrincipal userPrincipal, String orderNumber);
 }

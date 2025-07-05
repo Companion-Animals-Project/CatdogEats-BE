@@ -37,7 +37,7 @@ public class SellerOrderServiceImpl implements SellerOrderService {
      * 판매자 권한 검증 후 해당 판매자의 상품만 필터링하여 반환합니다.
      */
     @Override
-    public SellerOrderDetailResponse getSellerOrderDetail(UserPrincipal userPrincipal, Long orderNumber) {
+    public SellerOrderDetailResponse getSellerOrderDetail(UserPrincipal userPrincipal, String orderNumber) {
         log.info("판매자용 주문 상세 조회 요청 - provider: {}, providerId: {}, orderNumber: {}",
                 userPrincipal.provider(), userPrincipal.providerId(), orderNumber);
 

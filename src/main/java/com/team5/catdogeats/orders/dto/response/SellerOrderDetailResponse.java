@@ -14,7 +14,7 @@ import java.util.List;
  */
 @Builder
 public record SellerOrderDetailResponse(
-        Long orderNumber,
+        String orderNumber,
 
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
         ZonedDateTime orderDate,
@@ -63,7 +63,7 @@ public record SellerOrderDetailResponse(
      * @return 판매자용 주문 상세 응답 DTO
      */
     public static SellerOrderDetailResponse success(
-            Long orderNumber,
+            String orderNumber,
             ZonedDateTime orderDate,
             OrderStatus orderStatus,
             RecipientInfo recipientInfo,
