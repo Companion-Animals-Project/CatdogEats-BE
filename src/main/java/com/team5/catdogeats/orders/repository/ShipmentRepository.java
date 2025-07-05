@@ -31,7 +31,7 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
     JOIN FETCH s.orders o
     WHERE o.orderNumber = :orderNumber
     """)
-    Optional<Shipments> findByOrderNumber(@Param("orderNumber") Long orderNumber);
+    Optional<Shipments> findByOrderNumber(@Param("orderNumber") String orderNumber);
 
     /**
      * 운송장 번호로 배송 정보 조회
