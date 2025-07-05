@@ -635,4 +635,28 @@ CREATE TABLE BATCH_JOB_EXECUTION_CONTEXT (
                                                  REFERENCES BATCH_JOB_EXECUTION(JOB_EXECUTION_ID)
 );
 
+-- 배치 실행 상태 관리 테이블
+CREATE TABLE IF NOT EXISTS batch_execution_status (
+                                                      id BIGSERIAL PRIMARY KEY,
+                                                      batch_name VARCHAR(100) NOT NULL UNIQUE,
+                                                      execution_status VARCHAR(20) NOT NULL CHECK (execution_status IN ('IDLE', 'RUNNING', 'COMPLETED', 'FAILED')),
+                                                      started_at TIMESTAMP WITH TIME ZONE,
+                                                      finished_at TIMESTAMP WITH TIME ZONE,
+                                                      last_execution_id VARCHAR(100),
+                                                      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                                                      updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- 인덱스 생성
+CREATE INDEX IF NOT EXISTS idx_batch_execution_status_name_status
+    ON batch_execution_status(batch_name, execution_status);
+
+-- 초기 데이터 삽입 (정산 배치용)
+INSERT INTO batch_execution_status (batch_name, execution_status)
+VALUES
+    ('SETTLEMENT_CREATE', 'IDLE'),
+    ('SETTLEMENT_UPDATE', 'IDLE'),
+    ('SETTLEMENT_COMPLETE', 'IDLE')
+ON CONFLICT (batch_name) DO NOTHING;
+
 -- =========================================================================================================
