@@ -186,6 +186,7 @@ CREATE TABLE reviews_images (
 
 -- 주문 정보 테아블이고 장바구니도 포함입니다!
 -- PAYMENT_PENDING 상태가 장바구니에 있을 때 상태에요
+-- orders 테이블 (판매자 관리용 필드 추가)
 CREATE TABLE orders (
                         id BIGINT PRIMARY KEY,
                         order_number BIGINT NOT NULL UNIQUE,               -- 새로 추가됨
@@ -204,6 +205,8 @@ CREATE TABLE orders (
                         total_price BIGINT NOT NULL,
                         is_hidden BOOLEAN NOT NULL DEFAULT FALSE,          -- 주문 내역 숨김 기능
                         hidden_at DATETIME NULL,                           -- 숨김 처리 시각
+                        status_updated_by VARCHAR(36) NULL,                -- 상태 변경한 사용자 ID
+                        status_change_reason VARCHAR(500) NULL,            -- 상태 변경 사유
                         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                         CONSTRAINT fk_orders_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -389,7 +392,7 @@ CREATE TABLE order_pending_details (
                                        CONSTRAINT fk_order_pending_details_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
--- 배송 추적은 api를 연동하기 때문에 우리 db는 간단히 저장
+-- shipments 테이블 (판매자 배송 관리 컬럼 추가)
 CREATE TABLE shipments (
                            id VARCHAR(36) PRIMARY KEY,
                            order_id BIGINT NOT NULL UNIQUE,                   -- 일대일 관계
@@ -402,19 +405,26 @@ CREATE TABLE shipments (
                            detail_address VARCHAR(200),                       -- 상세 주소
                            delivery_note VARCHAR(500),                        -- 배송 요청사항
 
-    -- 배송 추적 정보 (기존 유지, NULL 허용으로 변경)
+    -- 배송 추적 정보
                            seller_id VARCHAR(36) NULL,                        -- 판매자 ID
                            courier VARCHAR(50) NULL,                          -- 택배사
                            tracking_number VARCHAR(100) NULL,                 -- 운송장 번호
                            shipped_at DATETIME,                               -- 발송일자
                            delivered_at DATETIME,                             -- 배송 완료일자
 
+    -- 판매자 배송 관리 추가 필드
+                           is_hidden_by_seller BOOLEAN DEFAULT FALSE,         -- 판매자 목록 숨김 여부
+                           hidden_by_seller_at DATETIME NULL,                 -- 판매자 숨김 처리 시각
+                           shipment_memo VARCHAR(500) NULL,                   -- 배송 메모
+                           tracking_updated_at DATETIME NULL,                 -- 운송장 정보 최종 업데이트 시각
+
                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
                            CONSTRAINT fk_shipments_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
                            CONSTRAINT fk_shipments_seller FOREIGN KEY (seller_id) REFERENCES sellers(user_id),
-                           CONSTRAINT uk_shipments_order_id UNIQUE (order_id)  -- 일대일 관계 보장
+                           CONSTRAINT uk_shipments_order_id UNIQUE (order_id),  -- 일대일 관계 보장
+                           CONSTRAINT uk_shipments_courier_tracking UNIQUE (courier, tracking_number)
 );
 
 -- 정산 테이블이고 이 테이블은 좀 더 고민해봐야함 사유 : 정산 로직을 정하지 않았기 때문
