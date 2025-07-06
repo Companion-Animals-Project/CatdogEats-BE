@@ -2,7 +2,6 @@ package com.team5.catdogeats.admins.service.impl;
 
 import com.team5.catdogeats.admins.domain.dto.ReportDetailResponseDto;
 import com.team5.catdogeats.admins.domain.dto.ReportSearchDto;
-import com.team5.catdogeats.admins.domain.dto.ReportStatsResponseDto;
 import com.team5.catdogeats.admins.domain.dto.ReportStatusUpdateDto;
 import com.team5.catdogeats.admins.service.AdminReportService;
 import com.team5.catdogeats.products.domain.Products;
@@ -39,10 +38,8 @@ public class AdminReportServiceImpl implements AdminReportService {
 
     @Override
     public PageResponseDto<ReportListResponseDto> getReports(ReportSearchDto searchDto) {
-        ZonedDateTime startDate = searchDto.startDate() != null ?
-                searchDto.startDate().atStartOfDay(java.time.ZoneId.systemDefault()) : null;
-        ZonedDateTime endDate = searchDto.endDate() != null ?
-                searchDto.endDate().atTime(23, 59, 59).atZone(java.time.ZoneId.systemDefault()) : null;
+        ZonedDateTime startDate = searchDto.startDate();
+        ZonedDateTime endDate = searchDto.endDate();
 
         Pageable pageable = PageRequest.of(searchDto.page(), searchDto.size());
 

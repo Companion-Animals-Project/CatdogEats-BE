@@ -2,7 +2,6 @@ package com.team5.catdogeats.admins.service;
 
 import com.team5.catdogeats.admins.domain.dto.ReportDetailResponseDto;
 import com.team5.catdogeats.admins.domain.dto.ReportSearchDto;
-import com.team5.catdogeats.admins.domain.dto.ReportStatsResponseDto;
 import com.team5.catdogeats.admins.domain.dto.ReportStatusUpdateDto;
 import com.team5.catdogeats.support.domain.dto.PageResponseDto;
 import com.team5.catdogeats.support.domain.dto.ReportListResponseDto;

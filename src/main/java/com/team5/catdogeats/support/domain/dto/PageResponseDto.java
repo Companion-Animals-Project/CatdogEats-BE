@@ -19,7 +19,7 @@ public record PageResponseDto<T>(
     public static <T> PageResponseDto<T> of(List<T> content, int page, int size, long totalElements) {
         int totalPages = (int) Math.ceil((double) totalElements / size);
         boolean first = page == 0;
-        boolean last = page == totalPages - 1;
+        boolean last = totalElements == 0 ? true : page == totalPages - 1;
         boolean hasNext = page < totalPages - 1;
         boolean hasPrevious = page > 0;
 
