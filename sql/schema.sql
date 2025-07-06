@@ -672,4 +672,97 @@ VALUES
     ('SETTLEMENT_COMPLETE', 'IDLE')
 ON CONFLICT (batch_name) DO NOTHING;
 
+-- =============================================================================
+-- 1. 정산 생성 배치 최적화 인덱스
+--
+-- 대상 쿼리: findUnsettledItems()
+-- WHERE s.delivered_at IS NOT NULL
+--   AND s.delivered_at >= CURRENT_DATE - INTERVAL '10 days'
+--   AND o.order_status = 'DELIVERED' AND o.is_hidden = false
+--   AND NOT EXISTS (SELECT 1 FROM settlements WHERE order_item_id = oi.id)
+-- ORDER BY s.delivered_at ASC, oi.id ASC
+-- =============================================================================
+
+-- 1-1. shipments 테이블: 날짜 필터링 + JOIN 최적화
+-- delivered_at 범위 조건 + ORDER BY 최적화
+CREATE INDEX IF NOT EXISTS idx_shipments_delivered_date_order_performance
+    ON shipments (delivered_at ASC, order_id)
+    WHERE delivered_at IS NOT NULL;
+
+COMMENT ON INDEX idx_shipments_delivered_date_order_performance IS
+    '정산 생성 배치: delivered_at 범위 조건 + JOIN 최적화 + ORDER BY 지원';
+
+-- 1-2. orders 테이블: 상태 필터링 최적화
+-- order_status, is_hidden 조건 빠른 필터링
+CREATE INDEX IF NOT EXISTS idx_orders_delivered_status_performance
+    ON orders (order_status, is_hidden, id)
+    WHERE order_status = 'DELIVERED' AND is_hidden = false;
+
+COMMENT ON INDEX idx_orders_delivered_status_performance IS
+    '정산 생성 배치: 배송완료 + 숨김처리되지 않은 주문 빠른 조회';
+
+-- 1-3. order_items 테이블: JOIN 성능 향상
+-- 효과: orders → order_items JOIN 최적화
+CREATE INDEX IF NOT EXISTS idx_order_items_order_join_performance
+    ON order_items (order_id, id, product_id);
+
+COMMENT ON INDEX idx_order_items_order_join_performance IS
+    '정산 생성 배치: orders와 JOIN 성능 향상 + products JOIN 준비';
+
+-- 1-4. settlements 테이블: NOT EXISTS 성능 최적화
+-- 효과: 정산 중복 체크 성능 향상
+CREATE INDEX IF NOT EXISTS idx_settlements_order_item_exists_check
+    ON settlements (order_item_id)
+    WHERE order_item_id IS NOT NULL;
+
+COMMENT ON INDEX idx_settlements_order_item_exists_check IS
+    '정산 생성 배치: NOT EXISTS 서브쿼리 성능 최적화 ';
+
+-- =============================================================================
+-- 2. 정산 상태 갱신 배치 최적화 인덱스
+--
+-- 대상 쿼리: findPendingSettlementsReadyForProgress()
+-- WHERE st.settlement_status = 'PENDING'
+--   AND s.delivered_at < CURRENT_DATE - INTERVAL '6 days'
+--   AND s.delivered_at >= CURRENT_DATE - INTERVAL '180 days'
+-- ORDER BY s.delivered_at ASC, st.id ASC
+-- =============================================================================
+
+-- 2-1. settlements 테이블: 상태별 조회 최적화
+-- PENDING 상태 정산 빠른 조회 + ORDER BY 지원
+CREATE INDEX IF NOT EXISTS idx_settlements_pending_status_performance
+    ON settlements (settlement_status, id, order_item_id)
+    WHERE settlement_status = 'PENDING';
+
+COMMENT ON INDEX idx_settlements_pending_status_performance IS
+    '정산 갱신 배치: PENDING 상태 정산 조회 + JOIN 최적화';
+
+-- 2-2. shipments 테이블: 갱신용 날짜 범위 최적화
+-- 효과: 6-180일 전 배송 범위 빠른 조회
+CREATE INDEX IF NOT EXISTS idx_shipments_update_date_range_performance
+    ON shipments (delivered_at ASC, order_id)
+    WHERE delivered_at IS NOT NULL
+        AND delivered_at >= CURRENT_DATE - INTERVAL '180 days';
+
+COMMENT ON INDEX idx_shipments_update_date_range_performance IS
+    '정산 갱신 배치: 6-180일 배송완료 범위 조회 최적화';
+
+-- =============================================================================
+-- 3. 정산 완료 배치 최적화 인덱스
+--
+-- 대상 쿼리: findInProgressSettlements()
+-- WHERE st.settlement_status = 'IN_PROGRESS'
+--   AND st.created_at >= CURRENT_DATE - INTERVAL '60 days'
+-- ORDER BY st.created_at ASC, st.id ASC
+-- =============================================================================
+
+-- 3-1. settlements 테이블: IN_PROGRESS 상태 + 날짜 최적화
+-- 완료 대상 정산 빠른 조회 + ORDER BY 지원
+CREATE INDEX IF NOT EXISTS idx_settlements_inprogress_complete_performance
+    ON settlements (settlement_status, created_at ASC, id)
+    WHERE settlement_status = 'IN_PROGRESS';
+
+COMMENT ON INDEX idx_settlements_inprogress_complete_performance IS
+    '정산 완료 배치: IN_PROGRESS 상태 + 최근 60일 조회 + 정렬 최적화';
+
 -- =========================================================================================================
