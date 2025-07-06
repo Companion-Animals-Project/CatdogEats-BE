@@ -1,6 +1,6 @@
 package com.team5.catdogeats.batch.mapper;
 
-import com.team5.catdogeats.batch.domain.entity.BatchExecutionStatus;
+import com.team5.catdogeats.batch.domain.SettlementBatchExecutionStatus;
 import org.apache.ibatis.annotations.*;
 
 import java.time.OffsetDateTime;
@@ -33,7 +33,7 @@ public interface BatchExecutionStatusMapper {
             @Result(property = "createdAt", column = "created_at"),
             @Result(property = "updatedAt", column = "updated_at")
     })
-    Optional<BatchExecutionStatus> findByBatchName(@Param("batchName") String batchName);
+    Optional<SettlementBatchExecutionStatus> findByBatchName(@Param("batchName") String batchName);
 
     /**
      * 배치 실행 락 획득 시도 (FOR UPDATE 사용)
@@ -57,7 +57,7 @@ public interface BatchExecutionStatusMapper {
             @Result(property = "createdAt", column = "created_at"),
             @Result(property = "updatedAt", column = "updated_at")
     })
-    Optional<BatchExecutionStatus> findByBatchNameForUpdate(@Param("batchName") String batchName);
+    Optional<SettlementBatchExecutionStatus> findByBatchNameForUpdate(@Param("batchName") String batchName);
 
     /**
      * 배치 상태를 실행중으로 변경
@@ -138,7 +138,7 @@ public interface BatchExecutionStatusMapper {
             @Result(property = "createdAt", column = "created_at"),
             @Result(property = "updatedAt", column = "updated_at")
     })
-    java.util.List<BatchExecutionStatus> findRunningBatches();
+    java.util.List<SettlementBatchExecutionStatus> findRunningBatches();
 
     /**
      * 특정 시간 이상 실행중인 배치 조회 (데드락 방지용)
@@ -163,5 +163,5 @@ public interface BatchExecutionStatusMapper {
             @Result(property = "createdAt", column = "created_at"),
             @Result(property = "updatedAt", column = "updated_at")
     })
-    java.util.List<BatchExecutionStatus> findTimeoutBatches(@Param("timeoutMinutes") int timeoutMinutes);
+    java.util.List<SettlementBatchExecutionStatus> findTimeoutBatches(@Param("timeoutMinutes") int timeoutMinutes);
 }

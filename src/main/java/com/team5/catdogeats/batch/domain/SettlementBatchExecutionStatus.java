@@ -1,4 +1,4 @@
-package com.team5.catdogeats.batch.domain.entity;
+package com.team5.catdogeats.batch.domain;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,7 +15,7 @@ import java.time.OffsetDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BatchExecutionStatus {
+public class SettlementBatchExecutionStatus {
 
     private Long id;
 

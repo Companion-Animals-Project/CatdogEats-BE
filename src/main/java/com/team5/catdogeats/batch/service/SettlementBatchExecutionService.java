@@ -1,6 +1,6 @@
 package com.team5.catdogeats.batch.service;
 
-import com.team5.catdogeats.batch.domain.entity.BatchExecutionStatus;
+import com.team5.catdogeats.batch.domain.SettlementBatchExecutionStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.*;
@@ -28,7 +28,7 @@ public class SettlementBatchExecutionService {
      * 정산 일일 배치 실행 (동시성 제어 포함)
      */
     public BatchExecutionResult executeChunkDailyJob() {
-        String batchName = BatchExecutionStatus.BatchName.SETTLEMENT_CREATE.getValue();
+        String batchName = SettlementBatchExecutionStatus.BatchName.SETTLEMENT_CREATE.getValue();
         String executionId = generateExecutionId("daily");
 
         return executeBatchWithLock(batchName, executionId, settlementChunkDailyJob, "일일 정산 배치");
@@ -38,7 +38,7 @@ public class SettlementBatchExecutionService {
      * 정산 월간 배치 실행 (동시성 제어 포함)
      */
     public BatchExecutionResult executeChunkMonthlyJob() {
-        String batchName = BatchExecutionStatus.BatchName.SETTLEMENT_COMPLETE.getValue();
+        String batchName = SettlementBatchExecutionStatus.BatchName.SETTLEMENT_COMPLETE.getValue();
         String executionId = generateExecutionId("monthly");
 
         return executeBatchWithLock(batchName, executionId, settlementChunkMonthlyJob, "월간 정산 완료 배치");

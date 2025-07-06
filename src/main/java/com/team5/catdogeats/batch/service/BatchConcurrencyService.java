@@ -1,6 +1,6 @@
 package com.team5.catdogeats.batch.service;
 
-import com.team5.catdogeats.batch.domain.entity.BatchExecutionStatus;
+import com.team5.catdogeats.batch.domain.SettlementBatchExecutionStatus;
 import com.team5.catdogeats.batch.mapper.BatchExecutionStatusMapper;
 import com.team5.catdogeats.global.annotation.MybatisTransactional;
 import lombok.RequiredArgsConstructor;
@@ -42,14 +42,14 @@ public class BatchConcurrencyService {
             log.info("배치 실행 락 획득 시도 - batchName: {}, executionId: {}", batchName, executionId);
 
             // FOR UPDATE NOWAIT로 락 획득 시도
-            Optional<BatchExecutionStatus> status = batchExecutionStatusMapper.findByBatchNameForUpdate(batchName);
+            Optional<SettlementBatchExecutionStatus> status = batchExecutionStatusMapper.findByBatchNameForUpdate(batchName);
 
             if (status.isEmpty()) {
                 log.error("배치 상태 정보가 존재하지 않습니다 - batchName: {}", batchName);
                 return false;
             }
 
-            BatchExecutionStatus currentStatus = status.get();
+            SettlementBatchExecutionStatus currentStatus = status.get();
 
             // 실행 가능한 상태인지 확인
             if (!currentStatus.canExecute()) {
@@ -153,7 +153,7 @@ public class BatchConcurrencyService {
      * 현재 실행중인 배치 목록 조회
      */
     @MybatisTransactional(readOnly = true)
-    public List<BatchExecutionStatus> getRunningBatches() {
+    public List<SettlementBatchExecutionStatus> getRunningBatches() {
         return batchExecutionStatusMapper.findRunningBatches();
     }
 
@@ -165,13 +165,13 @@ public class BatchConcurrencyService {
     public void cleanupTimeoutBatches() {
         try {
             // 일반 타임아웃 (60분)
-            List<BatchExecutionStatus> timeoutBatches =
+            List<SettlementBatchExecutionStatus> timeoutBatches =
                     batchExecutionStatusMapper.findTimeoutBatches(DEFAULT_TIMEOUT_MINUTES);
 
             if (!timeoutBatches.isEmpty()) {
                 log.warn("타임아웃된 배치 발견 - count: {}", timeoutBatches.size());
 
-                for (BatchExecutionStatus batch : timeoutBatches) {
+                for (SettlementBatchExecutionStatus batch : timeoutBatches) {
                     long runningMinutes = calculateRunningMinutes(batch.getStartedAt());
                     log.warn("타임아웃 배치 정리 - batchName: {}, 실행시간: {}분",
                             batch.getBatchName(), runningMinutes);
@@ -181,13 +181,13 @@ public class BatchConcurrencyService {
             }
 
             // 강제 타임아웃 (12시간) - 비정상 상황 대응
-            List<BatchExecutionStatus> forceTimeoutBatches =
+            List<SettlementBatchExecutionStatus> forceTimeoutBatches =
                     batchExecutionStatusMapper.findTimeoutBatches(FORCE_CLEANUP_TIMEOUT_MINUTES);
 
             if (!forceTimeoutBatches.isEmpty()) {
                 log.error("강제 타임아웃 배치 발견 - count: {} (비정상 상황)", forceTimeoutBatches.size());
 
-                for (BatchExecutionStatus batch : forceTimeoutBatches) {
+                for (SettlementBatchExecutionStatus batch : forceTimeoutBatches) {
                     long runningMinutes = calculateRunningMinutes(batch.getStartedAt());
                     log.error("강제 타임아웃 배치 정리 - batchName: {}, 실행시간: {}분",
                             batch.getBatchName(), runningMinutes);
@@ -207,7 +207,7 @@ public class BatchConcurrencyService {
      * 배치 상태 조회
      */
     @MybatisTransactional(readOnly = true)
-    public Optional<BatchExecutionStatus> getBatchStatus(String batchName) {
+    public Optional<SettlementBatchExecutionStatus> getBatchStatus(String batchName) {
         return batchExecutionStatusMapper.findByBatchName(batchName);
     }
 

@@ -1,7 +1,7 @@
 package com.team5.catdogeats.orders.controller;
 
 import com.team5.catdogeats.batch.config.SettlementBatchProperties;
-import com.team5.catdogeats.batch.domain.entity.BatchExecutionStatus;
+import com.team5.catdogeats.batch.domain.SettlementBatchExecutionStatus;
 import com.team5.catdogeats.batch.scheduler.SettlementChunkBatchScheduler;
 import com.team5.catdogeats.batch.service.BatchConcurrencyService;
 import com.team5.catdogeats.batch.service.SettlementBatchExecutionService.BatchExecutionResult;
@@ -149,7 +149,7 @@ public class SettlementChunkBatchAdminController {
             int pendingReadyCount = settlementChunkMapper.countPendingSettlementsReadyForProgress();
 
             // 현재 실행중인 배치 조회
-            List<BatchExecutionStatus> runningBatches = batchConcurrencyService.getRunningBatches();
+            List<SettlementBatchExecutionStatus> runningBatches = batchConcurrencyService.getRunningBatches();
 
             Map<String, Object> result = Map.of(
                     "currentStatus", Map.of(
@@ -221,7 +221,7 @@ public class SettlementChunkBatchAdminController {
                                 "존재하지 않는 배치 이름: " + batchName));
             }
 
-            BatchExecutionStatus status = currentStatus.get();
+            SettlementBatchExecutionStatus status = currentStatus.get();
 
             // 강제 락 해제
             batchConcurrencyService.forceReleaseLock(batchName);
