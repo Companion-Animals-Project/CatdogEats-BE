@@ -15,7 +15,6 @@ import java.util.Optional;
 
 /**
  * 배치 동시성 제어 서비스
- * DB 기반 분산락을 통한 배치 중복 실행 방지
  */
 @Slf4j
 @Service
@@ -24,8 +23,6 @@ public class BatchConcurrencyService {
 
     private final BatchExecutionStatusMapper batchExecutionStatusMapper;
 
-    // 배치 타임아웃 시간 (기본 60분)
-    private static final int DEFAULT_TIMEOUT_MINUTES = 60;
     // 강제 정리 타임아웃 (6시간)
     private static final int FORCE_CLEANUP_TIMEOUT_MINUTES = 360;
 
@@ -164,23 +161,7 @@ public class BatchConcurrencyService {
     @MybatisTransactional(propagation = Propagation.REQUIRES_NEW)
     public void cleanupTimeoutBatches() {
         try {
-            // 일반 타임아웃 (60분)
-            List<SettlementBatchExecutionStatus> timeoutBatches =
-                    batchExecutionStatusMapper.findTimeoutBatches(DEFAULT_TIMEOUT_MINUTES);
-
-            if (!timeoutBatches.isEmpty()) {
-                log.warn("타임아웃된 배치 발견 - count: {}", timeoutBatches.size());
-
-                for (SettlementBatchExecutionStatus batch : timeoutBatches) {
-                    long runningMinutes = calculateRunningMinutes(batch.getStartedAt());
-                    log.warn("타임아웃 배치 정리 - batchName: {}, 실행시간: {}분",
-                            batch.getBatchName(), runningMinutes);
-
-                    batchExecutionStatusMapper.updateToFailed(batch.getBatchName(), OffsetDateTime.now());
-                }
-            }
-
-            // 강제 타임아웃 (12시간) - 비정상 상황 대응
+            // 강제 타임아웃 (6시간) - 비정상 상황 대응
             List<SettlementBatchExecutionStatus> forceTimeoutBatches =
                     batchExecutionStatusMapper.findTimeoutBatches(FORCE_CLEANUP_TIMEOUT_MINUTES);
 
