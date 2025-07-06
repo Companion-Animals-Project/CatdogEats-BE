@@ -1,7 +1,7 @@
 package com.team5.catdogeats.batch.writer;
 
-import com.team5.catdogeats.orders.domain.dto.SettlementBatchItem;
-import com.team5.catdogeats.orders.mapper.SettlementChunkMapper;
+import com.team5.catdogeats.batch.dto.SettlementBatchItem;
+import com.team5.catdogeats.batch.mapper.SettlementChunkMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.Chunk;
@@ -67,7 +67,7 @@ public class SettlementCompleteItemWriter implements ItemWriter<SettlementBatchI
 
         // 성공한 건수가 있으면 정산 완료 알림 로그
         if (successCount > 0) {
-            log.info("🎉 정산 완료 처리 성공 - {}건의 정산이 완료되었습니다!", successCount);
+            log.info("정산 완료 처리 성공 - {}건의 정산이 완료되었습니다!", successCount);
         }
 
         // 실패나 업데이트되지 않은 건이 있으면 경고 로그

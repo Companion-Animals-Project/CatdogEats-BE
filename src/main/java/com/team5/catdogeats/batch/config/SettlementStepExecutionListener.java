@@ -21,7 +21,7 @@ public class SettlementStepExecutionListener implements StepExecutionListener {
 
     @Override
     public void beforeStep(StepExecution stepExecution) {
-        log.info("🚀 [{}] 배치 Step 시작 - stepName: {}, jobName: {}",
+        log.info("[{}] 배치 Step 시작 - stepName: {}, jobName: {}",
                 stepName, stepExecution.getStepName(), stepExecution.getJobExecution().getJobInstance().getJobName());
     }
 
@@ -48,7 +48,7 @@ public class SettlementStepExecutionListener implements StepExecutionListener {
 
         // 성공/실패 여부에 따른 로깅
         if (ExitStatus.COMPLETED.equals(exitStatus)) {
-            log.info("✅ [{}] 배치 Step 완료 - " +
+            log.info("[{}] 배치 Step 완료 - " +
                             "실행시간: {}초, " +
                             "처리건수: read={}, write={}, skip={}, filter={}, " +
                             "트랜잭션: commit={}, rollback={}",
@@ -60,12 +60,12 @@ public class SettlementStepExecutionListener implements StepExecutionListener {
             // 성능 분석 로그
             if (duration.getSeconds() > 0) {
                 long throughput = readCount / duration.getSeconds();
-                log.info("📊 [{}] 성능 분석 - 처리량: {}건/초, 평균 청크 처리시간: {}ms",
+                log.info("[{}] 성능 분석 - 처리량: {}건/초, 평균 청크 처리시간: {}ms",
                         stepName, throughput, commitCount > 0 ? duration.toMillis() / commitCount : 0);
             }
 
         } else if (ExitStatus.FAILED.equals(exitStatus)) {
-            log.error("❌ [{}] 배치 Step 실패 - " +
+            log.error("[{}] 배치 Step 실패 - " +
                             "실행시간: {}초, " +
                             "처리건수: read={}, write={}, skip={}, " +
                             "실패원인: {}",
@@ -75,7 +75,7 @@ public class SettlementStepExecutionListener implements StepExecutionListener {
                     getFailureReason(stepExecution));
 
         } else {
-            log.warn("⚠️ [{}] 배치 Step 비정상 종료 - 상태: {}, " +
+            log.warn("[{}] 배치 Step 비정상 종료 - 상태: {}, " +
                             "실행시간: {}초, " +
                             "처리건수: read={}, write={}, skip={}",
                     stepName, exitStatus.getExitCode(),
@@ -87,14 +87,14 @@ public class SettlementStepExecutionListener implements StepExecutionListener {
         if (skipCount > 0) {
             double skipRate = (double) skipCount / (readCount > 0 ? readCount : 1) * 100;
             if (skipRate > 5.0) { // Skip 비율이 5% 초과 시 경고
-                log.warn("⚠️ [{}] 높은 Skip 비율 감지 - Skip 건수: {}, 전체 대비: {:.2f}%",
+                log.warn("[{}] 높은 Skip 비율 감지 - Skip 건수: {}, 전체 대비: {:.2f}%",
                         stepName, skipCount, skipRate);
             }
         }
 
         // Rollback이 발생한 경우 경고
         if (rollbackCount > 0) {
-            log.warn("⚠️ [{}] Rollback 발생 - 횟수: {}, Commit 대비: {:.2f}%",
+            log.warn("[{}] Rollback 발생 - 횟수: {}, Commit 대비: {:.2f}%",
                     stepName, rollbackCount,
                     commitCount > 0 ? (double) rollbackCount / commitCount * 100 : 0);
         }

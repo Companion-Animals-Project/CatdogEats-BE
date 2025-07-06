@@ -7,7 +7,7 @@ import com.team5.catdogeats.batch.service.BatchConcurrencyService;
 import com.team5.catdogeats.batch.service.SettlementBatchExecutionService.BatchExecutionResult;
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
-import com.team5.catdogeats.orders.mapper.SettlementChunkMapper;
+import com.team5.catdogeats.batch.mapper.SettlementChunkMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

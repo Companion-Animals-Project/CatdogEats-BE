@@ -1,7 +1,7 @@
 package com.team5.catdogeats.batch.writer;
 
-import com.team5.catdogeats.orders.domain.dto.SettlementBatchItem;
-import com.team5.catdogeats.orders.mapper.SettlementChunkMapper;
+import com.team5.catdogeats.batch.dto.SettlementBatchItem;
+import com.team5.catdogeats.batch.mapper.SettlementChunkMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.Chunk;

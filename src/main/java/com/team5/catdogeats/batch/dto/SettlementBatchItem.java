@@ -1,4 +1,4 @@
-package com.team5.catdogeats.orders.domain.dto;
+package com.team5.catdogeats.batch.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

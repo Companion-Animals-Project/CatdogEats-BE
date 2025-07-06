@@ -181,14 +181,7 @@ public class BatchConcurrencyService {
         }
     }
 
-    /**
-     * 배치 실행 가능 여부 확인
-     */
-    @MybatisTransactional(readOnly = true)
-    public boolean canExecuteBatch(String batchName) {
-        Optional<BatchExecutionStatus> status = batchExecutionStatusMapper.findByBatchName(batchName);
-        return status.map(BatchExecutionStatus::canExecute).orElse(false);
-    }
+
 
     /**
      * 배치 상태 조회

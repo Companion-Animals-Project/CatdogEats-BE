@@ -1,6 +1,6 @@
-package com.team5.catdogeats.orders.mapper;
+package com.team5.catdogeats.batch.mapper;
 
-import com.team5.catdogeats.orders.domain.dto.SettlementBatchItem;
+import com.team5.catdogeats.batch.dto.SettlementBatchItem;
 import org.apache.ibatis.annotations.*;
 
 import java.util.List;

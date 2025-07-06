@@ -1,7 +1,7 @@
 package com.team5.catdogeats.batch.reader;
 
-import com.team5.catdogeats.orders.domain.dto.SettlementBatchItem;
-import com.team5.catdogeats.orders.mapper.SettlementChunkMapper;
+import com.team5.catdogeats.batch.dto.SettlementBatchItem;
+import com.team5.catdogeats.batch.mapper.SettlementChunkMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.NonTransientResourceException;
@@ -12,7 +12,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * 수정된 정산 완료용 ItemReader
+ * 정산 완료용 ItemReader
  * 동적 데이터 변화에 대응하는 offset 관리 방식 적용
  */
 @Slf4j
@@ -109,27 +109,4 @@ public class SettlementCompleteItemReader implements ItemReader<SettlementBatchI
         }
     }
 
-    /**
-     * Reader 초기화 (재실행 시 상태 초기화)
-     */
-    public void reset() {
-        log.info("SettlementCompleteItemReader 상태 초기화");
-        hasMoreData = true;
-        currentChunkIterator = null;
-        totalProcessedCount = 0;
-    }
-
-    /**
-     * 현재 처리된 건수 조회 (모니터링용)
-     */
-    public int getTotalProcessedCount() {
-        return totalProcessedCount;
-    }
-
-    /**
-     * 더 읽을 데이터가 있는지 확인
-     */
-    public boolean hasMoreData() {
-        return hasMoreData;
-    }
 }

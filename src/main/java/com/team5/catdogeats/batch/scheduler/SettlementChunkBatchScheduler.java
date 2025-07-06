@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component;
 
 /**
  * 정산 청크 배치 스케줄러
- * 기존 Tasklet 방식을 대체하는 성능 최적화된 청크 기반 배치 스케줄러
  */
 @Slf4j
 @Component
@@ -40,7 +39,7 @@ public class SettlementChunkBatchScheduler {
         }
 
         try {
-            log.info("📊 정산 청크 일일 배치 작업 시작 - cron: ${batch.settlement.daily-cron}");
+            log.info("정산 청크 일일 배치 작업 시작 - cron: ${batch.settlement.daily-cron}");
             log.info("배치 설정 - chunkSize: {}, skipLimit: {}, retryLimit: {}",
                     batchProperties.getChunkSize(),
                     batchProperties.getSkipLimit(),
@@ -55,30 +54,19 @@ public class SettlementChunkBatchScheduler {
             long executionTime = endTime - startTime;
 
             if (result.isSuccess()) {
-                log.info("✅ 정산 청크 일일 배치 작업 완료 - 실행시간: {}ms", executionTime);
-                log.info("📈 실행 결과: {}", result.getExecutionSummary());
+                log.info("정산 청크 일일 배치 작업 완료 - 실행시간: {}ms", executionTime);
+                log.info("실행 결과: {}", result.getExecutionSummary());
 
-                // 성공 알림 (설정에 따라)
-                if (batchProperties.getNotification().isSuccessNotificationEnabled()) {
-                    sendSuccessNotification("일일 정산 배치", result);
-                }
             } else {
-                log.error("❌ 정산 청크 일일 배치 작업 실패 - 실행시간: {}ms, 원인: {}",
+                log.error("정산 청크 일일 배치 작업 실패 - 실행시간: {}ms, 원인: {}",
                         executionTime, result.getMessage());
 
-                // 실패 알림
-                if (batchProperties.getNotification().isFailureNotificationEnabled()) {
-                    sendFailureNotification("일일 정산 배치", result);
-                }
+
             }
 
         } catch (Exception e) {
-            log.error("❌ 정산 청크 일일 배치 작업 중 예상치 못한 오류 발생", e);
+            log.error("정산 청크 일일 배치 작업 중 예상치 못한 오류 발생", e);
 
-            // 예외 발생 시 알림
-            if (batchProperties.getNotification().isFailureNotificationEnabled()) {
-                sendExceptionNotification("일일 정산 배치", e);
-            }
         }
     }
 
@@ -94,7 +82,7 @@ public class SettlementChunkBatchScheduler {
         }
 
         try {
-            log.info("💰 정산 청크 월간 완료 배치 작업 시작 - cron: ${batch.settlement.monthly-cron}");
+            log.info("정산 청크 월간 완료 배치 작업 시작 - cron: ${batch.settlement.monthly-cron}");
 
             long startTime = System.currentTimeMillis();
 
@@ -105,25 +93,19 @@ public class SettlementChunkBatchScheduler {
             long executionTime = endTime - startTime;
 
             if (result.isSuccess()) {
-                log.info("✅ 정산 청크 월간 완료 배치 작업 완료 - 실행시간: {}ms", executionTime);
-                log.info("📈 실행 결과: {}", result.getExecutionSummary());
+                log.info("정산 청크 월간 완료 배치 작업 완료 - 실행시간: {}ms", executionTime);
+                log.info("실행 결과: {}", result.getExecutionSummary());
 
-                // 월간 배치는 중요하므로 항상 성공 알림
-                sendSuccessNotification("월간 정산 완료 배치", result);
+
 
             } else {
-                log.error("❌ 정산 청크 월간 완료 배치 작업 실패 - 실행시간: {}ms, 원인: {}",
+                log.error("정산 청크 월간 완료 배치 작업 실패 - 실행시간: {}ms, 원인: {}",
                         executionTime, result.getMessage());
 
-                // 실패 알림
-                sendFailureNotification("월간 정산 완료 배치", result);
             }
 
         } catch (Exception e) {
-            log.error("❌ 정산 청크 월간 완료 배치 작업 중 예상치 못한 오류 발생", e);
-
-            // 예외 발생 시 알림
-            sendExceptionNotification("월간 정산 완료 배치", e);
+            log.error(" 정산 청크 월간 완료 배치 작업 중 예상치 못한 오류 발생", e);
         }
     }
 
@@ -137,16 +119,16 @@ public class SettlementChunkBatchScheduler {
             BatchExecutionResult result = batchExecutionService.executeChunkDailyJob();
 
             if (result.isSuccess()) {
-                log.info("✅ 수동 정산 청크 일일 배치 작업 완료");
-                log.info("📈 실행 결과: {}", result.getExecutionSummary());
+                log.info("수동 정산 청크 일일 배치 작업 완료");
+                log.info("실행 결과: {}", result.getExecutionSummary());
             } else {
-                log.error("❌ 수동 정산 청크 일일 배치 작업 실패: {}", result.getMessage());
+                log.error("수동 정산 청크 일일 배치 작업 실패: {}", result.getMessage());
             }
 
             return result;
 
         } catch (Exception e) {
-            log.error("❌ 수동 정산 청크 일일 배치 작업 중 예외 발생", e);
+            log.error("수동 정산 청크 일일 배치 작업 중 예외 발생", e);
             throw new RuntimeException("정산 청크 일일 배치 작업 실행 실패", e);
         }
     }
@@ -161,16 +143,16 @@ public class SettlementChunkBatchScheduler {
             BatchExecutionResult result = batchExecutionService.executeChunkMonthlyJob();
 
             if (result.isSuccess()) {
-                log.info("✅ 수동 정산 청크 월간 완료 배치 작업 완료");
-                log.info("📈 실행 결과: {}", result.getExecutionSummary());
+                log.info("수동 정산 청크 월간 완료 배치 작업 완료");
+                log.info("실행 결과: {}", result.getExecutionSummary());
             } else {
-                log.error("❌ 수동 정산 청크 월간 완료 배치 작업 실패: {}", result.getMessage());
+                log.error("수동 정산 청크 월간 완료 배치 작업 실패: {}", result.getMessage());
             }
 
             return result;
 
         } catch (Exception e) {
-            log.error("❌ 수동 정산 청크 월간 완료 배치 작업 중 예외 발생", e);
+            log.error("수동 정산 청크 월간 완료 배치 작업 중 예외 발생", e);
             throw new RuntimeException("정산 청크 월간 완료 배치 작업 실행 실패", e);
         }
     }
@@ -211,7 +193,7 @@ public class SettlementChunkBatchScheduler {
 
                     // 설정된 임계치보다 오래 실행중인 경우 경고
                     if (runningMinutes > batchProperties.getNotification().getSlowProcessingThreshold() / 60) {
-                        log.warn("⚠️ 배치 처리 시간 과다 - name: {}, 실행시간: {}분",
+                        log.warn("배치 처리 시간 과다 - name: {}, 실행시간: {}분",
                                 batch.getBatchName(), runningMinutes);
                     }
                 });
@@ -222,21 +204,4 @@ public class SettlementChunkBatchScheduler {
         }
     }
 
-    /**
-     * 알림 메서드들 (향후 확장 가능)
-     */
-    private void sendSuccessNotification(String batchName, BatchExecutionResult result) {
-        // TODO: 실제 알림 시스템 연동 (이메일, 슬랙 등)
-        log.info("🎉 [{}] 배치 성공 알림 - {}", batchName, result.getExecutionSummary());
-    }
-
-    private void sendFailureNotification(String batchName, BatchExecutionResult result) {
-        // TODO: 실제 알림 시스템 연동
-        log.error("🚨 [{}] 배치 실패 알림 - {}", batchName, result.getMessage());
-    }
-
-    private void sendExceptionNotification(String batchName, Exception e) {
-        // TODO: 실제 알림 시스템 연동
-        log.error("🚨 [{}] 배치 예외 알림 - {}: {}", batchName, e.getClass().getSimpleName(), e.getMessage());
-    }
 }

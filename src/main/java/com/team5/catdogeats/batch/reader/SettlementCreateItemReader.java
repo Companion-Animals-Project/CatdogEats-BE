@@ -1,7 +1,7 @@
 package com.team5.catdogeats.batch.reader;
 
-import com.team5.catdogeats.orders.domain.dto.SettlementBatchItem;
-import com.team5.catdogeats.orders.mapper.SettlementChunkMapper;
+import com.team5.catdogeats.batch.dto.SettlementBatchItem;
+import com.team5.catdogeats.batch.mapper.SettlementChunkMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.NonTransientResourceException;
@@ -13,7 +13,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * 수정된 정산 생성용 ItemReader
+ * 정산 생성용 ItemReader
  * 동적 데이터 변화에 대응하는 offset 관리 방식 적용
  */
 @Slf4j
