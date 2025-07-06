@@ -16,7 +16,7 @@ import java.time.ZonedDateTime;
 public record OrderDeleteResponse(
 
         boolean success,
-        Long orderNumber,
+        String orderNumber,
         String orderId,
         ZonedDateTime hiddenAt,
         String message
@@ -47,7 +47,7 @@ public record OrderDeleteResponse(
      * @param hiddenAt 숨김 처리 시각
      * @return 성공 응답
      */
-    public static OrderDeleteResponse success(Long orderNumber, String orderId, ZonedDateTime hiddenAt) {
+    public static OrderDeleteResponse success(String orderNumber, String orderId, ZonedDateTime hiddenAt) {
         return new OrderDeleteResponse(
                 true,
                 orderNumber,
@@ -63,7 +63,7 @@ public record OrderDeleteResponse(
      * @param errorMessage 실패 사유
      * @return 실패 응답
      */
-    public static OrderDeleteResponse failure(Long orderNumber, String errorMessage) {
+    public static OrderDeleteResponse failure(String orderNumber, String errorMessage) {
         return new OrderDeleteResponse(
                 false,
                 orderNumber,
@@ -79,7 +79,7 @@ public record OrderDeleteResponse(
      * @param hiddenAt 숨김 처리 시각
      * @return 성공 응답
      */
-    public static OrderDeleteResponse success(Long orderNumber, ZonedDateTime hiddenAt) {
+    public static OrderDeleteResponse success(String orderNumber, ZonedDateTime hiddenAt) {
         return success(orderNumber, null, hiddenAt);
     }
 }
