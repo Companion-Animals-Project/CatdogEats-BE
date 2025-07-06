@@ -14,7 +14,7 @@ import com.team5.catdogeats.orders.repository.ShipmentRepository;
 import com.team5.catdogeats.orders.service.SellerOrderService;
 import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
-import com.team5.catdogeats.users.repository.SellerRepository;
+import com.team5.catdogeats.users.repository.SellersRepository;
 import com.team5.catdogeats.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -100,11 +100,19 @@ public class SellerOrderServiceImpl implements SellerOrderService {
                             .map(this::convertToSellerOrderSummary)
                             .toList();
 
-            // 5. 응답 생성
-            return SellerOrderListResponse.from(orderSummaries, shipmentPage);
+            // 5. 응답 생성 및 반환
+            return SellerOrderListResponse.builder()
+                    .orders(orderSummaries)
+                    .currentPage(shipmentPage.getNumber())
+                    .totalPages(shipmentPage.getTotalPages())
+                    .totalElements(shipmentPage.getTotalElements())
+                    .pageSize(shipmentPage.getSize())
+                    .hasNext(shipmentPage.hasNext())
+                    .hasPrevious(shipmentPage.hasPrevious())
+                    .build();
 
-        } catch (IllegalArgumentException e) {
-            log.warn("판매자용 주문 목록 조회 실패 - 잘못된 요청: {}", e.getMessage());
+        } catch (NoSuchElementException | IllegalArgumentException e) {
+            log.warn("판매자용 주문 목록 조회 실패 - reason: {}", e.getMessage());
             throw e;
         } catch (Exception e) {
             log.error("판매자용 주문 목록 조회 중 예상치 못한 오류 발생", e);
@@ -116,8 +124,7 @@ public class SellerOrderServiceImpl implements SellerOrderService {
     @JpaTransactional
     public OrderStatusUpdateResponse updateOrderStatus(UserPrincipal userPrincipal, OrderStatusUpdateRequest request) {
         try {
-            log.info("주문 상태 변경 요청 - provider: {}, providerId: {}, orderNumber: {}, newStatus: {}",
-                    userPrincipal.provider(), userPrincipal.providerId(),
+            log.debug("주문 상태 변경 시작 - orderNumber: {}, newStatus: {}",
                     request.getOrderNumber(), request.getNewStatus());
 
             // 1. UserPrincipal로 판매자 조회 및 검증
@@ -131,34 +138,28 @@ public class SellerOrderServiceImpl implements SellerOrderService {
             Orders order = shipment.getOrders();
             OrderStatus currentStatus = order.getOrderStatus();
 
-            // 3. 상태 전환 유효성 검증
+            // 3. 상태 전환 검증
             validateStatusTransition(request, currentStatus);
-
-            // 4. 사유 필수 체크
             validateReasonRequirement(request);
 
-            // 5. 상태 변경 처리
-            OrderStatus previousStatus = currentStatus;
+            // 4. 상태 변경
             order.setOrderStatus(request.getNewStatus());
-            order.setUpdatedAt(ZonedDateTime.now());
 
-            // 6. 특별 처리 (지연, 취소 등)
+            // 5. 특별한 상태 변경 처리
             handleSpecialStatusChange(request, shipment);
 
-            // 7. 저장
+            // 6. 저장
             orderRepository.save(order);
-            shipmentRepository.save(shipment);
 
             log.info("주문 상태 변경 완료 - orderNumber: {}, {} → {}",
-                    request.getOrderNumber(), previousStatus, request.getNewStatus());
+                    request.getOrderNumber(), currentStatus, request.getNewStatus());
 
-            // 8. 응답 생성
+            // 7. 응답 생성
             return OrderStatusUpdateResponse.success(
                     request.getOrderNumber(),
-                    previousStatus,
+                    currentStatus,
                     request.getNewStatus(),
-                    request.getReason(),
-                    ZonedDateTime.now()
+                    request.getReason()
             );
 
         } catch (NoSuchElementException | IllegalArgumentException | IllegalStateException e) {
@@ -177,10 +178,10 @@ public class SellerOrderServiceImpl implements SellerOrderService {
     public TrackingNumberRegisterResponse registerTrackingNumber(
             UserPrincipal userPrincipal,
             TrackingNumberRegisterRequest request) {
+
         try {
-            log.info("운송장 번호 등록 요청 - provider: {}, providerId: {}, orderNumber: {}, courier: {}, trackingNumber: {}",
-                    userPrincipal.provider(), userPrincipal.providerId(),
-                    request.getOrderNumber(), request.getCourierCompany(), request.getTrackingNumber());
+            log.debug("운송장 번호 등록 시작 - orderNumber: {}, courier: {}, trackingNumber: {}",
+                    request.getOrderNumber(), request.getCourierDisplayName(), request.getTrackingNumber());
 
             // 1. UserPrincipal로 판매자 조회 및 검증
             Sellers seller = findSellerByPrincipal(userPrincipal);
@@ -192,7 +193,7 @@ public class SellerOrderServiceImpl implements SellerOrderService {
 
             Orders order = shipment.getOrders();
 
-            // 3. 주문 상태 검증 (배송 준비 완료 상태여야 함)
+            // 3. 운송장 등록 가능한 상태인지 검증
             validateTrackingNumberRegistration(order, shipment, request);
 
             // 4. 운송장 번호 중복 확인
@@ -240,6 +241,26 @@ public class SellerOrderServiceImpl implements SellerOrderService {
                     request.getOrderNumber(), e);
             throw new RuntimeException("운송장 번호 등록 중 서버 오류가 발생했습니다", e);
         }
+    }
+
+    // ===== 미구현 메서드들 (TODO 상태 유지) =====
+
+    @Override
+    public SellerOrderListResponse getSellerOrdersByStatus(UserPrincipal userPrincipal, OrderStatus orderStatus, Pageable pageable) {
+        // TODO: 구현 예정
+        throw new UnsupportedOperationException("구현 예정");
+    }
+
+    @Override
+    public SellerOrderListResponse searchSellerOrders(UserPrincipal userPrincipal, String searchType, String searchKeyword, Pageable pageable) {
+        // TODO: 구현 예정
+        throw new UnsupportedOperationException("구현 예정");
+    }
+
+    @Override
+    public boolean hideOrderFromList(UserPrincipal userPrincipal, String orderNumber) {
+        // TODO: 구현 예정
+        throw new UnsupportedOperationException("구현 예정");
     }
 
     // ===== Private Helper Methods =====
@@ -317,31 +338,16 @@ public class SellerOrderServiceImpl implements SellerOrderService {
         return TrackingNumberRegisterResponse.ValidationResult.success("운송장 번호가 유효합니다");
     }
 
-    // ===== DTO 변환 메서드들은 기존과 동일하게 유지 =====
-    // (기존 buildSellerOrderDetailResponse, convertToSellerOrderSummary 등)
+    // ===== DTO 변환 메서드들 =====
 
-    // 임시로 필수 메서드들만 구현 (나머지 메서드들은 추후 구현)
-    @Override
-    public SellerOrderListResponse getSellerOrdersByStatus(UserPrincipal userPrincipal, OrderStatus orderStatus, Pageable pageable) {
-        // TODO: 구현 예정
-        throw new UnsupportedOperationException("구현 예정");
+    private SellerOrderDetailResponse buildSellerOrderDetailResponse(
+            Shipments shipment, List<OrderItems> orderItems, String sellerId) {
+        // TODO: DTO 변환 로직 구현
+        throw new UnsupportedOperationException("DTO 변환 로직 구현 예정");
     }
 
-    @Override
-    public SellerOrderListResponse searchSellerOrders(UserPrincipal userPrincipal, String searchType, String searchKeyword, Pageable pageable) {
-        // TODO: 구현 예정
-        throw new UnsupportedOperationException("구현 예정");
-    }
-
-    @Override
-    public boolean hideOrderFromList(UserPrincipal userPrincipal, String orderNumber) {
-        // TODO: 구현 예정
-        throw new UnsupportedOperationException("구현 예정");
-    }
-
-    @Override
-    public SellerOrderStatsResponse getSellerOrderStats(UserPrincipal userPrincipal) {
-        // TODO: 구현 예정
-        throw new UnsupportedOperationException("구현 예정");
+    private SellerOrderListResponse.SellerOrderSummary convertToSellerOrderSummary(Shipments shipment) {
+        // TODO: DTO 변환 로직 구현
+        throw new UnsupportedOperationException("DTO 변환 로직 구현 예정");
     }
 }
