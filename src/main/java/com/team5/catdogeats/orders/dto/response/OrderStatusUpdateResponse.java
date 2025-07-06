@@ -1,6 +1,5 @@
 package com.team5.catdogeats.orders.dto.response;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import lombok.Builder;
 
@@ -10,165 +9,185 @@ import java.time.ZonedDateTime;
  * 주문 상태 변경 응답 DTO
  * API: POST /v1/sellers/orders/status
  *
- * 판매자의 주문 상태 변경 요청 처리 결과를 담는 응답 구조
+ * 판매자가 주문 상태를 변경한 결과를 반환하는 응답 구조
  */
 @Builder
 public record OrderStatusUpdateResponse(
-        String orderNumber,
-        OrderStatus previousStatus,
-        OrderStatus currentStatus,
-        String statusChangeReason,
-
-        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
-        ZonedDateTime updatedAt,
-
-        String message,
-        AdditionalInfo additionalInfo
+        String orderNumber,         // 주문 번호
+        OrderStatus previousStatus, // 이전 주문 상태
+        OrderStatus newStatus,      // 변경된 주문 상태
+        String reason,              // 상태 변경 사유
+        ZonedDateTime updatedAt,    // 상태 변경 시각
+        String message,             // 처리 결과 메시지
+        StatusChangeInfo statusChangeInfo // 상태 변경 상세 정보
 ) {
 
     /**
-     * 추가 정보 (상황에 따라 포함)
+     * 상태 변경 상세 정보
      */
     @Builder
-    public record AdditionalInfo(
-            String expectedShipDate,    // 예상 출고일 (지연 시)
-            String trackingNumber,      // 운송장 번호 (배송 시작 시)
-            String courierCompany,      // 택배사 (배송 시작 시)
-            String nextAction           // 다음 필요한 액션 안내
+    public record StatusChangeInfo(
+            Boolean isDelayed,           // 출고 지연 여부
+            String expectedShipDate,     // 예상 출고일 (지연 시)
+            Boolean requiresTracking,    // 운송장 등록 필요 여부
+            String nextStepDescription   // 다음 단계 안내
     ) {}
 
     /**
-     * 성공 응답 생성 - 기본 정보만
+     * 성공 응답 생성 - 기본
      * @param orderNumber 주문 번호
      * @param previousStatus 이전 상태
-     * @param currentStatus 변경된 상태
+     * @param newStatus 새 상태
      * @param reason 변경 사유
-     * @param updatedAt 변경 시간
-     * @return 상태 변경 응답 DTO
+     * @return 주문 상태 변경 응답 DTO
      */
     public static OrderStatusUpdateResponse success(
             String orderNumber,
             OrderStatus previousStatus,
-            OrderStatus currentStatus,
-            String reason,
-            ZonedDateTime updatedAt
+            OrderStatus newStatus,
+            String reason
     ) {
-        String message = generateStatusChangeMessage(previousStatus, currentStatus);
-
         return OrderStatusUpdateResponse.builder()
                 .orderNumber(orderNumber)
                 .previousStatus(previousStatus)
-                .currentStatus(currentStatus)
-                .statusChangeReason(reason)
-                .updatedAt(updatedAt)
-                .message(message)
-                .additionalInfo(null)
+                .newStatus(newStatus)
+                .reason(reason)
+                .updatedAt(ZonedDateTime.now())
+                .message(generateSuccessMessage(previousStatus, newStatus))
+                .statusChangeInfo(generateStatusChangeInfo(newStatus))
                 .build();
     }
 
     /**
-     * 성공 응답 생성 - 추가 정보 포함
+     * 성공 응답 생성 - 상세 정보 포함
      * @param orderNumber 주문 번호
      * @param previousStatus 이전 상태
-     * @param currentStatus 변경된 상태
+     * @param newStatus 새 상태
      * @param reason 변경 사유
-     * @param updatedAt 변경 시간
-     * @param additionalInfo 추가 정보
-     * @return 상태 변경 응답 DTO
+     * @param isDelayed 출고 지연 여부
+     * @param expectedShipDate 예상 출고일
+     * @return 주문 상태 변경 응답 DTO
      */
-    public static OrderStatusUpdateResponse successWithAdditionalInfo(
+    public static OrderStatusUpdateResponse successWithDelay(
             String orderNumber,
             OrderStatus previousStatus,
-            OrderStatus currentStatus,
+            OrderStatus newStatus,
             String reason,
-            ZonedDateTime updatedAt,
-            AdditionalInfo additionalInfo
+            boolean isDelayed,
+            String expectedShipDate
     ) {
-        String message = generateStatusChangeMessage(previousStatus, currentStatus);
+        StatusChangeInfo statusInfo = StatusChangeInfo.builder()
+                .isDelayed(isDelayed)
+                .expectedShipDate(expectedShipDate)
+                .requiresTracking(newStatus == OrderStatus.READY_FOR_SHIPMENT)
+                .nextStepDescription(generateNextStepDescription(newStatus, isDelayed))
+                .build();
 
         return OrderStatusUpdateResponse.builder()
                 .orderNumber(orderNumber)
                 .previousStatus(previousStatus)
-                .currentStatus(currentStatus)
-                .statusChangeReason(reason)
-                .updatedAt(updatedAt)
-                .message(message)
-                .additionalInfo(additionalInfo)
+                .newStatus(newStatus)
+                .reason(reason)
+                .updatedAt(ZonedDateTime.now())
+                .message(isDelayed ? "출고 지연이 등록되었습니다" : generateSuccessMessage(previousStatus, newStatus))
+                .statusChangeInfo(statusInfo)
                 .build();
     }
 
     /**
-     * 출고 지연 응답 생성
-     * @param orderNumber 주문 번호
-     * @param reason 지연 사유
-     * @param expectedShipDate 예상 출고일
-     * @param updatedAt 변경 시간
-     * @return 출고 지연 응답 DTO
+     * 성공 메시지 생성
+     * @param previousStatus 이전 상태
+     * @param newStatus 새 상태
+     * @return 성공 메시지
      */
-    public static OrderStatusUpdateResponse delayResponse(
-            String orderNumber,
-            String reason,
-            String expectedShipDate,
-            ZonedDateTime updatedAt
-    ) {
-        AdditionalInfo additionalInfo = AdditionalInfo.builder()
-                .expectedShipDate(expectedShipDate)
-                .nextAction("예상 출고일에 맞춰 상품 준비를 완료해 주세요")
-                .build();
-
-        return OrderStatusUpdateResponse.builder()
-                .orderNumber(orderNumber)
-                .previousStatus(OrderStatus.PREPARING)
-                .currentStatus(OrderStatus.PREPARING) // 지연은 상태 변경이 아님
-                .statusChangeReason(reason)
-                .updatedAt(updatedAt)
-                .message("출고 지연이 등록되었습니다")
-                .additionalInfo(additionalInfo)
-                .build();
-    }
-
-    /**
-     * 배송 시작 응답 생성
-     * @param orderNumber 주문 번호
-     * @param trackingNumber 운송장 번호
-     * @param courierCompany 택배사
-     * @param updatedAt 변경 시간
-     * @return 배송 시작 응답 DTO
-     */
-    public static OrderStatusUpdateResponse shipmentStartResponse(
-            String orderNumber,
-            String trackingNumber,
-            String courierCompany,
-            ZonedDateTime updatedAt
-    ) {
-        AdditionalInfo additionalInfo = AdditionalInfo.builder()
-                .trackingNumber(trackingNumber)
-                .courierCompany(courierCompany)
-                .nextAction("배송 추적은 자동으로 업데이트됩니다")
-                .build();
-
-        return OrderStatusUpdateResponse.builder()
-                .orderNumber(orderNumber)
-                .previousStatus(OrderStatus.READY_FOR_SHIPMENT)
-                .currentStatus(OrderStatus.IN_DELIVERY)
-                .statusChangeReason("운송장 등록 완료")
-                .updatedAt(updatedAt)
-                .message("배송이 시작되었습니다")
-                .additionalInfo(additionalInfo)
-                .build();
-    }
-
-    /**
-     * 상태 변경에 따른 메시지 생성
-     */
-    private static String generateStatusChangeMessage(OrderStatus previousStatus, OrderStatus currentStatus) {
-        return switch (currentStatus) {
+    private static String generateSuccessMessage(OrderStatus previousStatus, OrderStatus newStatus) {
+        return switch (newStatus) {
             case PREPARING -> "상품 준비가 시작되었습니다";
-            case READY_FOR_SHIPMENT -> "배송 준비가 완료되었습니다";
+            case READY_FOR_SHIPMENT -> "배송 준비가 완료되었습니다. 운송장 번호를 등록해주세요";
             case IN_DELIVERY -> "배송이 시작되었습니다";
-            case DELIVERED -> "배송이 완료되었습니다";
             case CANCELLED -> "주문이 취소되었습니다";
-            default -> "주문 상태가 변경되었습니다";
+            default -> String.format("주문 상태가 %s에서 %s로 변경되었습니다",
+                    getStatusDisplayName(previousStatus),
+                    getStatusDisplayName(newStatus));
         };
+    }
+
+    /**
+     * 상태 변경 정보 생성
+     * @param newStatus 새 상태
+     * @return 상태 변경 정보
+     */
+    private static StatusChangeInfo generateStatusChangeInfo(OrderStatus newStatus) {
+        return StatusChangeInfo.builder()
+                .isDelayed(false)
+                .expectedShipDate(null)
+                .requiresTracking(newStatus == OrderStatus.READY_FOR_SHIPMENT)
+                .nextStepDescription(generateNextStepDescription(newStatus, false))
+                .build();
+    }
+
+    /**
+     * 다음 단계 안내 메시지 생성
+     * @param newStatus 새 상태
+     * @param isDelayed 지연 여부
+     * @return 다음 단계 안내
+     */
+    private static String generateNextStepDescription(OrderStatus newStatus, boolean isDelayed) {
+        if (isDelayed) {
+            return "지연 사유가 고객에게 안내되었습니다. 상품 준비 완료 시 상태를 변경해주세요";
+        }
+
+        return switch (newStatus) {
+            case PREPARING -> "상품을 준비하고 포장을 완료하면 '배송준비완료'로 상태를 변경해주세요";
+            case READY_FOR_SHIPMENT -> "택배사에 접수하고 운송장 번호를 등록하면 배송이 시작됩니다";
+            case IN_DELIVERY -> "배송이 완료되면 자동으로 '배송완료' 상태로 변경됩니다";
+            case CANCELLED -> "취소 처리가 완료되었습니다";
+            default -> "처리가 완료되었습니다";
+        };
+    }
+
+    /**
+     * 주문 상태 표시명 반환
+     * @param status 주문 상태
+     * @return 상태 표시명
+     */
+    private static String getStatusDisplayName(OrderStatus status) {
+        return switch (status) {
+            case PAYMENT_PENDING -> "결제대기";
+            case PAYMENT_COMPLETED -> "결제완료";
+            case PREPARING -> "상품준비중";
+            case READY_FOR_SHIPMENT -> "배송준비완료";
+            case IN_DELIVERY -> "배송중";
+            case DELIVERED -> "배송완료";
+            case CANCELLED -> "주문취소";
+            case REFUND_PROCESSING -> "환불처리중";
+            case REFUNDED -> "환불완료";
+        };
+    }
+
+    /**
+     * 상태 변경이 성공했는지 확인
+     * @return 성공 여부
+     */
+    public boolean isSuccessful() {
+        return newStatus != null && !newStatus.equals(previousStatus);
+    }
+
+    /**
+     * 운송장 등록이 필요한 상태인지 확인
+     * @return 운송장 등록 필요 여부
+     */
+    public boolean requiresTrackingNumber() {
+        return statusChangeInfo != null &&
+               Boolean.TRUE.equals(statusChangeInfo.requiresTracking());
+    }
+
+    /**
+     * 출고 지연 상태인지 확인
+     * @return 출고 지연 여부
+     */
+    public boolean isDelayed() {
+        return statusChangeInfo != null &&
+               Boolean.TRUE.equals(statusChangeInfo.isDelayed());
     }
 }

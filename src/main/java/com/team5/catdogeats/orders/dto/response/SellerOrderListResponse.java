@@ -1,146 +1,292 @@
 package com.team5.catdogeats.orders.dto.response;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import lombok.Builder;
-import org.springframework.data.domain.Page;
 
 import java.time.ZonedDateTime;
 import java.util.List;
 
 /**
- * 판매자용 주문 목록 조회 응답 DTO
- * 판매자가 본인이 판매한 상품이 포함된 주문 목록을 페이징으로 조회할 수 있도록 설계된 응답 구조
- * 구매자의 민감정보는 제외하고 배송 관리에 필요한 정보만 포함
+ * 판매자용 주문 목록 응답 DTO
+ * API: GET /v1/sellers/orders/list
+ *
+ * 판매자가 본인이 판매한 상품이 포함된 주문 목록을 조회하는 응답 구조
  */
 @Builder
 public record SellerOrderListResponse(
-        List<SellerOrderSummary> orders,
-        PageInfo pageInfo
+        List<SellerOrderSummary> orders,    // 주문 목록
+        int currentPage,                    // 현재 페이지 (0부터 시작)
+        int totalPages,                     // 전체 페이지 수
+        long totalElements,                 // 전체 주문 수
+        int pageSize,                       // 페이지 크기
+        boolean hasNext,                    // 다음 페이지 존재 여부
+        boolean hasPrevious,                // 이전 페이지 존재 여부
+        String searchType,                  // 검색 타입 (선택)
+        String searchKeyword,               // 검색 키워드 (선택)
+        OrderStatus filterStatus            // 필터링 상태 (선택)
 ) {
 
     /**
      * 판매자용 주문 요약 정보
-     * 목록에서 표시할 주요 정보만 포함
      */
     @Builder
     public record SellerOrderSummary(
-            String orderNumber,
+            String orderNumber,             // 주문 번호
+            OrderStatus orderStatus,        // 주문 상태
+            ZonedDateTime orderDate,        // 주문일시
 
-            @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
-            ZonedDateTime orderDate,
+            // 배송지 정보 (마스킹 처리됨)
+            String recipientName,           // 수령인명
+            String maskedPhone,             // 마스킹된 전화번호
+            String basicAddress,            // 기본 주소 (상세주소 제외)
 
-            OrderStatus orderStatus,
-            String recipientName,        // 수령인 이름
-            String recipientPhone,       // 수령인 연락처 (뒷자리 마스킹 처리됨)
-            String shippingAddress,      // 배송지 (상세주소 제외)
-            List<OrderProductSummary> products,  // 해당 판매자의 상품 목록
-            Long totalAmount,            // 해당 판매자 상품들의 총 금액
-            String trackingNumber,       // 운송장 번호 (있는 경우)
-            String courierCompany,       // 택배사 (있는 경우)
-            boolean isHiddenBySeller     // 판매자가 목록에서 숨김 처리했는지 여부
-    ) {}
+            // 주문 상품 정보 (해당 판매자 상품만)
+            List<SellerOrderItem> orderItems, // 판매자 상품 목록
+            Long totalPrice,                // 해당 판매자 상품 총액
+            int itemCount,                  // 상품 종류 수
 
-    /**
-     * 주문 상품 요약 정보
-     * 목록에서 표시할 상품 정보
-     */
-    @Builder
-    public record OrderProductSummary(
-            String productId,
-            String productName,
-            Integer quantity,
-            Long unitPrice,
-            Long itemTotalPrice
-    ) {}
+            // 배송 정보
+            String courier,                 // 택배사
+            String trackingNumber,          // 운송장 번호
+            ZonedDateTime shippedAt,        // 발송일시
+            ZonedDateTime deliveredAt,      // 배송완료일시
 
-    /**
-     * 페이징 정보
-     */
-    @Builder
-    public record PageInfo(
-            int currentPage,        // 현재 페이지 (0-based)
-            int totalPages,         // 전체 페이지 수
-            long totalElements,     // 전체 요소 수
-            int pageSize,           // 페이지 크기
-            boolean hasNext,        // 다음 페이지 존재 여부
-            boolean hasPrevious,    // 이전 페이지 존재 여부
-            boolean isFirst,        // 첫 번째 페이지 여부
-            boolean isLast          // 마지막 페이지 여부
+            // 관리 정보
+            boolean canChangeStatus,        // 상태 변경 가능 여부
+            boolean requiresTracking,       // 운송장 등록 필요 여부
+            String nextAction              // 다음 수행 작업 안내
     ) {
+
         /**
-         * Spring Data Page 객체로부터 PageInfo 생성
+         * 배송 상태 확인
+         * @return 배송 상태 요약
          */
-        public static PageInfo from(Page<?> page) {
-            return PageInfo.builder()
-                    .currentPage(page.getNumber())
-                    .totalPages(page.getTotalPages())
-                    .totalElements(page.getTotalElements())
-                    .pageSize(page.getSize())
-                    .hasNext(page.hasNext())
-                    .hasPrevious(page.hasPrevious())
-                    .isFirst(page.isFirst())
-                    .isLast(page.isLast())
-                    .build();
-        }
-    }
-
-    /**
-     * 성공 응답 생성
-     * @param orders 판매자 주문 요약 목록
-     * @param pageInfo 페이징 정보
-     * @return 판매자용 주문 목록 응답 DTO
-     */
-    public static SellerOrderListResponse success(
-            List<SellerOrderSummary> orders,
-            PageInfo pageInfo
-    ) {
-        return SellerOrderListResponse.builder()
-                .orders(orders)
-                .pageInfo(pageInfo)
-                .build();
-    }
-
-    /**
-     * Page 객체로부터 응답 생성
-     * @param orders 주문 요약 목록
-     * @param page Spring Data Page 객체
-     * @return 판매자용 주문 목록 응답 DTO
-     */
-    public static SellerOrderListResponse from(
-            List<SellerOrderSummary> orders,
-            Page<?> page
-    ) {
-        return SellerOrderListResponse.builder()
-                .orders(orders)
-                .pageInfo(PageInfo.from(page))
-                .build();
-    }
-
-    /**
-     * 전화번호 마스킹 처리 유틸리티 메서드
-     * 예: 010-1234-5678 → 010-1234-****
-     * @param phoneNumber 원본 전화번호
-     * @return 마스킹 처리된 전화번호
-     */
-    public static String maskPhoneNumber(String phoneNumber) {
-        if (phoneNumber == null || phoneNumber.length() < 8) {
-            return phoneNumber;
-        }
-
-        // 하이픈이 있는 경우: 010-1234-5678 → 010-1234-****
-        if (phoneNumber.contains("-")) {
-            String[] parts = phoneNumber.split("-");
-            if (parts.length >= 3) {
-                return parts[0] + "-" + parts[1] + "-****";
+        public String getShipmentStatus() {
+            if (deliveredAt != null) {
+                return "배송완료";
+            } else if (shippedAt != null && trackingNumber != null) {
+                return "배송중";
+            } else if (orderStatus == OrderStatus.READY_FOR_SHIPMENT) {
+                return "배송준비완료";
+            } else if (orderStatus == OrderStatus.PREPARING) {
+                return "상품준비중";
+            } else {
+                return "주문확인";
             }
         }
 
-        // 하이픈이 없는 경우: 01012345678 → 0101234****
-        if (phoneNumber.length() >= 8) {
-            return phoneNumber.substring(0, phoneNumber.length() - 4) + "****";
+        /**
+         * 상태 변경 가능 여부 확인
+         * @return 상태 변경 가능 여부
+         */
+        public boolean isStatusChangeable() {
+            return canChangeStatus &&
+                   orderStatus != OrderStatus.DELIVERED &&
+                   orderStatus != OrderStatus.CANCELLED;
         }
 
-        return phoneNumber;
+        /**
+         * 운송장 등록 가능 여부 확인
+         * @return 운송장 등록 가능 여부
+         */
+        public boolean canRegisterTracking() {
+            return requiresTracking &&
+                   orderStatus == OrderStatus.READY_FOR_SHIPMENT &&
+                   (trackingNumber == null || trackingNumber.trim().isEmpty());
+        }
+    }
+
+    /**
+     * 판매자 주문 상품 정보
+     */
+    @Builder
+    public record SellerOrderItem(
+            String productId,               // 상품 ID
+            String productName,             // 상품명
+            String productImageUrl,         // 상품 이미지 URL
+            Long unitPrice,                 // 단가
+            int quantity,                   // 수량
+            Long totalPrice,                // 총 가격 (단가 × 수량)
+            String productOptions          // 상품 옵션 정보 (선택)
+    ) {}
+
+    /**
+     * 빈 응답 생성
+     * @return 빈 주문 목록 응답
+     */
+    public static SellerOrderListResponse empty() {
+        return SellerOrderListResponse.builder()
+                .orders(List.of())
+                .currentPage(0)
+                .totalPages(0)
+                .totalElements(0L)
+                .pageSize(20)
+                .hasNext(false)
+                .hasPrevious(false)
+                .searchType(null)
+                .searchKeyword(null)
+                .filterStatus(null)
+                .build();
+    }
+
+    /**
+     * 기본 응답 생성
+     * @param orders 주문 목록
+     * @param currentPage 현재 페이지
+     * @param totalPages 전체 페이지 수
+     * @param totalElements 전체 요소 수
+     * @param pageSize 페이지 크기
+     * @param hasNext 다음 페이지 존재 여부
+     * @param hasPrevious 이전 페이지 존재 여부
+     * @return 주문 목록 응답
+     */
+    public static SellerOrderListResponse of(
+            List<SellerOrderSummary> orders,
+            int currentPage,
+            int totalPages,
+            long totalElements,
+            int pageSize,
+            boolean hasNext,
+            boolean hasPrevious
+    ) {
+        return SellerOrderListResponse.builder()
+                .orders(orders)
+                .currentPage(currentPage)
+                .totalPages(totalPages)
+                .totalElements(totalElements)
+                .pageSize(pageSize)
+                .hasNext(hasNext)
+                .hasPrevious(hasPrevious)
+                .searchType(null)
+                .searchKeyword(null)
+                .filterStatus(null)
+                .build();
+    }
+
+    /**
+     * 검색 결과 응답 생성
+     * @param orders 주문 목록
+     * @param currentPage 현재 페이지
+     * @param totalPages 전체 페이지 수
+     * @param totalElements 전체 요소 수
+     * @param pageSize 페이지 크기
+     * @param hasNext 다음 페이지 존재 여부
+     * @param hasPrevious 이전 페이지 존재 여부
+     * @param searchType 검색 타입
+     * @param searchKeyword 검색 키워드
+     * @return 검색 결과 응답
+     */
+    public static SellerOrderListResponse searchResult(
+            List<SellerOrderSummary> orders,
+            int currentPage,
+            int totalPages,
+            long totalElements,
+            int pageSize,
+            boolean hasNext,
+            boolean hasPrevious,
+            String searchType,
+            String searchKeyword
+    ) {
+        return SellerOrderListResponse.builder()
+                .orders(orders)
+                .currentPage(currentPage)
+                .totalPages(totalPages)
+                .totalElements(totalElements)
+                .pageSize(pageSize)
+                .hasNext(hasNext)
+                .hasPrevious(hasPrevious)
+                .searchType(searchType)
+                .searchKeyword(searchKeyword)
+                .filterStatus(null)
+                .build();
+    }
+
+    /**
+     * 필터링 결과 응답 생성
+     * @param orders 주문 목록
+     * @param currentPage 현재 페이지
+     * @param totalPages 전체 페이지 수
+     * @param totalElements 전체 요소 수
+     * @param pageSize 페이지 크기
+     * @param hasNext 다음 페이지 존재 여부
+     * @param hasPrevious 이전 페이지 존재 여부
+     * @param filterStatus 필터링 상태
+     * @return 필터링 결과 응답
+     */
+    public static SellerOrderListResponse filteredResult(
+            List<SellerOrderSummary> orders,
+            int currentPage,
+            int totalPages,
+            long totalElements,
+            int pageSize,
+            boolean hasNext,
+            boolean hasPrevious,
+            OrderStatus filterStatus
+    ) {
+        return SellerOrderListResponse.builder()
+                .orders(orders)
+                .currentPage(currentPage)
+                .totalPages(totalPages)
+                .totalElements(totalElements)
+                .pageSize(pageSize)
+                .hasNext(hasNext)
+                .hasPrevious(hasPrevious)
+                .searchType(null)
+                .searchKeyword(null)
+                .filterStatus(filterStatus)
+                .build();
+    }
+
+    /**
+     * 빈 목록인지 확인
+     * @return 빈 목록 여부
+     */
+    public boolean isEmpty() {
+        return orders == null || orders.isEmpty();
+    }
+
+    /**
+     * 검색 결과인지 확인
+     * @return 검색 결과 여부
+     */
+    public boolean isSearchResult() {
+        return searchType != null && searchKeyword != null;
+    }
+
+    /**
+     * 필터링된 결과인지 확인
+     * @return 필터링 결과 여부
+     */
+    public boolean isFilteredResult() {
+        return filterStatus != null;
+    }
+
+    /**
+     * 총 주문 금액 계산
+     * @return 전체 주문 금액
+     */
+    public Long getTotalOrderAmount() {
+        if (orders == null || orders.isEmpty()) {
+            return 0L;
+        }
+
+        return orders.stream()
+                .mapToLong(SellerOrderSummary::totalPrice)
+                .sum();
+    }
+
+    /**
+     * 상태별 주문 수 집계
+     * @param status 집계할 상태
+     * @return 해당 상태의 주문 수
+     */
+    public long countByStatus(OrderStatus status) {
+        if (orders == null || orders.isEmpty()) {
+            return 0L;
+        }
+
+        return orders.stream()
+                .filter(order -> order.orderStatus() == status)
+                .count();
     }
 }
