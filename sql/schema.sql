@@ -375,6 +375,19 @@ CREATE TABLE order_issue_items (
                                    CONSTRAINT fk_order_issue_items_order_item FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE CASCADE
 );
 
+-- 결제 대기 중인 주문의 상세 정보를 임시 저장하는 테이블
+CREATE TABLE order_pending_details (
+                                       order_id VARCHAR(36) PRIMARY KEY,
+                                       user_provider VARCHAR(50),
+                                       user_provider_id VARCHAR(100),
+                                       original_total_price BIGINT,
+                                       coupon_discount_rate DOUBLE PRECISION,
+                                       order_items_json TEXT,
+                                       shipping_address_json TEXT,
+                                       created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                                       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                                       CONSTRAINT fk_order_pending_details_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
 
 -- 배송 추적은 api를 연동하기 때문에 우리 db는 간단히 저장
 CREATE TABLE shipments (

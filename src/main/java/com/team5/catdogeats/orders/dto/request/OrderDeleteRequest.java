@@ -1,7 +1,6 @@
 package com.team5.catdogeats.orders.dto.request;
 
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.NotBlank;
 
 /**
  * 주문 내역 삭제 요청 DTO
@@ -11,17 +10,9 @@ import jakarta.validation.constraints.Positive;
  * @param orderNumber 삭제할 주문 번호 (필수, 양수)
  */
 public record OrderDeleteRequest(
-
-        @NotNull(message = "주문 번호는 필수입니다.")
-        @Positive(message = "주문 번호는 양수여야 합니다.")
-        Long orderNumber
-
+        @NotBlank(message = "주문 번호는 필수입니다.")
+        String orderNumber
 ) {
-
-    // 생성자에서 추가 검증 수행
-    public OrderDeleteRequest {
-        if (orderNumber != null && orderNumber <= 0) {
-            throw new IllegalArgumentException("주문 번호는 양수여야 합니다.");
-        }
-    }
+    // String 타입으로 변경되었으므로 숫자 비교 로직을 제거합니다.
+    // @NotBlank 어노테이션이 null 또는 공백 문자열을 방지해줍니다.
 }
