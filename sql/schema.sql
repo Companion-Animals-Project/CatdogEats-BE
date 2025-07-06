@@ -191,24 +191,24 @@ CREATE TABLE orders (
                         id BIGINT PRIMARY KEY,
                         order_number BIGINT NOT NULL UNIQUE,               -- 새로 추가됨
                         user_id VARCHAR(36) NOT NULL,
-                        order_status ENUM(
-                               'PAYMENT_PENDING',
-                               'PAYMENT_COMPLETED',
-                               'PREPARING',
-                               'READY_FOR_SHIPMENT',
-                               'IN_DELIVERY',
-                               'DELIVERED',
-                               'CANCELLED',
-                               'REFUND_PROCESSING',
-                               'REFUNDED'
-                               ),
+                        order_status VARCHAR(50) CHECK (order_status IN (
+                                                                         'PAYMENT_PENDING',
+                                                                         'PAYMENT_COMPLETED',
+                                                                         'PREPARING',
+                                                                         'READY_FOR_SHIPMENT',
+                                                                         'IN_DELIVERY',
+                                                                         'DELIVERED',
+                                                                         'CANCELLED',
+                                                                         'REFUND_PROCESSING',
+                                                                         'REFUNDED'
+                            )),
                         total_price BIGINT NOT NULL,
                         is_hidden BOOLEAN NOT NULL DEFAULT FALSE,          -- 주문 내역 숨김 기능
-                        hidden_at DATETIME NULL,                           -- 숨김 처리 시각
-                        status_updated_by VARCHAR(36) NULL,                -- 상태 변경한 사용자 ID
-                        status_change_reason VARCHAR(500) NULL,            -- 상태 변경 사유
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        hidden_at TIMESTAMP WITH TIME ZONE,                -- 숨김 처리 시각
+                        status_updated_by VARCHAR(36),                     -- 상태 변경한 사용자 ID
+                        status_change_reason VARCHAR(500),                 -- 상태 변경 사유
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                         CONSTRAINT fk_orders_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 -- 재고 예약 테이블
@@ -409,17 +409,17 @@ CREATE TABLE shipments (
                            seller_id VARCHAR(36) NULL,                        -- 판매자 ID
                            courier VARCHAR(50) NULL,                          -- 택배사
                            tracking_number VARCHAR(100) NULL,                 -- 운송장 번호
-                           shipped_at DATETIME,                               -- 발송일자
-                           delivered_at DATETIME,                             -- 배송 완료일자
+                           shipped_at TIMESTAMP WITH TIME ZONE,               -- 발송일자
+                           delivered_at TIMESTAMP WITH TIME ZONE,             -- 배송 완료일자
 
     -- 판매자 배송 관리 추가 필드
                            is_hidden_by_seller BOOLEAN DEFAULT FALSE,         -- 판매자 목록 숨김 여부
-                           hidden_by_seller_at DATETIME NULL,                 -- 판매자 숨김 처리 시각
-                           shipment_memo VARCHAR(500) NULL,                   -- 배송 메모
-                           tracking_updated_at DATETIME NULL,                 -- 운송장 정보 최종 업데이트 시각
+                           hidden_by_seller_at TIMESTAMP WITH TIME ZONE,      -- 판매자 숨김 처리 시각
+                           shipment_memo VARCHAR(500),                        -- 배송 메모
+                           tracking_updated_at TIMESTAMP WITH TIME ZONE,      -- 운송장 정보 최종 업데이트 시각
 
-                           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                           updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
                            CONSTRAINT fk_shipments_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
                            CONSTRAINT fk_shipments_seller FOREIGN KEY (seller_id) REFERENCES sellers(user_id),

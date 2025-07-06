@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -74,12 +75,10 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
             @Param("sellerId") String sellerId
     );
 
-    // ===== 판매자 배송 관리를 위한 새로운 메서드들 =====
-
     /**
      * 판매자별 주문 목록 조회 (페이징)
-     * 판매자가 본인이 판매한 상품이 포함된 주문들을 페이징으로 조회
-     * 숨김 처리되지 않은 주문만 조회 (is_hidden_by_seller = false)
+     * 판매자가 본인이 판매한 상품이 포함된 주문 목록을 페이징으로 조회
+     * 숨김 처리된 주문은 제외
      * @param sellerId 판매자 userId
      * @param pageable 페이징 정보
      * @return 주문 목록 (페이징)
@@ -101,9 +100,8 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
 
     /**
      * 판매자별 주문 목록 조회 - 상태 필터링 (페이징)
-     * 특정 주문 상태에 해당하는 주문들만 조회
      * @param sellerId 판매자 userId
-     * @param orderStatus 주문 상태
+     * @param orderStatus 필터링할 주문 상태
      * @param pageable 페이징 정보
      * @return 주문 목록 (페이징)
      */
@@ -184,6 +182,7 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
     /**
      * 배송중인 주문 목록 조회 (배치 작업용)
      * 배송 추적 API 호출을 위해 배송중 상태인 모든 주문을 조회
+     * @param orderStatus 주문 상태 (IN_DELIVERY)
      * @return 배송중인 배송 정보 목록
      */
     @Query("""
@@ -192,69 +191,85 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
     WHERE o.orderStatus = :orderStatus
     AND s.trackingNumber IS NOT NULL
     AND s.courier IS NOT NULL
+    AND s.shippedAt IS NOT NULL
+    ORDER BY s.shippedAt ASC
     """)
-    List<Shipments> findAllInDeliveryOrders(@Param("orderStatus") OrderStatus orderStatus);
-
-    /**
-     * 판매자의 전체 주문 수 조회
-     * 통계 정보 제공을 위한 메서드
-     * @param sellerId 판매자 userId
-     * @return 전체 주문 수
-     */
-    @Query("""
-    SELECT COUNT(DISTINCT o.id) FROM Shipments s
-    JOIN s.orders o
-    JOIN o.orderItems oi
-    JOIN oi.products p
-    JOIN p.seller ps
-    WHERE ps.userId = :sellerId
-    AND (s.isHiddenBySeller IS NULL OR s.isHiddenBySeller = false)
-    """)
-    Long countSellerTotalOrders(@Param("sellerId") String sellerId);
-
-    /**
-     * 판매자의 상태별 주문 수 조회
-     * @param sellerId 판매자 userId
-     * @param orderStatus 주문 상태
-     * @return 해당 상태의 주문 수
-     */
-    @Query("""
-    SELECT COUNT(DISTINCT o.id) FROM Shipments s
-    JOIN s.orders o
-    JOIN o.orderItems oi
-    JOIN oi.products p
-    JOIN p.seller ps
-    WHERE ps.userId = :sellerId
-    AND o.orderStatus = :orderStatus
-    AND (s.isHiddenBySeller IS NULL OR s.isHiddenBySeller = false)
-    """)
-    Long countSellerOrdersByStatus(
-            @Param("sellerId") String sellerId,
+    List<Shipments> findByOrderStatusAndTrackingNumberIsNotNull(
             @Param("orderStatus") OrderStatus orderStatus
     );
 
     /**
-     * 특정 기간 내 배송 완료된 주문 목록 조회
-     * 정산 처리 등을 위한 메서드
+     * 주문 상태별 배송 정보 개수 조회 (배치 통계용)
+     * @param orderStatus 주문 상태
+     * @return 해당 상태의 주문 수
+     */
+    @Query("""
+    SELECT COUNT(s) FROM Shipments s
+    JOIN s.orders o
+    WHERE o.orderStatus = :orderStatus
+    """)
+    long countByOrderStatus(@Param("orderStatus") OrderStatus orderStatus);
+
+    /**
+     * 오늘 배송 완료된 주문 수 조회 (배치 통계용)
+     * @return 오늘 배송 완료 건수
+     */
+    @Query(value = """
+    SELECT COUNT(*) FROM shipments s
+    JOIN orders o ON s.order_id = o.id
+    WHERE o.order_status = 'DELIVERED'
+    AND DATE(s.delivered_at) = CURRENT_DATE
+    """, nativeQuery = true)
+    long countDeliveredToday();
+
+    /**
+     * 판매자의 숨김 처리된 주문 수 조회
      * @param sellerId 판매자 userId
-     * @param startDate 시작일 (yyyy-MM-dd 형식)
-     * @param endDate 종료일 (yyyy-MM-dd 형식)
-     * @return 배송 완료된 주문 목록
+     * @return 숨김 처리된 주문 수
+     */
+    @Query("""
+    SELECT COUNT(DISTINCT s) FROM Shipments s
+    JOIN s.orders o
+    JOIN o.orderItems oi
+    JOIN oi.products p
+    JOIN p.seller ps
+    WHERE ps.userId = :sellerId
+    AND s.isHiddenBySeller = true
+    """)
+    long countHiddenOrdersBySeller(@Param("sellerId") String sellerId);
+
+    /**
+     * 특정 기간 내 배송 완료된 주문 조회
+     * @param startDate 시작 일시
+     * @param endDate 종료 일시
+     * @return 해당 기간 배송 완료 목록
      */
     @Query("""
     SELECT s FROM Shipments s
     JOIN FETCH s.orders o
-    JOIN FETCH o.orderItems oi
-    JOIN FETCH oi.products p
-    JOIN FETCH p.seller ps
-    WHERE ps.userId = :sellerId
-    AND o.orderStatus = 'DELIVERED'
-    AND DATE(s.deliveredAt) BETWEEN :startDate AND :endDate
+    WHERE o.orderStatus = 'DELIVERED'
+    AND s.deliveredAt BETWEEN :startDate AND :endDate
     ORDER BY s.deliveredAt DESC
     """)
-    List<Shipments> findSellerDeliveredOrdersByDateRange(
-            @Param("sellerId") String sellerId,
-            @Param("startDate") String startDate,
-            @Param("endDate") String endDate
+    List<Shipments> findDeliveredBetween(
+            @Param("startDate") ZonedDateTime startDate,
+            @Param("endDate") ZonedDateTime endDate
     );
+
+    /**
+     * 운송장 정보가 업데이트되지 않은 지 오래된 배송 정보 조회
+     * 배치 작업 우선순위 결정용
+     * @param cutoffTime 기준 시간
+     * @return 업데이트가 필요한 배송 정보 목록
+     */
+    @Query("""
+    SELECT s FROM Shipments s
+    JOIN FETCH s.orders o
+    WHERE o.orderStatus = 'IN_DELIVERY'
+    AND s.trackingNumber IS NOT NULL
+    AND (s.trackingUpdatedAt IS NULL 
+         OR s.trackingUpdatedAt < :cutoffTime)
+    ORDER BY s.shippedAt ASC
+    """)
+    List<Shipments> findStaleTrackingInfo(@Param("cutoffTime") ZonedDateTime cutoffTime);
 }
