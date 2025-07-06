@@ -131,7 +131,7 @@ public class SellerOrderController {
     }
 
     /**
-     * 배송 상태 관리 (판매자) - 주문 상태 변경
+     * 배송 상태 관리 - 주문 상태 변경 (판매자)
      * API: POST /v1/sellers/orders/status
      */
     @PostMapping("/status")
@@ -147,30 +147,27 @@ public class SellerOrderController {
             OrderStatusUpdateResponse response = sellerOrderService.updateOrderStatus(userPrincipal, request);
 
             log.info("주문 상태 변경 성공 - orderNumber: {}, {} → {}",
-                    request.getOrderNumber(), response.previousStatus(), response.currentStatus());
+                    request.getOrderNumber(), response.previousStatus(), response.newStatus());
 
             return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
 
         } catch (NoSuchElementException e) {
-            log.warn("주문 상태 변경 실패 - 주문 없음: orderNumber: {}, reason: {}",
-                    request.getOrderNumber(), e.getMessage());
+            log.warn("주문 상태 변경 실패 - orderNumber: {}, reason: {}", request.getOrderNumber(), e.getMessage());
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
                     .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
 
         } catch (IllegalArgumentException e) {
-            log.warn("주문 상태 변경 실패 - 잘못된 요청: orderNumber: {}, reason: {}",
-                    request.getOrderNumber(), e.getMessage());
+            log.warn("주문 상태 변경 실패 - 잘못된 요청: {}", e.getMessage());
             return ResponseEntity
                     .status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
                     .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
 
         } catch (IllegalStateException e) {
-            log.warn("주문 상태 변경 실패 - 상태 오류: orderNumber: {}, reason: {}",
-                    request.getOrderNumber(), e.getMessage());
+            log.warn("주문 상태 변경 실패 - 상태 오류: {}", e.getMessage());
             return ResponseEntity
-                    .status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+                    .status(ResponseCode.INVALID_STATE.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INVALID_STATE, e.getMessage()));
 
         } catch (Exception e) {
             log.error("주문 상태 변경 중 서버 오류 - orderNumber: {}", request.getOrderNumber(), e);
@@ -196,114 +193,34 @@ public class SellerOrderController {
         try {
             TrackingNumberRegisterResponse response = sellerOrderService.registerTrackingNumber(userPrincipal, request);
 
-            log.info("운송장 번호 등록 성공 - orderNumber: {}, trackingNumber: {}, status: {}",
-                    request.getOrderNumber(), response.trackingNumber(), response.orderStatus());
+            log.info("운송장 번호 등록 성공 - orderNumber: {}, trackingNumber: {}, courier: {}",
+                    request.getOrderNumber(), response.trackingNumber(), response.courierCompany());
 
             return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
 
         } catch (NoSuchElementException e) {
-            log.warn("운송장 번호 등록 실패 - 주문 없음: orderNumber: {}, reason: {}",
-                    request.getOrderNumber(), e.getMessage());
+            log.warn("운송장 번호 등록 실패 - orderNumber: {}, reason: {}", request.getOrderNumber(), e.getMessage());
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
                     .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
 
         } catch (IllegalArgumentException e) {
-            log.warn("운송장 번호 등록 실패 - 잘못된 요청: orderNumber: {}, reason: {}",
-                    request.getOrderNumber(), e.getMessage());
+            log.warn("운송장 번호 등록 실패 - 잘못된 요청: {}", e.getMessage());
             return ResponseEntity
                     .status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
                     .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
 
         } catch (IllegalStateException e) {
-            log.warn("운송장 번호 등록 실패 - 상태 오류: orderNumber: {}, reason: {}",
-                    request.getOrderNumber(), e.getMessage());
+            log.warn("운송장 번호 등록 실패 - 상태 오류: {}", e.getMessage());
             return ResponseEntity
-                    .status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+                    .status(ResponseCode.INVALID_STATE.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INVALID_STATE, e.getMessage()));
 
         } catch (Exception e) {
             log.error("운송장 번호 등록 중 서버 오류 - orderNumber: {}", request.getOrderNumber(), e);
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
                     .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "운송장 번호 등록 중 서버 오류가 발생했습니다."));
-        }
-    }
-
-    /**
-     * 주문 목록에서 숨김 처리
-     * API: DELETE /v1/sellers/orders/{order-number}/hide
-     */
-    @DeleteMapping("/{order-number}/hide")
-    public ResponseEntity<ApiResponse<String>> hideOrderFromList(
-            @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @PathVariable("order-number") String orderNumber) {
-
-        log.info("주문 숨김 처리 요청 - provider: {}, providerId: {}, orderNumber: {}",
-                userPrincipal.provider(), userPrincipal.providerId(), orderNumber);
-
-        try {
-            boolean isHidden = sellerOrderService.hideOrderFromList(userPrincipal, orderNumber);
-
-            if (isHidden) {
-                log.info("주문 숨김 처리 성공 - orderNumber: {}", orderNumber);
-                return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, "주문이 목록에서 숨김 처리되었습니다."));
-            } else {
-                log.warn("주문 숨김 처리 실패 - orderNumber: {}", orderNumber);
-                return ResponseEntity
-                        .status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                        .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, "주문을 숨김 처리할 수 없습니다."));
-            }
-
-        } catch (NoSuchElementException e) {
-            log.warn("주문 숨김 처리 실패 - 주문 없음: orderNumber: {}, reason: {}", orderNumber, e.getMessage());
-            return ResponseEntity
-                    .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
-
-        } catch (IllegalArgumentException e) {
-            log.warn("주문 숨김 처리 실패 - 권한 오류: orderNumber: {}, reason: {}", orderNumber, e.getMessage());
-            return ResponseEntity
-                    .status(ResponseCode.ACCESS_DENIED.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage()));
-
-        } catch (Exception e) {
-            log.error("주문 숨김 처리 중 서버 오류 - orderNumber: {}", orderNumber, e);
-            return ResponseEntity
-                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "주문 숨김 처리 중 서버 오류가 발생했습니다."));
-        }
-    }
-
-    /**
-     * 판매자 주문 통계 조회
-     * API: GET /v1/sellers/orders/stats
-     */
-    @GetMapping("/stats")
-    public ResponseEntity<ApiResponse<SellerOrderStatsResponse>> getSellerOrderStats(
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
-
-        log.info("판매자 주문 통계 조회 요청 - provider: {}, providerId: {}",
-                userPrincipal.provider(), userPrincipal.providerId());
-
-        try {
-            SellerOrderStatsResponse response = sellerOrderService.getSellerOrderStats(userPrincipal);
-
-            log.info("판매자 주문 통계 조회 성공 - totalOrders: {}", response.totalOrders());
-
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
-
-        } catch (IllegalArgumentException e) {
-            log.warn("판매자 주문 통계 조회 실패 - 권한 오류: {}", e.getMessage());
-            return ResponseEntity
-                    .status(ResponseCode.ACCESS_DENIED.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage()));
-
-        } catch (Exception e) {
-            log.error("판매자 주문 통계 조회 중 서버 오류", e);
-            return ResponseEntity
-                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "주문 통계 조회 중 서버 오류가 발생했습니다."));
         }
     }
 
