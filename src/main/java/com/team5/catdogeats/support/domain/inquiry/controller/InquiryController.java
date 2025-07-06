@@ -2,6 +2,7 @@ package com.team5.catdogeats.support.domain.inquiry.controller;
 
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
+import com.team5.catdogeats.storage.service.InquiryFileService;
 import com.team5.catdogeats.support.domain.inquiry.dto.*;
 import com.team5.catdogeats.support.domain.inquiry.service.InquiryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,8 +25,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.access.AccessDeniedException;  // 👈 이거 추가
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 //  1:1 문의 사용자 Controller
 //  로그인한 사용자(판매자, 구매자)가 사용하는 CRUD 기능
@@ -37,6 +39,8 @@ import org.springframework.web.multipart.MultipartFile;
 public class InquiryController {
 
     private final InquiryService inquiryService;
+    private final InquiryFileService inquiryFileService;
+
 
     // 사용자별 문의 목록 조회 (페이징)
     @GetMapping
@@ -128,22 +132,40 @@ public class InquiryController {
         }
     }
 
-    // 문의 등록
+    // 문의 등록 (이미지 파일 업로드 지원)
     @PostMapping
     @Operation(
             summary = "1:1 문의 등록",
             description = "1:1 문의를 등록합니다. 주문 관련 문의인 경우 주문 ID를 포함할 수 있습니다.<br/>"
                     + "제목은 최소 5자 이상, 내용은 최소 10자 이상 작성해야 합니다.<br/>"
-                    + "문의 유형: PRODUCT, ORDER, PAYMENT, DELIVERY, RETURN, ACCOUNT, ETC"
+                    + "문의 유형: PRODUCT, ORDER, PAYMENT, DELIVERY, RETURN, ACCOUNT, ETC<br/>"
+                    + "이미지 파일 첨부 가능 (JPG, PNG, WebP, 최대 5MB)"
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> createInquiry(
             @Parameter(hidden = true) @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "문의 등록 정보")
             @Valid @ModelAttribute InquiryCreateRequestDTO request,
-            @RequestParam(value = "images", required = false) MultipartFile[] imageFiles) {
+            @RequestParam(value = "images", required = false)
+            @Parameter(description = "첨부 이미지 파일들 (선택사항, 최대 5개)")
+            MultipartFile[] imageFiles) {
 
         try {
+            // 기본 문의 등록
             InquiryResponseDTO response = inquiryService.createInquiry(userPrincipal.providerId(), request);
+
+            // 이미지 파일 업로드 (있는 경우)
+            if (imageFiles != null && imageFiles.length > 0) {
+                try {
+                    List<InquiryAttachmentDTO> attachments = inquiryFileService.uploadUserImages(
+                            response.inquiryId(), imageFiles);
+                    log.info("문의 이미지 업로드 완료 - inquiryId: {}, 파일 수: {}",
+                            response.inquiryId(), attachments.size());
+                } catch (Exception e) {
+                    log.error("이미지 업로드 실패하였으나 문의는 등록됨 - inquiryId: {}", response.inquiryId(), e);
+                    // 문의는 등록되었으므로 계속 진행
+                }
+            }
+
             log.info("문의 등록 완료 - inquiryId: {}, providerId: {}", response.inquiryId(), userPrincipal.providerId());
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -162,17 +184,22 @@ public class InquiryController {
         }
     }
 
+    // 사용자 답글 등록 메서드 수정 (이미지 파일 업로드 지원)
     @PostMapping("/followup")
     @Operation(
             summary = "문의 답글 등록 (유저)",
             description = "사용자가 기존 문의나 관리자 답변에 대한 추가 답글을 등록합니다. "
                     + "답글 등록 시 문의 상태가 '추가 문의'로 변경됩니다.<br/>"
-                    + "내용은 최소 5자 이상 작성해야 합니다."
+                    + "내용은 최소 5자 이상 작성해야 합니다.<br/>"
+                    + "이미지 파일 첨부 가능 (JPG, PNG, WebP, 최대 5MB)"
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> createFollowup(
             @Parameter(hidden = true) @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @Parameter(description = "답글 등록 정보")
-            @Valid @RequestBody FollowupRequestWrapper request) {
+            @Parameter(description = "답글 내용")
+            @Valid @RequestPart("request") FollowupRequestWrapper request,
+            @RequestParam(value = "images", required = false)
+            @Parameter(description = "첨부 이미지 파일들 (선택사항, 최대 5개)")
+            MultipartFile[] imageFiles) {
 
         try {
             // InquiryRequestDTO 생성
@@ -180,6 +207,18 @@ public class InquiryController {
 
             InquiryResponseDTO response = inquiryService.createUserFollowup(
                     request.inquiryId(), userPrincipal.providerId(), inquiryRequest);
+
+            // 이미지 파일 업로드 (있는 경우)
+            if (imageFiles != null && imageFiles.length > 0) {
+                try {
+                    List<InquiryAttachmentDTO> attachments = inquiryFileService.uploadUserImages(
+                            response.inquiryId(), imageFiles);
+                    log.info("답글 이미지 업로드 완료 - inquiryId: {}, 파일 수: {}",
+                            response.inquiryId(), attachments.size());
+                } catch (Exception e) {
+                    log.error("이미지 업로드 실패하였으나 답글은 등록됨 - inquiryId: {}", response.inquiryId(), e);
+                }
+            }
 
             log.info("사용자 답글 등록 완료 - inquiryId: {}, providerId: {}, followupId: {}",
                     request.inquiryId(), userPrincipal.providerId(), response.inquiryId());
@@ -198,7 +237,7 @@ public class InquiryController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
                     ApiResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage())
             );
-        } catch (IllegalStateException e) { // ✅ 추가: 종료된 문의 예외 처리
+        } catch (IllegalStateException e) {
             log.warn("종료된 문의에 답글 시도 - inquiryId: {}, providerId: {}, error: {}",
                     request.inquiryId(), userPrincipal.providerId(), e.getMessage());
             return ResponseEntity.badRequest().body(
@@ -267,6 +306,37 @@ public class InquiryController {
     }
 
 
+    // 파일 다운로드 (이미지 + 문서 모두 지원)
+    @GetMapping("/{inquiryId}/files/{fileId}")
+    @Operation(
+            summary = "문의 첨부 파일 다운로드",
+            description = "본인의 문의에 첨부된 파일(이미지/문서)을 다운로드합니다. 관리자가 답변에 첨부한 파일도 다운로드 가능합니다."
+    )
+    public ResponseEntity<Resource> downloadFile(
+            @PathVariable String inquiryId,
+            @PathVariable String fileId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        try {
+            Resource resource = inquiryFileService.downloadUserFile(inquiryId, fileId, userPrincipal.providerId());
+
+            String safeFileName = inquiryFileService.generateSafeDownloadFileName("attachment", fileId);
+
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=\"" + safeFileName + "\"")
+                    .body(resource);
+
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (Exception e) {
+            log.error("파일 다운로드 중 오류 - inquiryId: {}, fileId: {}", inquiryId, fileId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+
     // 컨트롤러 전용 래퍼 클래스들 (간단한 요청을 위해)
     public record FollowupRequestWrapper(
             @NotBlank(message = "문의 ID는 필수입니다")
@@ -281,14 +351,4 @@ public class InquiryController {
             @NotBlank(message = "문의 ID는 필수입니다")
             String inquiryId
     ) {}
-
-    // 이미지 다운로드
-    @GetMapping("/{inquiryId}/images/{imageId}")
-    public ResponseEntity<Resource> downloadImage(
-            @PathVariable String inquiryId,
-            @PathVariable String imageId,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
-        // 권한 검증 + 이미지 다운로드
-        return null;
-    }
 }

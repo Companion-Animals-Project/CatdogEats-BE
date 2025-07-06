@@ -547,7 +547,12 @@ CREATE TABLE files (
 CREATE TABLE inquiry_files (
                                id VARCHAR(36) PRIMARY KEY,
                                inquiry_id VARCHAR(36) NOT NULL ,
-                               CONSTRAINT fk_inquiry_files_inquiry_id FOREIGN KEY (inquiry_id) REFERENCES inquiries(id)
+                               image_id VARCHAR(36) NOT NULL , -- image_id 추가
+                               file_id VARCHAR(36) NOT NULL , -- file_id 추가
+                               CONSTRAINT fk_inquiry_files_inquiry_id FOREIGN KEY (inquiry_id) REFERENCES inquiries(id),
+                               CONSTRAINT fk_inquiry_files_image_id FOREIGN KEY (image_id) REFERENCES images(id),  -- 이것도 추가
+                               CONSTRAINT fk_inquiry_files_file_id FOREIGN KEY (file_id) REFERENCES files(id)  -- 이것도 추가
+
 );
 
 CREATE TABLE notice_files (

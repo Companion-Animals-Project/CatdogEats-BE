@@ -24,7 +24,12 @@ public record InquiryDetailResponseDTO(
 
         // 주문 정보 (있는 경우)
         OrderInfo orderInfo,
-        List<InquiryMessageDTO> messages
+
+        // 메시지 목록 (스레드 형태)
+        List<InquiryMessageDTO> messages,
+
+        // 첨부파일 목록 추가
+        List<InquiryAttachmentDTO> attachments
 ) {
     private static final DateTimeFormatter ADMIN_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final DateTimeFormatter USER_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -37,7 +42,9 @@ public record InquiryDetailResponseDTO(
     ) {}
 
     // 관리자 상세 조회
-    public static InquiryDetailResponseDTO forAdmin(Inquires inquiry, List<InquiryMessageDTO> messages) {
+    public static InquiryDetailResponseDTO forAdmin(Inquires inquiry,
+                                                    List<InquiryMessageDTO> messages,
+                                                    List<InquiryAttachmentDTO> attachments) {
         OrderInfo orderInfo = null;
         if (inquiry.getOrders() != null) {
             Orders order = inquiry.getOrders();
@@ -60,12 +67,15 @@ public record InquiryDetailResponseDTO(
                 inquiry.getUpdatedAt().withZoneSameInstant(KOREA_ZONE).format(ADMIN_FORMATTER),
                 inquiry.getUsers().getName(),
                 orderInfo,
-                messages
+                messages,
+                attachments
         );
     }
 
     // 유저 상세 조회 (간소화)
-    public static InquiryDetailResponseDTO forUser(Inquires inquiry, List<InquiryMessageDTO> messages) {
+    public static InquiryDetailResponseDTO forUser(Inquires inquiry,
+                                                   List<InquiryMessageDTO> messages,
+                                                   List<InquiryAttachmentDTO> attachments) {
         return new InquiryDetailResponseDTO(
                 inquiry.getId(),
                 inquiry.getTitle(),
@@ -77,8 +87,9 @@ public record InquiryDetailResponseDTO(
                 inquiry.getCreatedAt().withZoneSameInstant(KOREA_ZONE).format(USER_FORMATTER),
                 null, // 유저는 수정일 불필요
                 null, // 유저는 본인 이름 불필요
-                null, // 유저는 주문정보 간소화 (필요시 별도 처리)
-                messages
+                null, // 유저는 주문정보 간소화
+                messages,
+                attachments
         );
     }
 }

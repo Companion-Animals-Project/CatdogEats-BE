@@ -3,6 +3,7 @@ package com.team5.catdogeats.support.domain.inquiry.service.impl;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.repository.OrderRepository;
+import com.team5.catdogeats.storage.service.InquiryFileService;
 import com.team5.catdogeats.support.domain.Inquires;
 import com.team5.catdogeats.support.domain.enums.InquiryMessageType;
 import com.team5.catdogeats.support.domain.enums.InquiryStatus;
@@ -37,6 +38,8 @@ public class InquiryServiceImpl implements InquiryService {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final InquiryEscalationService escalationService;
+    private final InquiryFileService inquiryFileService;
+
 
     @Override
     @JpaTransactional(readOnly = true)
@@ -57,7 +60,9 @@ public class InquiryServiceImpl implements InquiryService {
         validateUserAccess(rootInquiry, providerId);
         List<InquiryMessageDTO> messages = getInquiryMessages(rootInquiry.getId());
 
-        return InquiryDetailResponseDTO.forUser(rootInquiry, messages);
+        List<InquiryAttachmentDTO> attachments = inquiryFileService.getInquiryThreadAttachments(rootInquiry.getId());
+
+        return InquiryDetailResponseDTO.forUser(rootInquiry, messages, attachments);
     }
 
 
@@ -225,7 +230,10 @@ public class InquiryServiceImpl implements InquiryService {
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
 
         List<InquiryMessageDTO> messages = getInquiryMessages(inquiry.getId());
-        return InquiryDetailResponseDTO.forAdmin(inquiry, messages);
+
+        List<InquiryAttachmentDTO> attachments = inquiryFileService.getInquiryThreadAttachments(inquiry.getId());
+
+        return InquiryDetailResponseDTO.forAdmin(inquiry, messages, attachments);
     }
 
     @Override

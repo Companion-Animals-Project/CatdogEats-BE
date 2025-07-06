@@ -2,11 +2,9 @@ package com.team5.catdogeats.support.domain.inquiry.controller;
 
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
+import com.team5.catdogeats.storage.service.InquiryFileService;
 import com.team5.catdogeats.support.domain.enums.InquiryUrgentLevel;
-import com.team5.catdogeats.support.domain.inquiry.dto.InquiryDetailResponseDTO;
-import com.team5.catdogeats.support.domain.inquiry.dto.InquiryListResponseDTO;
-import com.team5.catdogeats.support.domain.inquiry.dto.InquiryRequestDTO;
-import com.team5.catdogeats.support.domain.inquiry.dto.InquiryResponseDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.*;
 import com.team5.catdogeats.support.domain.inquiry.service.InquiryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -18,6 +16,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -26,6 +25,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -36,6 +38,8 @@ import org.springframework.web.bind.annotation.*;
 public class InquiryAdminController {
 
     private final InquiryService inquiryService;
+    private final InquiryFileService inquiryFileService;
+
 
     @GetMapping
     @Operation(
@@ -127,16 +131,27 @@ public class InquiryAdminController {
         }
     }
 
+    // 관리자 답변 등록 메서드 (파일 업로드 지원)
     @PostMapping("/reply")
     @Operation(
             summary = "문의 답변 등록 (관리자)",
             description = "관리자가 문의에 대한 답변을 등록합니다.<br /> "
                     + "최초 답변인 경우 '답변 완료' 상태로, 추가 답변인 경우 '추가 문의' 상태로 변경됩니다.<br/>"
-                    + "내용은 최소 5자 이상 작성해야 합니다."
+                    + "내용은 최소 5자 이상 작성해야 합니다.<br/>"
+                    + "이미지 파일 및 문서 파일 첨부 가능<br/>"
+                    + "- 이미지: JPG, PNG, WebP (최대 5MB)<br/>"
+                    + "- 문서: PDF, DOC, DOCX, XLS, XLSX, HWP (최대 10MB)"
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> createReply(
             @Parameter(hidden = true) @AuthenticationPrincipal Object adminPrincipal,
-            @Parameter(description = "답변 등록 정보") @Valid @RequestBody ReplyRequestWrapper request) {
+            @Parameter(description = "답변 내용")
+            @Valid @RequestPart("request") ReplyRequestWrapper request,
+            @RequestParam(value = "images", required = false)
+            @Parameter(description = "첨부 이미지 파일들 (선택사항)")
+            MultipartFile[] imageFiles,
+            @RequestParam(value = "documents", required = false)
+            @Parameter(description = "첨부 문서 파일들 (선택사항)")
+            MultipartFile[] documentFiles) {
 
         try {
             String adminId = adminPrincipal != null ? adminPrincipal.toString() : "SYSTEM";
@@ -145,6 +160,19 @@ public class InquiryAdminController {
             InquiryRequestDTO inquiryRequest = InquiryRequestDTO.forContent(request.content());
 
             InquiryResponseDTO response = inquiryService.createAdminReply(request.inquiryId(), adminId, inquiryRequest);
+
+            // 파일 업로드 (있는 경우)
+            if ((imageFiles != null && imageFiles.length > 0) ||
+                    (documentFiles != null && documentFiles.length > 0)) {
+                try {
+                    List<InquiryAttachmentDTO> attachments = inquiryFileService.uploadAdminFiles(
+                            response.inquiryId(), imageFiles, documentFiles);
+                    log.info("관리자 답변 파일 업로드 완료 - inquiryId: {}, 파일 수: {}",
+                            response.inquiryId(), attachments.size());
+                } catch (Exception e) {
+                    log.error("파일 업로드 실패하였으나 답변은 등록됨 - inquiryId: {}", response.inquiryId(), e);
+                }
+            }
 
             log.info("관리자 답변 등록 완료 - inquiryId: {}, adminId: {}, replyId: {}",
                     request.inquiryId(), adminId, response.inquiryId());
@@ -157,7 +185,7 @@ public class InquiryAdminController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                     ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
             );
-        } catch (IllegalStateException e) { // ✅ 추가: 종료된 문의 예외 처리
+        } catch (IllegalStateException e) {
             log.warn("종료된 문의에 답변 시도 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.badRequest().body(
                     ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
@@ -222,6 +250,37 @@ public class InquiryAdminController {
         }
     }
 
+
+    // 관리자용 파일 다운로드
+    @GetMapping("/{inquiryId}/files/{fileId}")
+    @Operation(
+            summary = "문의 첨부 파일 다운로드 (관리자)",
+            description = "관리자가 문의에 첨부된 파일(이미지/문서)을 다운로드합니다."
+    )
+    public ResponseEntity<Resource> downloadFile(
+            @PathVariable String inquiryId,
+            @PathVariable String fileId) {
+
+        try {
+            Resource resource = inquiryFileService.downloadAdminFile(inquiryId, fileId);
+
+            // 안전한 파일명 생성
+            String safeFileName = inquiryFileService.generateSafeDownloadFileName("attachment", fileId);
+
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=\"" + safeFileName + "\"")
+                    .body(resource);
+
+        } catch (EntityNotFoundException e) {
+            log.warn("파일을 찾을 수 없음 - inquiryId: {}, fileId: {}", inquiryId, fileId);
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            log.error("관리자 파일 다운로드 중 오류 - inquiryId: {}, fileId: {}", inquiryId, fileId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    
     // 컨트롤러 전용 래퍼 클래스들
     public record ReplyRequestWrapper(
             @NotBlank(message = "문의 ID는 필수입니다")

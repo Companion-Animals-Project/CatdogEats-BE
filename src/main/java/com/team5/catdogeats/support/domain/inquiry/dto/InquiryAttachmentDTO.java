@@ -118,7 +118,7 @@ public class InquiryAttachmentDTO {
     }
 
 
-    // ZonedDateTime으로부터 DTO 생성 시 사용하는 유틸리티 메서드
+    // ZonedDateTime 으로부터 DTO 생성 시 사용하는 유틸리티 메서드
     public static String formatUploadTime(ZonedDateTime zonedDateTime) {
         if (zonedDateTime == null) {
             return "";
