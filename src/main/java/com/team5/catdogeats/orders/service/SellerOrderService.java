@@ -163,14 +163,4 @@ public interface SellerOrderService {
      * @throws IllegalArgumentException 판매자 권한이 없는 경우, 숨김 처리가 불가능한 상태인 경우
      */
     boolean hideOrderFromList(UserPrincipal userPrincipal, String orderNumber);
-
-    /**
-     * 판매자 주문 통계 조회
-     * 판매자의 주문 현황을 통계로 제공합니다.
-     * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
-     * @return 주문 통계 정보 (전체/상태별 주문 수 등)
-     * @throws IllegalArgumentException 판매자 권한이 없는 경우
-     * @throws NoSuchElementException 판매자를 찾을 수 없는 경우
-     */
-    //SellerOrderStatsResponse getSellerOrderStats(UserPrincipal userPrincipal);
 }

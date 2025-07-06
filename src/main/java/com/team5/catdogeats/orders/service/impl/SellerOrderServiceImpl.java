@@ -1,166 +1,353 @@
-package com.team5.catdogeats.orders.service;
+package com.team5.catdogeats.orders.service.impl;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
+import com.team5.catdogeats.global.annotation.JpaTransactional;
+import com.team5.catdogeats.orders.domain.Orders;
+import com.team5.catdogeats.orders.domain.Shipments;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
+import com.team5.catdogeats.orders.domain.mapping.OrderItems;
 import com.team5.catdogeats.orders.dto.request.OrderStatusUpdateRequest;
 import com.team5.catdogeats.orders.dto.request.TrackingNumberRegisterRequest;
-import com.team5.catdogeats.orders.dto.response.OrderStatusUpdateResponse;
-import com.team5.catdogeats.orders.dto.response.SellerOrderDetailResponse;
-import com.team5.catdogeats.orders.dto.response.SellerOrderListResponse;
-import com.team5.catdogeats.orders.dto.response.TrackingNumberRegisterResponse;
+import com.team5.catdogeats.orders.dto.response.*;
+import com.team5.catdogeats.orders.repository.OrderRepository;
+import com.team5.catdogeats.orders.repository.ShipmentRepository;
+import com.team5.catdogeats.orders.service.SellerOrderService;
+import com.team5.catdogeats.users.domain.Users;
+import com.team5.catdogeats.users.domain.mapping.Sellers;
+import com.team5.catdogeats.users.repository.SellerRepository;
+import com.team5.catdogeats.users.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
 
+import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
- * 판매자용 주문 관리 서비스 인터페이스 (확장)
- * 판매자가 본인이 판매한 상품의 배송 관리를 할 수 있는 기능들을 제공합니다.
+ * 판매자용 주문 관리 서비스 구현체 (확장)
+ * 기존 배송지 조회 기능에 목록 관리, 상태 변경, 운송장 등록 기능을 추가
  */
-public interface SellerOrderService {
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class SellerOrderServiceImpl implements SellerOrderService {
 
-    /**
-     * 판매자용 주문 상세 조회 (배송지 정보 포함)
-     * 판매자가 본인이 판매한 상품이 포함된 주문의 배송지 정보를 조회합니다.
-     * 처리 과정:
-     * 1. UserPrincipal로 판매자 인증 및 권한 확인
-     * 2. 주문번호로 주문 조회 및 판매자 소유 상품 확인
-     * 3. 배송지 정보 조회 (Shipments 엔티티에서)
-     * 4. 해당 판매자의 상품만 필터링하여 반환
-     * 5. 판매자에게 필요한 정보만 포함된 응답 DTO 생성
-     * 보안 정책:
-     * - 판매자는 본인이 판매한 상품이 포함된 주문만 조회 가능
-     * - 구매자의 민감정보(결제정보 등)는 제외하고 배송에 필요한 정보만 제공
-     * - 다른 판매자의 상품 정보는 접근 불가
-     *
-     * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
-     * @param orderNumber 조회할 주문 번호
-     * @return 판매자용 주문 상세 정보 (배송지 정보 + 해당 판매자 상품 목록)
-     * @throws NoSuchElementException 주문이 존재하지 않거나 접근 권한이 없는 경우
-     * @throws IllegalArgumentException 판매자 권한이 없는 경우
-     */
-    SellerOrderDetailResponse getSellerOrderDetail(UserPrincipal userPrincipal, String orderNumber);
+    private final UserRepository userRepository;
+    private final SellerRepository sellerRepository;
+    private final ShipmentRepository shipmentRepository;
+    private final OrderRepository orderRepository;
 
-    /**
-     * 판매자용 주문 목록 조회 (페이징)
-     * 판매자가 본인이 판매한 상품이 포함된 주문 목록을 페이징으로 조회합니다.
-     * 처리 과정:
-     * 1. UserPrincipal로 판매자 인증 및 권한 확인
-     * 2. 페이징 정보 검증 및 정렬 조건 적용
-     * 3. 판매자 소유 주문 목록 조회 (숨김 처리된 주문 제외)
-     * 4. 각 주문별 판매자 상품만 필터링
-     * 5. 민감정보 마스킹 처리 (전화번호 등)
-     * 6. 응답 DTO 생성 및 반환
-     * 보안 정책:
-     * - 판매자는 본인이 판매한 상품이 포함된 주문만 조회 가능
-     * - 구매자 개인정보는 필요 최소한만 제공 (배송용)
-     * - 다른 판매자의 상품 정보는 제외
-     *
-     * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
-     * @param pageable 페이징 및 정렬 정보
-     * @return 판매자용 주문 목록 (페이징)
-     * @throws IllegalArgumentException 판매자 권한이 없는 경우, 잘못된 페이징 정보인 경우
-     * @throws NoSuchElementException 판매자를 찾을 수 없는 경우
-     */
-    SellerOrderListResponse getSellerOrders(UserPrincipal userPrincipal, Pageable pageable);
+    @Override
+    public SellerOrderDetailResponse getSellerOrderDetail(UserPrincipal userPrincipal, String orderNumber) {
+        try {
+            log.debug("판매자용 주문 상세 조회 시작 - provider: {}, providerId: {}, orderNumber: {}",
+                    userPrincipal.provider(), userPrincipal.providerId(), orderNumber);
 
-    /**
-     * 판매자용 주문 목록 조회 - 상태 필터링 (페이징)
-     * 특정 주문 상태의 주문들만 필터링하여 조회합니다.
-     * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
-     * @param orderStatus 필터링할 주문 상태
-     * @param pageable 페이징 및 정렬 정보
-     * @return 상태별 필터링된 주문 목록 (페이징)
-     * @throws IllegalArgumentException 판매자 권한이 없는 경우, 유효하지 않은 상태인 경우
-     * @throws NoSuchElementException 판매자를 찾을 수 없는 경우
-     */
-    SellerOrderListResponse getSellerOrdersByStatus(
+            // 1. UserPrincipal로 판매자 조회 및 검증
+            Sellers seller = findSellerByPrincipal(userPrincipal);
+            log.debug("판매자 조회 완료 - sellerId: {}", seller.getUserId());
+
+            // 2. 주문 조회 및 권한 검증 (Repository의 최적화된 메서드 활용)
+            Shipments shipment = shipmentRepository
+                    .findShippingInfoByOrderNumberAndSeller(orderNumber, seller.getUserId())
+                    .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없거나 접근 권한이 없습니다"));
+
+            log.debug("배송정보 및 권한 검증 완료 - shipmentId: {}, orderId: {}",
+                    shipment.getId(), shipment.getOrders().getId());
+
+            // 3. 해당 판매자의 상품만 이미 필터링된 상태
+            List<OrderItems> sellerOrderItems = shipment.getOrders().getOrderItems();
+
+            // 4. DTO 변환 및 응답 생성
+            return buildSellerOrderDetailResponse(shipment, sellerOrderItems, seller.getUserId());
+
+        } catch (NoSuchElementException | IllegalArgumentException e) {
+            log.warn("판매자용 주문 상세 조회 실패 - orderNumber: {}, reason: {}", orderNumber, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("판매자용 주문 상세 조회 중 예상치 못한 오류 발생 - orderNumber: {}", orderNumber, e);
+            throw new RuntimeException("주문 상세 조회 중 서버 오류가 발생했습니다", e);
+        }
+    }
+
+    @Override
+    public SellerOrderListResponse getSellerOrders(UserPrincipal userPrincipal, Pageable pageable) {
+        try {
+            log.debug("판매자용 주문 목록 조회 시작 - provider: {}, providerId: {}, page: {}, size: {}",
+                    userPrincipal.provider(), userPrincipal.providerId(),
+                    pageable.getPageNumber(), pageable.getPageSize());
+
+            // 1. UserPrincipal로 판매자 조회 및 검증
+            Sellers seller = findSellerByPrincipal(userPrincipal);
+            log.debug("판매자 조회 완료 - sellerId: {}", seller.getUserId());
+
+            // 2. 페이징 정보 검증
+            validatePageable(pageable);
+
+            // 3. 판매자 소유 주문 목록 조회
+            Page<Shipments> shipmentPage = shipmentRepository
+                    .findSellerOrdersWithPaging(seller.getUserId(), pageable);
+
+            log.debug("주문 목록 조회 완료 - totalElements: {}, currentPage: {}, totalPages: {}",
+                    shipmentPage.getTotalElements(), shipmentPage.getNumber(), shipmentPage.getTotalPages());
+
+            // 4. DTO 변환
+            List<SellerOrderListResponse.SellerOrderSummary> orderSummaries =
+                    shipmentPage.getContent().stream()
+                            .map(this::convertToSellerOrderSummary)
+                            .toList();
+
+            // 5. 응답 생성 및 반환
+            return SellerOrderListResponse.builder()
+                    .orders(orderSummaries)
+                    .currentPage(shipmentPage.getNumber())
+                    .totalPages(shipmentPage.getTotalPages())
+                    .totalElements(shipmentPage.getTotalElements())
+                    .pageSize(shipmentPage.getSize())
+                    .hasNext(shipmentPage.hasNext())
+                    .hasPrevious(shipmentPage.hasPrevious())
+                    .build();
+
+        } catch (NoSuchElementException | IllegalArgumentException e) {
+            log.warn("판매자용 주문 목록 조회 실패 - reason: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("판매자용 주문 목록 조회 중 예상치 못한 오류 발생", e);
+            throw new RuntimeException("주문 목록 조회 중 서버 오류가 발생했습니다", e);
+        }
+    }
+
+    @Override
+    @JpaTransactional
+    public OrderStatusUpdateResponse updateOrderStatus(UserPrincipal userPrincipal, OrderStatusUpdateRequest request) {
+        try {
+            log.debug("주문 상태 변경 시작 - orderNumber: {}, newStatus: {}",
+                    request.getOrderNumber(), request.getNewStatus());
+
+            // 1. UserPrincipal로 판매자 조회 및 검증
+            Sellers seller = findSellerByPrincipal(userPrincipal);
+
+            // 2. 주문 조회 및 권한 검증
+            Shipments shipment = shipmentRepository
+                    .findShippingInfoByOrderNumberAndSeller(request.getOrderNumber(), seller.getUserId())
+                    .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없거나 접근 권한이 없습니다"));
+
+            Orders order = shipment.getOrders();
+            OrderStatus currentStatus = order.getOrderStatus();
+
+            // 3. 상태 전환 검증
+            validateStatusTransition(request, currentStatus);
+            validateReasonRequirement(request);
+
+            // 4. 상태 변경
+            order.setOrderStatus(request.getNewStatus());
+
+            // 5. 특별한 상태 변경 처리
+            handleSpecialStatusChange(request, shipment);
+
+            // 6. 저장
+            orderRepository.save(order);
+
+            log.info("주문 상태 변경 완료 - orderNumber: {}, {} → {}",
+                    request.getOrderNumber(), currentStatus, request.getNewStatus());
+
+            // 7. 응답 생성
+            return OrderStatusUpdateResponse.success(
+                    request.getOrderNumber(),
+                    currentStatus,
+                    request.getNewStatus(),
+                    request.getReason()
+            );
+
+        } catch (NoSuchElementException | IllegalArgumentException | IllegalStateException e) {
+            log.warn("주문 상태 변경 실패 - orderNumber: {}, reason: {}",
+                    request.getOrderNumber(), e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("주문 상태 변경 중 예상치 못한 오류 발생 - orderNumber: {}",
+                    request.getOrderNumber(), e);
+            throw new RuntimeException("주문 상태 변경 중 서버 오류가 발생했습니다", e);
+        }
+    }
+
+    @Override
+    @JpaTransactional
+    public TrackingNumberRegisterResponse registerTrackingNumber(
             UserPrincipal userPrincipal,
-            OrderStatus orderStatus,
-            Pageable pageable
-    );
+            TrackingNumberRegisterRequest request) {
 
-    /**
-     * 판매자용 주문 검색 (페이징)
-     * 주문번호 또는 수령인명으로 검색합니다.
-     * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
-     * @param searchType 검색 타입 ("orderNumber" 또는 "recipientName")
-     * @param searchKeyword 검색 키워드
-     * @param pageable 페이징 및 정렬 정보
-     * @return 검색 결과 주문 목록 (페이징)
-     * @throws IllegalArgumentException 판매자 권한이 없는 경우, 유효하지 않은 검색 타입인 경우
-     * @throws NoSuchElementException 판매자를 찾을 수 없는 경우
-     */
-    SellerOrderListResponse searchSellerOrders(
-            UserPrincipal userPrincipal,
-            String searchType,
-            String searchKeyword,
-            Pageable pageable
-    );
+        try {
+            log.debug("운송장 번호 등록 시작 - orderNumber: {}, courier: {}, trackingNumber: {}",
+                    request.getOrderNumber(), request.getCourierDisplayName(), request.getTrackingNumber());
 
-    /**
-     * 주문 상태 변경
-     * 판매자가 본인이 판매한 상품이 포함된 주문의 상태를 변경합니다.
-     * 처리 과정:
-     * 1. UserPrincipal로 판매자 인증 및 권한 확인
-     * 2. 주문 존재 여부 및 판매자 소유 상품 확인
-     * 3. 현재 상태에서 요청 상태로의 전환 가능성 검증
-     * 4. 상태 전환 규칙 및 제약 조건 확인
-     * 5. 주문 상태 업데이트 (트랜잭션)
-     * 6. 필요 시 관련 엔티티 동시 업데이트 (Shipments 등)
-     * 7. 응답 DTO 생성 및 반환
-     * 상태 전환 규칙:
-     * - PAYMENT_COMPLETED → PREPARING (상품준비중)
-     * - PREPARING → READY_FOR_SHIPMENT (배송준비완료)
-     * - PREPARING → CANCELLED (주문취소) - 특별한 경우
-     * - READY_FOR_SHIPMENT → IN_DELIVERY (배송중) - 운송장 등록 필요
-     * - 역순 전환 및 단계 건너뛰기 금지
-     *
-     * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
-     * @param request 주문 상태 변경 요청 정보
-     * @return 상태 변경 처리 결과
-     * @throws NoSuchElementException 주문이 존재하지 않거나 접근 권한이 없는 경우
-     * @throws IllegalArgumentException 판매자 권한이 없는 경우, 유효하지 않은 상태 전환인 경우
-     * @throws IllegalStateException 이미 처리 중인 주문이거나 변경할 수 없는 상태인 경우
-     */
-    OrderStatusUpdateResponse updateOrderStatus(UserPrincipal userPrincipal, OrderStatusUpdateRequest request);
+            // 1. UserPrincipal로 판매자 조회 및 검증
+            Sellers seller = findSellerByPrincipal(userPrincipal);
 
-    /**
-     * 운송장 번호 등록
-     * 판매자가 택배사에서 발급받은 운송장 번호를 등록하여 배송을 시작합니다.
-     * 처리 과정:
-     * 1. UserPrincipal로 판매자 인증 및 권한 확인
-     * 2. 주문 존재 여부 및 판매자 소유 상품 확인
-     * 3. 주문 상태가 운송장 등록 가능한 상태인지 확인 (READY_FOR_SHIPMENT)
-     * 4. 운송장 번호 중복 확인 (같은 택배사 내에서)
-     * 5. 스마트택배 API를 통한 운송장 번호 유효성 검증 (선택)
-     * 6. Shipments 엔티티에 택배사/운송장번호/발송일시 저장
-     * 7. 주문 상태를 IN_DELIVERY로 자동 변경 (요청 시)
-     * 8. 응답 DTO 생성 및 반환
-     * 보안 정책:
-     * - 판매자는 본인이 판매한 상품이 포함된 주문만 처리 가능
-     * - 이미 등록된 운송장은 변경 불가 (별도 API 필요)
-     * - 스마트택배 API 연동으로 유효성 검증
-     *
-     * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
-     * @param request 운송장 번호 등록 요청 정보
-     * @return 운송장 등록 처리 결과
-     * @throws NoSuchElementException 주문이 존재하지 않거나 접근 권한이 없는 경우
-     * @throws IllegalArgumentException 판매자 권한이 없는 경우, 유효하지 않은 운송장 번호인 경우
-     * @throws IllegalStateException 운송장 등록이 불가능한 상태이거나 중복된 운송장인 경우
-     */
-    TrackingNumberRegisterResponse registerTrackingNumber(
-            UserPrincipal userPrincipal,
-            TrackingNumberRegisterRequest request
-    );
+            // 2. 주문 조회 및 권한 검증
+            Shipments shipment = shipmentRepository
+                    .findShippingInfoByOrderNumberAndSeller(request.getOrderNumber(), seller.getUserId())
+                    .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없거나 접근 권한이 없습니다"));
 
-    /**
-     * 주문 목록에서 숨김 처리
-     * 배송 완료 또는 취소된 주문을 판매자 관리 목록에서 숨김 처리합니다.
-     * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
-     * @param orderNumber 숨김 처리할 주문 번호
-     * @return 숨김 처리 결과
-     * @throws NoSuchElementException 주문이 존재하지 않거나 접근 권한이 없는 경우
-     * @throws IllegalArgumentException 판매자 권한이 없는 경우, 숨김 처리가 불가능한 상태인 경우
-     */
-    boolean hideOrderFromList(UserPrincipal userPrincipal, String orderNumber);
+            Orders order = shipment.getOrders();
+
+            // 3. 운송장 등록 가능한 상태인지 검증
+            validateTrackingNumberRegistration(order, shipment, request);
+
+            // 4. 운송장 번호 중복 확인
+            validateTrackingNumberDuplication(request);
+
+            // 5. 스마트택배 API 검증 (옵션)
+            TrackingNumberRegisterResponse.ValidationResult validationResult =
+                    validateTrackingNumberWithApi(request);
+
+            // 6. 운송장 정보 저장
+            String normalizedTrackingNumber = request.getNormalizedTrackingNumber();
+            shipment.setTrackingInfo(
+                    request.getCourierDisplayName(),
+                    normalizedTrackingNumber
+            );
+
+            // 7. 즉시 배송 시작 처리
+            if (request.shouldStartShipmentImmediately()) {
+                order.setOrderStatus(OrderStatus.IN_DELIVERY);
+            }
+
+            // 8. 저장
+            orderRepository.save(order);
+            shipmentRepository.save(shipment);
+
+            log.info("운송장 번호 등록 완료 - orderNumber: {}, trackingNumber: {}, newStatus: {}",
+                    request.getOrderNumber(), normalizedTrackingNumber, order.getOrderStatus());
+
+            // 9. 응답 생성
+            return TrackingNumberRegisterResponse.successWithValidation(
+                    request.getOrderNumber(),
+                    normalizedTrackingNumber,
+                    request.getCourierCompany(),
+                    order.getOrderStatus(),
+                    shipment.getShippedAt(),
+                    validationResult
+            );
+
+        } catch (NoSuchElementException | IllegalArgumentException | IllegalStateException e) {
+            log.warn("운송장 번호 등록 실패 - orderNumber: {}, reason: {}",
+                    request.getOrderNumber(), e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("운송장 번호 등록 중 예상치 못한 오류 발생 - orderNumber: {}",
+                    request.getOrderNumber(), e);
+            throw new RuntimeException("운송장 번호 등록 중 서버 오류가 발생했습니다", e);
+        }
+    }
+
+    // ===== 미구현 메서드들 (TODO 상태 유지) =====
+
+    @Override
+    public SellerOrderListResponse getSellerOrdersByStatus(UserPrincipal userPrincipal, OrderStatus orderStatus, Pageable pageable) {
+        // TODO: 구현 예정
+        throw new UnsupportedOperationException("구현 예정");
+    }
+
+    @Override
+    public SellerOrderListResponse searchSellerOrders(UserPrincipal userPrincipal, String searchType, String searchKeyword, Pageable pageable) {
+        // TODO: 구현 예정
+        throw new UnsupportedOperationException("구현 예정");
+    }
+
+    @Override
+    public boolean hideOrderFromList(UserPrincipal userPrincipal, String orderNumber) {
+        // TODO: 구현 예정
+        throw new UnsupportedOperationException("구현 예정");
+    }
+
+    // ===== Private Helper Methods =====
+
+    private Sellers findSellerByPrincipal(UserPrincipal userPrincipal) {
+        Users user = userRepository.findByProviderAndProviderId(
+                        userPrincipal.provider(), userPrincipal.providerId())
+                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다"));
+
+        return sellerRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new IllegalArgumentException("판매자 권한이 없습니다"));
+    }
+
+    private void validatePageable(Pageable pageable) {
+        if (pageable.getPageSize() > 100) {
+            throw new IllegalArgumentException("페이지 크기는 100을 초과할 수 없습니다");
+        }
+        if (pageable.getPageNumber() < 0) {
+            throw new IllegalArgumentException("페이지 번호는 0 이상이어야 합니다");
+        }
+    }
+
+    private void validateStatusTransition(OrderStatusUpdateRequest request, OrderStatus currentStatus) {
+        if (!request.isValidStatusTransition(currentStatus)) {
+            throw new IllegalArgumentException(
+                    String.format("잘못된 상태 전환입니다. %s에서 %s로 변경할 수 없습니다",
+                            currentStatus, request.getNewStatus()));
+        }
+    }
+
+    private void validateReasonRequirement(OrderStatusUpdateRequest request) {
+        if (request.isReasonRequired() &&
+            (request.getReason() == null || request.getReason().trim().isEmpty())) {
+            throw new IllegalArgumentException("해당 상태 변경에는 사유가 필수입니다");
+        }
+    }
+
+    private void handleSpecialStatusChange(OrderStatusUpdateRequest request, Shipments shipment) {
+        // 특별한 상태 변경 처리 (지연, 취소 등)
+        if (request.isDelayRequest()) {
+            // 출고 지연 처리 로직
+            log.info("출고 지연 처리 - orderNumber: {}, reason: {}",
+                    request.getOrderNumber(), request.getReason());
+        }
+    }
+
+    private void validateTrackingNumberRegistration(Orders order, Shipments shipment, TrackingNumberRegisterRequest request) {
+        // 주문 상태 확인
+        if (order.getOrderStatus() != OrderStatus.READY_FOR_SHIPMENT) {
+            throw new IllegalStateException("배송 준비 완료 상태에서만 운송장을 등록할 수 있습니다");
+        }
+
+        // 이미 운송장이 등록된 경우
+        if (shipment.isShipped()) {
+            throw new IllegalStateException("이미 운송장이 등록된 주문입니다");
+        }
+    }
+
+    private void validateTrackingNumberDuplication(TrackingNumberRegisterRequest request) {
+        String normalizedTrackingNumber = request.getNormalizedTrackingNumber();
+        String courierDisplayName = request.getCourierDisplayName();
+
+        if (shipmentRepository.existsByCourierAndTrackingNumber(courierDisplayName, normalizedTrackingNumber)) {
+            throw new IllegalStateException("이미 등록된 운송장 번호입니다");
+        }
+    }
+
+    private TrackingNumberRegisterResponse.ValidationResult validateTrackingNumberWithApi(TrackingNumberRegisterRequest request) {
+        if (!request.shouldValidateWithApi()) {
+            return TrackingNumberRegisterResponse.ValidationResult.skipped("API 검증을 생략했습니다");
+        }
+
+        // TODO: 스마트택배 API 연동 구현
+        // 현재는 성공으로 가정
+        return TrackingNumberRegisterResponse.ValidationResult.success("운송장 번호가 유효합니다");
+    }
+
+    // ===== DTO 변환 메서드들 =====
+
+    private SellerOrderDetailResponse buildSellerOrderDetailResponse(
+            Shipments shipment, List<OrderItems> orderItems, String sellerId) {
+        // TODO: DTO 변환 로직 구현
+        throw new UnsupportedOperationException("DTO 변환 로직 구현 예정");
+    }
+
+    private SellerOrderListResponse.SellerOrderSummary convertToSellerOrderSummary(Shipments shipment) {
+        // TODO: DTO 변환 로직 구현
+        throw new UnsupportedOperationException("DTO 변환 로직 구현 예정");
+    }
 }
