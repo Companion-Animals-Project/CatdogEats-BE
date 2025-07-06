@@ -1,4 +1,4 @@
-package com.team5.catdogeats.global.batch;
+package com.team5.catdogeats.orders.batch;
 
 import com.team5.catdogeats.global.external.SmartCourierApiService;
 import com.team5.catdogeats.orders.domain.Orders;

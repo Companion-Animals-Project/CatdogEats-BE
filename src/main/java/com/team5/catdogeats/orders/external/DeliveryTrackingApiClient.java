@@ -1,4 +1,4 @@
-package com.team5.catdogeats.global.external;
+package com.team5.catdogeats.orders.external;
 
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -7,16 +7,17 @@ import org.springframework.web.bind.annotation.RequestParam;
 /**
  * 스마트택배 API 클라이언트
  * OpenFeign을 사용하여 스마트택배 배송 추적 API와 연동
+ *
  * API 제한사항:
  * - 프리티어: 동일 운송장 일 최대 10건 조회 제한
  * - 일일 전체 호출 제한: 1000건
  */
 @FeignClient(
-        name = "smart-courier-api",
+        name = "delivery-tracking-api",
         url = "${smart-courier.api.base-url}",
-        configuration = SmartCourierApiConfiguration.class
+        configuration = DeliveryTrackingApiConfiguration.class
 )
-public interface SmartCourierApiClient {
+public interface DeliveryTrackingApiClient {
 
     /**
      * 배송 조회 API
@@ -28,7 +29,7 @@ public interface SmartCourierApiClient {
      * @return 배송 추적 정보
      */
     @GetMapping("/trackingInfo")
-    SmartCourierTrackingResponse getTrackingInfo(
+    DeliveryTrackingResponse getTrackingInfo(
             @RequestParam("t_key") String t_key,
             @RequestParam("t_code") String t_code,
             @RequestParam("t_invoice") String t_invoice
@@ -42,7 +43,7 @@ public interface SmartCourierApiClient {
      * @return 택배사 목록
      */
     @GetMapping("/companylist")
-    SmartCourierCompanyListResponse getCompanyList(
+    CourierCompanyListResponse getCompanyList(
             @RequestParam("t_key") String t_key
     );
 
@@ -56,7 +57,7 @@ public interface SmartCourierApiClient {
      * @return 유효성 검증 결과
      */
     @GetMapping("/invoice")
-    SmartCourierValidationResponse validateInvoice(
+    DeliveryValidationResponse validateInvoice(
             @RequestParam("t_key") String t_key,
             @RequestParam("t_code") String t_code,
             @RequestParam("t_invoice") String t_invoice
@@ -65,7 +66,7 @@ public interface SmartCourierApiClient {
     /**
      * 스마트택배 배송 추적 응답 DTO
      */
-    record SmartCourierTrackingResponse(
+    record DeliveryTrackingResponse(
             String level,           // 배송 상태 레벨 (1: 배송준비중, 2: 집화완료, 3: 배송중, 4: 배송완료)
             String manName,         // 배송담당자
             String manPic,          // 배송담당자 연락처
@@ -120,7 +121,7 @@ public interface SmartCourierApiClient {
     /**
      * 택배사 목록 응답 DTO
      */
-    record SmartCourierCompanyListResponse(
+    record CourierCompanyListResponse(
             CompanyInfo[] Company  // 택배사 정보 배열
     ) {}
 
@@ -136,7 +137,7 @@ public interface SmartCourierApiClient {
     /**
      * 운송장 유효성 검증 응답 DTO
      */
-    record SmartCourierValidationResponse(
+    record DeliveryValidationResponse(
             String status,         // 상태 ('TRUE': 유효, 'FALSE': 무효)
             String message,        // 메시지
             String invoiceNo       // 운송장 번호
@@ -148,15 +149,6 @@ public interface SmartCourierApiClient {
          */
         public boolean isValid() {
             return "TRUE".equals(status);
-        }
-    }
-
-    /**
-     * API 오류 응답 처리를 위한 기본 응답 인터페이스
-     */
-    interface SmartCourierBaseResponse {
-        default boolean isSuccess() {
-            return true; // 기본적으로 성공으로 간주
         }
     }
 }
