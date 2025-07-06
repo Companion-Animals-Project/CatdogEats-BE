@@ -3,7 +3,7 @@ package com.team5.catdogeats.orders.domain;
 import com.team5.catdogeats.baseEntity.BaseEntity;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.domain.mapping.OrderItems;
-import com.team5.catdogeats.users.domain.Users;
+import com.team5.catdogeats.users.domain.mapping.Buyers;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -28,16 +28,25 @@ public class Orders extends BaseEntity {
     private String orderNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false,
-            foreignKey = @ForeignKey(name = "fk_orders_user_id"))
-    private Users user;
+    @JoinColumn(name = "buyer_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_orders_buyer_id"))
+    private Buyers buyers;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "order_status")
     private OrderStatus orderStatus;
 
-    @Column(name = "total_price", nullable = false)
-    private Long totalPrice;
+    @Column(name = "sub_total_price", nullable = false)
+    private Long subtotalPrice;
+
+    @Column(name = "total_delivery_fee", nullable = false)
+    private Long totalDeliveryFee;
+
+    @Column(name = "total_discount_amount", nullable = false)
+    private Long totalDiscountAmount;
+
+    @Column(name = "discounted_total_price", nullable = false)
+    private Long discountedTotalPrice;
 
     // ===== 주문 내역 숨김 기능 필드 추가 =====
     /**

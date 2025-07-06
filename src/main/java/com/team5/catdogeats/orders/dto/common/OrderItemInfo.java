@@ -1,5 +1,9 @@
 package com.team5.catdogeats.orders.dto.common;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.team5.catdogeats.products.domain.Products;
+import com.team5.catdogeats.users.domain.mapping.Sellers;
+
 /**
  * 기본 주문 아이템 정보 (Record 타입)
  * 이벤트 전송 및 기본적인 주문 아이템 정보를 담는 불변 객체입니다.
@@ -16,7 +20,9 @@ public record OrderItemInfo(
         String productName,
         Integer quantity,
         Long unitPrice,
-        Long totalPrice
+        Long totalPrice,
+        @JsonIgnore
+        Sellers sellers
 ) {
 
     // 기본 생성자 검증
@@ -36,19 +42,38 @@ public record OrderItemInfo(
         if (totalPrice == null || totalPrice < 0) {
             throw new IllegalArgumentException("총 가격은 0 이상이어야 합니다");
         }
+        if (sellers == null) {
+            throw new IllegalArgumentException("판매자 정보는 필수 입니다");
+        }
     }
 
     /**
      * 정적 팩토리 메서드 - 기본 정보로 생성
      */
-    public static OrderItemInfo of(String productId, String productName, Integer quantity, Long unitPrice) {
-        return new OrderItemInfo(productId, productName, quantity, unitPrice, unitPrice * quantity);
+    public static OrderItemInfo of(String productId, String productName, Integer quantity, Long unitPrice, Sellers sellers) {
+        return new OrderItemInfo(productId, productName, quantity, unitPrice, unitPrice * quantity, sellers);
     }
 
     /**
      * 정적 팩토리 메서드 - 모든 정보 지정
      */
-    public static OrderItemInfo of(String productId, String productName, Integer quantity, Long unitPrice, Long totalPrice) {
-        return new OrderItemInfo(productId, productName, quantity, unitPrice, totalPrice);
+    public static OrderItemInfo of(String productId, String productName, Integer quantity, Long unitPrice, Long totalPrice, Sellers sellers) {
+        return new OrderItemInfo(productId, productName, quantity, unitPrice, totalPrice, sellers);
     }
+
+    public static OrderItemInfo of(Products p, int qty) {
+        return new OrderItemInfo(
+                p.getId(),
+                p.getTitle(),
+                qty,
+                p.getPrice(),
+                p.getPrice() * qty,
+                p.getSeller()     // ← or getUserId()
+        );
+    }
+
+    @JsonIgnore      // 직렬화 시 프록시 회피
+    public Sellers seller() { return sellers; }
+
+    public String sellerId() { return sellers.getUserId(); } // DTO용
 }

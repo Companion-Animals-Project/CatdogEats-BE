@@ -14,7 +14,7 @@ import com.team5.catdogeats.orders.event.OrderCreatedEvent;
 import com.team5.catdogeats.orders.repository.OrderPendingDetailsRepository;
 import com.team5.catdogeats.orders.repository.OrderRepository;
 import com.team5.catdogeats.orders.repository.ShipmentRepository;
-import com.team5.catdogeats.orders.service.impl.OrderServiceImpl;
+import com.team5.catdogeats.orders.service.impl.OrderCreateServiceImpl;
 import com.team5.catdogeats.orders.util.TossPaymentResponseBuilder;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.repository.ProductRepository;
@@ -48,10 +48,10 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("OrderService 통합 테스트")
-class OrderServiceTest {
+class OrderCreateServiceTest {
 
     @InjectMocks
-    private OrderServiceImpl orderService;
+    private OrderCreateServiceImpl orderService;
 
     @Mock
     private OrderRepository orderRepository;

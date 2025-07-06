@@ -101,8 +101,8 @@ public class OrderEventListener {
                 return;
             }
 
-            Buyers buyer = buyerRepository.findById(event.userId())
-                    .orElseThrow(() -> new NoSuchElementException("구매자 정보를 찾을 수 없습니다: " + event.userId()));
+            Buyers buyer = buyerRepository.findById(event.buyerId())
+                    .orElseThrow(() -> new NoSuchElementException("구매자 정보를 찾을 수 없습니다: " + event.buyerId()));
 
 
             Payments payment = Payments.builder()
@@ -123,33 +123,33 @@ public class OrderEventListener {
         }
     }
 
-    @Async
-    @EventListener
-    public void handleUserNotification(OrderCreatedEvent event) {
-        String orderId = event.orderId();
-        log.info("주문 생성 알림 처리 시작: orderId={}, orderNumber={}",
-                orderId, event.orderNumber());
-
-        try {
-            log.info("""
-                    [Catdogeats] 주문이 완료되었습니다! 🐱🐶
-                    주문번호: {}
-                    상품: {}
-                    총 금액: {}원
-                    결제를 진행해 주세요.
-                    """,
-                    event.orderNumber(),
-                    event.getOrderSummary(),
-                    String.format("%,d", event.finalTotalPrice())
-            );
-
-            log.info("주문 생성 알림 발송 완료: orderId={}, userId={}, itemCount={}",
-                    orderId, event.userId(), event.getOrderItemCount());
-
-        } catch (Exception e) {
-            log.error("주문 생성 알림 발송 실패: orderId={}, error={}", orderId, e.getMessage(), e);
-        }
-    }
+//    @Async
+//    @EventListener
+//    public void handleUserNotification(OrderCreatedEvent event) {
+//        String orderId = event.orderId();
+//        log.info("주문 생성 알림 처리 시작: orderId={}, orderNumber={}",
+//                orderId, event.orderNumber());
+//
+//        try {
+//            log.info("""
+//                    [Catdogeats] 주문이 완료되었습니다! 🐱🐶
+//                    주문번호: {}
+//                    상품: {}
+//                    총 금액: {}원
+//                    결제를 진행해 주세요.
+//                    """,
+//                    event.orderNumber(),
+//                    event.getOrderSummary(),
+//                    String.format("%,d", event.finalTotalPrice())
+//            );
+//
+//            log.info("주문 생성 알림 발송 완료: orderId={}, userId={}, itemCount={}",
+//                    orderId, event.buyerId(), event.getOrderItemCount());
+//
+//        } catch (Exception e) {
+//            log.error("주문 생성 알림 발송 실패: orderId={}, error={}", orderId, e.getMessage(), e);
+//        }
+//    }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
@@ -201,14 +201,7 @@ public class OrderEventListener {
                             String.format(" 외 %d개", event.getOrderItemCount() - 1) : "");
 
             // 할인 정보 개선 (쿠폰 타입 지원)
-            String discountInfo = "";
-            if (event.isCouponApplied()) {
-                Long discountAmount = event.getDiscountAmount();
-                String couponDescription = event.getCouponDescription();
 
-                discountInfo = String.format("\n🎟️ 쿠폰 할인: %s (-%,d원)",
-                        couponDescription, discountAmount);
-            }
 
             log.info("""
                     [Catdogeats] 결제가 완료되었습니다! 🎉
@@ -219,16 +212,13 @@ public class OrderEventListener {
                     """,
                     event.orderNumber(),
                     productInfo,
-                    discountInfo,
-                    String.format("%,d", event.finalAmount())
+                    event.discountAmount(),
+                    String.format("%,d", event.discountedTotalPrice())
             );
 
-            // 로그 메시지도 개선
-            String couponLogInfo = event.isCouponApplied() ?
-                    event.getCouponDescription() : "없음";
 
-            log.info("결제 완료 알림 발송 완료: orderId={}, paymentId={}, itemCount={}, 쿠폰할인={}",
-                    orderId, event.paymentId(), event.getOrderItemCount(), couponLogInfo);
+            log.info("결제 완료 알림 발송 완료: orderId={}, paymentId={}, itemCount={}",
+                    orderId, event.paymentId(), event.getOrderItemCount());
 
         } catch (Exception e) {
             log.error("결제 완료 알림 발송 실패: orderId={}, error={}", orderId, e.getMessage(), e);
@@ -293,7 +283,7 @@ public class OrderEventListener {
     private Shipments createShipment(Orders order, OrderCreateRequest.ShippingAddressRequest shippingAddress, Sellers seller) {
         return Shipments.builder()
                 .orders(order)
-                .user(order.getUser())
+                .buyers(order.getBuyers())
                 .seller(seller)
                 .recipientName(shippingAddress.getRecipientName())
                 .recipientPhone(shippingAddress.getRecipientPhone())

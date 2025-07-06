@@ -119,7 +119,7 @@ class OrderEventListenerTest {
         testOrder = Orders.builder()
                 .id("order123")
                 .orderNumber("1001")
-                .user(testUser)
+                .buyers(testBuyer)
                 .orderStatus(OrderStatus.PAYMENT_PENDING)
                 .totalPrice(65000L)
                 .build();
@@ -244,7 +244,7 @@ class OrderEventListenerTest {
             Orders cancelledOrder = Orders.builder()
                     .id("order123")
                     .orderNumber("1001")
-                    .user(testUser)
+                    .buyers(testBuyer)
                     .orderStatus(OrderStatus.CANCELLED)
                     .totalPrice(65000L)
                     .build();

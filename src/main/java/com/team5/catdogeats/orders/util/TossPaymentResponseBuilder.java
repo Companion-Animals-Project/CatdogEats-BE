@@ -38,7 +38,7 @@ public class TossPaymentResponseBuilder {
         OrderCreateResponse.TossPaymentInfo tossPaymentInfo = OrderCreateResponse.TossPaymentInfo.builder()
                 .tossOrderId(order.getId())
                 .orderName(orderName)
-                .amount(order.getTotalPrice())
+                .amount(order.getDiscountedTotalPrice())
                 .customerName(paymentInfo.getCustomerName())
                 .customerEmail(paymentInfo.getCustomerEmail())
                 .successUrl(paymentInfo.getSuccessUrl() != null ?
@@ -50,7 +50,7 @@ public class TossPaymentResponseBuilder {
 
         OrderCreateResponse response = OrderCreateResponse.builder()
                 .orderNumber(order.getOrderNumber())
-                .totalPrice(order.getTotalPrice())
+                .totalPrice(order.getDiscountedTotalPrice())
                 .orderId(order.getId())
                 .orderStatus(order.getOrderStatus())
                 .createdAt(order.getCreatedAt())

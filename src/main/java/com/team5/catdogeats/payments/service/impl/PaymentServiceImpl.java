@@ -8,6 +8,7 @@ import com.team5.catdogeats.orders.domain.OrderPendingDetails;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.dto.common.OrderItemInfo;
+import com.team5.catdogeats.orders.dto.common.OrderItemSnapshot;
 import com.team5.catdogeats.orders.dto.request.OrderCreateRequest;
 import com.team5.catdogeats.orders.repository.OrderPendingDetailsRepository;
 import com.team5.catdogeats.orders.repository.OrderRepository;
@@ -21,6 +22,7 @@ import com.team5.catdogeats.payments.event.PaymentCompletedEvent;
 import com.team5.catdogeats.payments.event.PaymentFailedEvent;
 import com.team5.catdogeats.payments.repository.PaymentRepository;
 import com.team5.catdogeats.payments.service.PaymentService;
+import com.team5.catdogeats.users.repository.SellersRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -28,6 +30,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
@@ -43,6 +46,7 @@ import java.util.NoSuchElementException;
 @RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
 
+    private final SellersRepository sellersRepository;
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final OrderPendingDetailsRepository orderPendingDetailsRepository;
@@ -133,12 +137,20 @@ public class PaymentServiceImpl implements PaymentService {
             OrderPendingDetails pendingDetails = orderPendingDetailsRepository.findByOrderId(order.getId())
                     .orElseThrow(() -> new NoSuchElementException("주문 대기 정보를 찾을 수 없습니다: " + order.getId()));
 
-            // JSON 역직렬화
-            List<OrderItemInfo> orderItems = objectMapper.readValue(
+            // OrderPendingDetails → List<OrderItemSnapshot>
+            List<OrderItemSnapshot> snap = objectMapper.readValue(
                     pendingDetails.getOrderItemsJson(),
                     new TypeReference<>() {
-                    }
-            );
+                    });
+
+            // 필요하면 Sellers 엔티티 주입
+            List<OrderItemInfo> orderItems = snap.stream()
+                    .map(s -> OrderItemInfo.of(
+                            s.productId(), s.productName(), s.quantity(),
+                            s.unitPrice(),  s.totalPrice(),
+                            sellersRepository.findById(s.sellerId())
+                                    .orElseThrow(() -> new NoSuchElementException("seller "+s.sellerId()+" 없음"))
+                    )).toList();
 
             OrderCreateRequest.ShippingAddressRequest shippingAddress = null;
             if (pendingDetails.getShippingAddressJson() != null) {
@@ -148,34 +160,49 @@ public class PaymentServiceImpl implements PaymentService {
                 );
             }
 
+            boolean couponApplied = false;
+            Long    discountAmount = 0L;
+
+            if (pendingDetails.getAppliedCouponsJson() != null && !pendingDetails.getAppliedCouponsJson().trim().isEmpty()) {
+                try {
+                    List<String> sellerCoupons = objectMapper.readValue(
+                            pendingDetails.getAppliedCouponsJson(),
+                            new TypeReference<List<String>>() {}
+                    );
+                    couponApplied = !sellerCoupons.isEmpty();
+                    discountAmount = order.getTotalDiscountAmount();
+                } catch (JsonProcessingException e) {
+                    try {
+                        Map<String, String> sellerCouponsMap = objectMapper.readValue(
+                                pendingDetails.getAppliedCouponsJson(),
+                                new TypeReference<Map<String, String>>() {}
+                        );
+                        couponApplied = !sellerCouponsMap.isEmpty();
+                        discountAmount = order.getTotalDiscountAmount();
+                    } catch (JsonProcessingException e2) {
+                        log.warn("Failed to deserialize applied coupons JSON: {}", e2.getMessage());
+                        couponApplied = false;
+                        discountAmount = 0L;
+                    }
+                }
+            }
+
             // 🎯 개선: 단일 팩토리 메서드로 통합
             PaymentCompletedEvent event = PaymentCompletedEvent.of(
                     order.getId(),
                     order.getOrderNumber(),
-                    order.getUser().getId(),
-                    pendingDetails.getUserProvider(),
-                    pendingDetails.getUserProviderId(),
+                    order.getBuyers().getUserId(),
                     payment.getId(),
                     tossResponse.getPaymentKey(),
-                    order.getTotalPrice(),
                     orderItems,
                     shippingAddress,
                     pendingDetails.getOriginalTotalPrice(),
-                    pendingDetails.getCouponType(),        // null일 수 있음 (기존 방식)
-                    pendingDetails.getCouponDiscountRate(), // null일 수 있음
-                    pendingDetails.getCouponDiscountAmount() // null일 수 있음
+                    couponApplied,
+                    discountAmount,
+                    order.getTotalDiscountAmount()
             );
 
             eventPublisher.publishEvent(event);
-
-            // 로그 메시지
-            String couponInfo = pendingDetails.isCouponApplied() ?
-                    pendingDetails.getCouponDescription() : "없음";
-
-            log.info("PaymentCompletedEvent 발행 완료: orderId={}, paymentId={}, itemCount={}, 배송지={}, 쿠폰={}",
-                    order.getId(), payment.getId(), orderItems.size(),
-                    shippingAddress != null ? shippingAddress.getRecipientName() : "없음",
-                    couponInfo);
 
         } catch (JsonProcessingException e) {
             log.error("PaymentCompletedEvent 발행 실패 (JSON 역직렬화 오류): orderId={}, error={}",
@@ -187,6 +214,7 @@ public class PaymentServiceImpl implements PaymentService {
             throw new RuntimeException("결제 완료 이벤트 발행 중 오류가 발생했습니다", e);
         }
     }
+
 
     // === PaymentFailedEvent 발행 ===
     private void publishPaymentFailedEvent(String orderId, String errorMessage) {
@@ -224,10 +252,10 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private void validatePaymentAmount(Orders order, Long amount) {
-        if (!order.getTotalPrice().equals(amount)) {
+        if (!order.getDiscountedTotalPrice().equals(amount)) {
             throw new IllegalArgumentException(
                     String.format("결제 금액이 일치하지 않습니다. 주문금액: %d, 결제요청금액: %d",
-                            order.getTotalPrice(), amount)
+                            order.getTotalDiscountAmount(), amount)
             );
         }
     }
