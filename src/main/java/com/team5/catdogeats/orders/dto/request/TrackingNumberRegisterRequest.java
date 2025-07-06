@@ -85,7 +85,8 @@ public class TrackingNumberRegisterRequest {
     }
 
     /**
-     * 운송장 번호 정규화 (공백 제거, 대문자 변환)
+     * 정규화된 운송장 번호 반환
+     * 공백 제거 및 대문자 변환
      * @return 정규화된 운송장 번호
      */
     public String getNormalizedTrackingNumber() {
@@ -96,28 +97,86 @@ public class TrackingNumberRegisterRequest {
     }
 
     /**
-     * API 검증이 활성화되어 있는지 확인
-     * @return API 검증 활성화 여부
+     * 스마트택배 API 검증 수행 여부
+     * @return API 검증을 수행할지 여부
      */
     public boolean shouldValidateWithApi() {
-        return Boolean.TRUE.equals(enableApiValidation);
+        return enableApiValidation != null && enableApiValidation;
     }
 
     /**
-     * 즉시 배송 시작이 요청되었는지 확인
-     * @return 즉시 배송 시작 여부
+     * 즉시 배송 시작 여부
+     * @return 운송장 등록과 동시에 배송 시작할지 여부
      */
     public boolean shouldStartShipmentImmediately() {
-        return Boolean.TRUE.equals(startShipmentImmediately);
+        return startShipmentImmediately != null && startShipmentImmediately;
     }
 
     /**
-     * 요청 데이터 유효성 검증
-     * @return 유효한 요청 데이터 여부
+     * 운송장 번호 유효성 검증 (기본 형식)
+     * 스마트택배 API 호출 전 기본적인 형식 검증
+     * @return 유효한 형식인지 여부
      */
-    public boolean isValidRequest() {
-        return orderNumber != null && !orderNumber.trim().isEmpty()
-                && courierCompany != null
-                && trackingNumber != null && !trackingNumber.trim().isEmpty();
+    public boolean isValidTrackingNumberFormat() {
+        if (trackingNumber == null || trackingNumber.trim().isEmpty()) {
+            return false;
+        }
+
+        String normalized = getNormalizedTrackingNumber();
+
+        // 기본 길이 체크
+        if (normalized.length() < 8 || normalized.length() > 50) {
+            return false;
+        }
+
+        // 택배사별 형식 검증 (간단한 규칙만)
+        return switch (courierCompany) {
+            case POST_OFFICE -> normalized.matches("^[0-9]{13}$"); // 13자리 숫자
+            case CJ_LOGISTICS -> normalized.matches("^[0-9]{10,12}$"); // 10-12자리 숫자
+            case HANJIN -> normalized.matches("^[0-9]{10,12}$"); // 10-12자리 숫자
+            case LOGEN -> normalized.matches("^[0-9]{11,12}$"); // 11-12자리 숫자
+            case LOTTE -> normalized.matches("^[0-9]{12,13}$"); // 12-13자리 숫자
+            default -> true; // 기본적으로 허용
+        };
+    }
+
+    /**
+     * 배송 메모 존재 여부
+     * @return 배송 메모가 있는지 여부
+     */
+    public boolean hasShipmentMemo() {
+        return shipmentMemo != null && !shipmentMemo.trim().isEmpty();
+    }
+
+    /**
+     * 요청 정보 요약
+     * 로깅 및 디버깅용
+     * @return 요청 정보 요약 문자열
+     */
+    public String getSummary() {
+        return String.format("주문:%s, 택배사:%s, 운송장:%s, 즉시시작:%s, API검증:%s",
+                orderNumber,
+                getCourierDisplayName(),
+                trackingNumber,
+                shouldStartShipmentImmediately(),
+                shouldValidateWithApi());
+    }
+
+    /**
+     * 민감정보 마스킹된 요청 정보
+     * 로그에서 운송장 번호를 부분적으로 마스킹
+     * @return 마스킹된 요청 정보
+     */
+    public String getMaskedSummary() {
+        String maskedTracking = trackingNumber != null && trackingNumber.length() > 4
+                ? trackingNumber.substring(0, 4) + "****" + trackingNumber.substring(trackingNumber.length() - 2)
+                : "****";
+
+        return String.format("주문:%s, 택배사:%s, 운송장:%s, 즉시시작:%s, API검증:%s",
+                orderNumber,
+                getCourierDisplayName(),
+                maskedTracking,
+                shouldStartShipmentImmediately(),
+                shouldValidateWithApi());
     }
 }
