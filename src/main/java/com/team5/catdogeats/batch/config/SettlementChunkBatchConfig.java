@@ -29,7 +29,6 @@ import org.springframework.transaction.PlatformTransactionManager;
 
 /**
  * 정산 청크 기반 배치 설정
- * 기존 Tasklet 방식을 대체하는 성능 최적화된 배치 처리
  */
 @Slf4j
 @Configuration
