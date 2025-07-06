@@ -159,9 +159,9 @@ public class SettlementChunkBatchScheduler {
     }
 
     /**
-     * 타임아웃된 배치 정리 스케줄러 (매 30분마다 실행)
+     * 타임아웃된 배치 정리 스케줄러 (매 6시간마다 실행)
      */
-    @Scheduled(fixedRate = 1800000) // 30분 = 30 * 60 * 1000ms
+    @Scheduled(fixedRate = 21600000) // 6시간
     public void cleanupTimeoutBatches() {
         try {
             log.debug("배치 타임아웃 정리 작업 시작");
