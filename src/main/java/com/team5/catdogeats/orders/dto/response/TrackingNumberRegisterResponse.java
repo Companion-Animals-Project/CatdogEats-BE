@@ -53,14 +53,27 @@ public record TrackingNumberRegisterResponse(
         }
 
         /**
-         * 검증 실패 결과 생성
+         * 검증 실패 결과 생성 (유효하지 않은 운송장)
          */
-        public static ValidationResult failure(String errorMessage, String apiResponseCode) {
+        public static ValidationResult invalid(String errorMessage) {
             return ValidationResult.builder()
                     .isValidated(true)
                     .isValid(false)
                     .validationMessage("운송장 번호가 유효하지 않습니다")
-                    .apiResponseCode(apiResponseCode)
+                    .apiResponseCode("400")
+                    .apiResponseMessage(errorMessage)
+                    .build();
+        }
+
+        /**
+         * 검증 오류 결과 생성 (API 호출 실패)
+         */
+        public static ValidationResult error(String errorMessage) {
+            return ValidationResult.builder()
+                    .isValidated(false)
+                    .isValid(false)
+                    .validationMessage("검증 중 오류가 발생했습니다")
+                    .apiResponseCode("500")
                     .apiResponseMessage(errorMessage)
                     .build();
         }
