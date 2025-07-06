@@ -161,9 +161,7 @@ public interface SettlementChunkMapper {
         """)
     int updateToCompleted(@Param("settlementId") String settlementId);
 
-    /**
-     * 배치 처리용 카운트 쿼리들 (Reader에서 전체 건수 파악용)
-     */
+
 
     /**
      * 정산 생성 대상 전체 건수

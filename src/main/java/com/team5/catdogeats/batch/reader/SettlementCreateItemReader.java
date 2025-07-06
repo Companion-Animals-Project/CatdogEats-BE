@@ -114,28 +114,4 @@ public class SettlementCreateItemReader implements ItemReader<SettlementBatchIte
             throw new RuntimeException("정산 생성 ItemReader에서 데이터 로드 실패", e);
         }
     }
-
-    /**
-     * Reader 초기화 (재실행 시 상태 초기화)
-     */
-    public void reset() {
-        log.info("SettlementCreateItemReader 상태 초기화");
-        hasMoreData = true;
-        currentChunkIterator = null;
-        totalProcessedCount = 0;
-    }
-
-    /**
-     * 현재 처리된 건수 조회 (모니터링용)
-     */
-    public int getTotalProcessedCount() {
-        return totalProcessedCount;
-    }
-
-    /**
-     * 더 읽을 데이터가 있는지 확인
-     */
-    public boolean hasMoreData() {
-        return hasMoreData;
-    }
 }
