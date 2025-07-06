@@ -26,6 +26,8 @@ public class BatchConcurrencyService {
 
     // 배치 타임아웃 시간 (기본 60분)
     private static final int DEFAULT_TIMEOUT_MINUTES = 60;
+    // 강제 정리 타임아웃 (6시간)
+    private static final int FORCE_CLEANUP_TIMEOUT_MINUTES = 360;
 
     /**
      * 배치 실행 락 획득 시도
@@ -162,6 +164,7 @@ public class BatchConcurrencyService {
     @MybatisTransactional(propagation = Propagation.REQUIRES_NEW)
     public void cleanupTimeoutBatches() {
         try {
+            // 일반 타임아웃 (60분)
             List<BatchExecutionStatus> timeoutBatches =
                     batchExecutionStatusMapper.findTimeoutBatches(DEFAULT_TIMEOUT_MINUTES);
 
@@ -169,8 +172,25 @@ public class BatchConcurrencyService {
                 log.warn("타임아웃된 배치 발견 - count: {}", timeoutBatches.size());
 
                 for (BatchExecutionStatus batch : timeoutBatches) {
-                    log.warn("타임아웃 배치 정리 - batchName: {}, startedAt: {}",
-                            batch.getBatchName(), batch.getStartedAt());
+                    long runningMinutes = calculateRunningMinutes(batch.getStartedAt());
+                    log.warn("타임아웃 배치 정리 - batchName: {}, 실행시간: {}분",
+                            batch.getBatchName(), runningMinutes);
+
+                    batchExecutionStatusMapper.updateToFailed(batch.getBatchName(), OffsetDateTime.now());
+                }
+            }
+
+            // 강제 타임아웃 (12시간) - 비정상 상황 대응
+            List<BatchExecutionStatus> forceTimeoutBatches =
+                    batchExecutionStatusMapper.findTimeoutBatches(FORCE_CLEANUP_TIMEOUT_MINUTES);
+
+            if (!forceTimeoutBatches.isEmpty()) {
+                log.error("강제 타임아웃 배치 발견 - count: {} (비정상 상황)", forceTimeoutBatches.size());
+
+                for (BatchExecutionStatus batch : forceTimeoutBatches) {
+                    long runningMinutes = calculateRunningMinutes(batch.getStartedAt());
+                    log.error("강제 타임아웃 배치 정리 - batchName: {}, 실행시간: {}분",
+                            batch.getBatchName(), runningMinutes);
 
                     batchExecutionStatusMapper.updateToFailed(batch.getBatchName(), OffsetDateTime.now());
                 }
@@ -190,4 +210,13 @@ public class BatchConcurrencyService {
     public Optional<BatchExecutionStatus> getBatchStatus(String batchName) {
         return batchExecutionStatusMapper.findByBatchName(batchName);
     }
+
+    private long calculateRunningMinutes(OffsetDateTime startedAt) {
+        if (startedAt == null) {
+            return 0;
+        }
+        return java.time.Duration.between(startedAt, OffsetDateTime.now()).toMinutes();
+    }
+
+
 }

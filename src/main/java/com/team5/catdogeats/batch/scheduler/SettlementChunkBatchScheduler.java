@@ -4,6 +4,7 @@ import com.team5.catdogeats.batch.config.SettlementBatchProperties;
 import com.team5.catdogeats.batch.service.BatchConcurrencyService;
 import com.team5.catdogeats.batch.service.SettlementBatchExecutionService;
 import com.team5.catdogeats.batch.service.SettlementBatchExecutionService.BatchExecutionResult;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -165,9 +166,37 @@ public class SettlementChunkBatchScheduler {
         try {
             log.debug("배치 타임아웃 정리 작업 시작");
             batchConcurrencyService.cleanupTimeoutBatches();
+            forceCleanupStuckBatches();
             log.debug("배치 타임아웃 정리 작업 완료");
+
         } catch (Exception e) {
             log.error("배치 타임아웃 정리 작업 중 오류 발생", e);
+        }
+    }
+
+
+    /**
+     * 애플리케이션 시작 시 즉시 정리
+     */
+    @PostConstruct
+    public void cleanupOnStartup() {
+        try {
+            log.info("애플리케이션 시작 - 배치 상태 즉시 정리 시작");
+
+            // 5초 후에 정리 실행 (완전 초기화 대기)
+            java.util.concurrent.CompletableFuture.delayedExecutor(5, java.util.concurrent.TimeUnit.SECONDS)
+                    .execute(() -> {
+                        try {
+                            log.info("지연 정리 작업 시작");
+                            forceCleanupStuckBatches();
+                            log.info("지연 정리 작업 완료");
+                        } catch (Exception e) {
+                            log.error("지연 정리 작업 실패", e);
+                        }
+                    });
+
+        } catch (Exception e) {
+            log.error("애플리케이션 시작 시 배치 상태 정리 실패", e);
         }
     }
 
@@ -203,5 +232,36 @@ public class SettlementChunkBatchScheduler {
             log.error("배치 상태 체크 중 오류 발생", e);
         }
     }
+
+    /**
+     * 고착 상태 배치 강제 정리
+     */
+    private void forceCleanupStuckBatches() {
+        try {
+            var runningBatches = batchConcurrencyService.getRunningBatches();
+
+            for (var batch : runningBatches) {
+                long runningMinutes = java.time.Duration.between(
+                        batch.getStartedAt().toLocalDateTime(),
+                        java.time.LocalDateTime.now()
+                ).toMinutes();
+
+                // 2시간(120분) 이상 실행중인 배치는 강제 정리
+                if (runningMinutes > 120) {
+                    log.warn("고착 상태 배치 강제 정리 - name: {}, 실행시간: {}분",
+                            batch.getBatchName(), runningMinutes);
+
+                    batchConcurrencyService.forceReleaseLock(batch.getBatchName());
+
+                    // 강제 정리 알림
+                    log.error("🔧 강제 정리 완료 - batchName: {}, 실행시간: {}분 → IDLE로 변경",
+                            batch.getBatchName(), runningMinutes);
+                }
+            }
+        } catch (Exception e) {
+            log.error("고착 상태 배치 강제 정리 중 오류", e);
+        }
+    }
+
 
 }
