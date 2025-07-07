@@ -229,7 +229,7 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
      * 주문 조회
      */
     private Shipments findShipmentByOrderNumber(String orderNumber) {
-        return shipmentRepository.findByOrdersOrderNumber(orderNumber)
+        return shipmentRepository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> new NoSuchElementException(
                         String.format("주문을 찾을 수 없습니다: %s", orderNumber)));
     }

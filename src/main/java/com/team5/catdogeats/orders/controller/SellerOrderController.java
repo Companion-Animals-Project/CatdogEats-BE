@@ -66,8 +66,8 @@ public class SellerOrderController {
         } catch (IllegalArgumentException e) {
             log.warn("판매자 주문 상세 조회 실패 - 권한 없음: {}", e.getMessage());
             return ResponseEntity
-                    .status(ResponseCode.FORBIDDEN.getStatus())
-                    .body(ApiResponse.error(ResponseCode.FORBIDDEN, e.getMessage()));
+                    .status(ResponseCode.ACCESS_DENIED.getStatus())
+                    .body(ApiResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage()));
 
         } catch (Exception e) {
             log.error("판매자 주문 상세 조회 중 서버 오류 - orderNumber: {}", orderNumber, e);
@@ -246,7 +246,7 @@ public class SellerOrderController {
 
             if (deleted) {
                 log.info("주문 삭제 성공 - orderNumber: {}", orderNumber);
-                return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, null, "주문이 목록에서 삭제되었습니다."));
+                return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS));
             } else {
                 log.warn("주문 삭제 실패 - orderNumber: {}", orderNumber);
                 return ResponseEntity
