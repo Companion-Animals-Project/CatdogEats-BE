@@ -152,4 +152,42 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
             @Param("sellerId") String sellerId,
             @Param("limit") int limit
     );
+
+    // ===== 배치 작업용 메서드들 (DeliveryTrackingBatchService용) =====
+
+    /**
+     * 주문 상태별 배송 정보 개수 조회
+     * @param orderStatus 주문 상태
+     * @return 해당 상태의 배송 정보 개수
+     */
+    @Query("""
+    SELECT COUNT(s)
+    FROM Shipments s
+    JOIN s.orders o
+    WHERE o.orderStatus = :orderStatus
+    """)
+    long countByOrderStatus(@Param("orderStatus") OrderStatus orderStatus);
+
+    /**
+     * 오늘 배송 완료된 주문 개수 조회
+     * @return 오늘 배송 완료된 주문 개수
+     */
+    @Query("""
+    SELECT COUNT(s)
+    FROM Shipments s
+    WHERE DATE(s.deliveredAt) = CURRENT_DATE
+    """)
+    long countDeliveredToday();
+
+    /**
+     * 특정 날짜에 배송 완료된 주문 개수 조회
+     * @param date 조회할 날짜
+     * @return 해당 날짜에 배송 완료된 주문 개수
+     */
+    @Query("""
+    SELECT COUNT(s)
+    FROM Shipments s
+    WHERE DATE(s.deliveredAt) = DATE(:date)
+    """)
+    long countDeliveredByDate(@Param("date") ZonedDateTime date);
 }
