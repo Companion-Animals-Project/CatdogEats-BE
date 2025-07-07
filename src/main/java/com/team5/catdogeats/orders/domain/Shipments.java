@@ -14,7 +14,6 @@ import java.time.ZonedDateTime;
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
-@Builder
 public class Shipments extends BaseEntity {
 
     @Id
@@ -108,7 +107,6 @@ public class Shipments extends BaseEntity {
      * 판매자에 의한 숨김 여부
      */
     @Column(name = "is_hidden_by_seller")
-    @Builder.Default
     private Boolean isHiddenBySeller = Boolean.FALSE;
 
     /**
@@ -123,17 +121,31 @@ public class Shipments extends BaseEntity {
     @Column(name = "shipment_memo", length = 500)
     private String shipmentMemo;
 
-    // ===== 새로 추가된 메서드들 =====
+    // ===== 기존 코드 호환성을 위한 메서드들 =====
 
     /**
-     * postalCode getter (zipCode와 매핑)
+     * postalCode getter (zipCode와 매핑) - 기존 코드 호환성
      */
     public String getPostalCode() {
         return this.zipCode;
     }
 
     /**
-     * 전체 주소 반환
+     * 전체 주소 반환 - 기존 코드 호환성
+     */
+    public String getFullShippingAddress() {
+        return getFullAddress();
+    }
+
+    /**
+     * 배송 요청사항 반환 - 기존 코드 호환성
+     */
+    public String getDeliveryNote() {
+        return this.deliveryRequest;
+    }
+
+    /**
+     * 전체 주소 반환 (새 버전)
      */
     public String getFullAddress() {
         StringBuilder fullAddress = new StringBuilder();
@@ -232,5 +244,201 @@ public class Shipments extends BaseEntity {
      */
     public void updateShipmentMemo(String memo) {
         this.shipmentMemo = memo;
+    }
+
+    // ===== 커스텀 Builder 클래스 (기존 코드 호환성) =====
+
+    /**
+     * Builder 생성 메서드
+     */
+    public static ShipmentsBuilder builder() {
+        return new ShipmentsBuilder();
+    }
+
+    public static class ShipmentsBuilder {
+        private String id;
+        private Orders orders;
+        private Users user;
+        private Sellers seller;
+        private String courier;
+        private String trackingNumber;
+        private ZonedDateTime shippedAt;
+        private ZonedDateTime deliveredAt;
+        private ZonedDateTime trackingUpdatedAt;
+        private ZonedDateTime expectedShipDate;
+        private String delayReason;
+        private String recipientName;
+        private String recipientPhone;
+        private String zipCode;
+        private String address;
+        private String addressDetail;
+        private String deliveryRequest;
+        private Boolean isHiddenBySeller = Boolean.FALSE;
+        private ZonedDateTime hiddenAt;
+        private String shipmentMemo;
+
+        // ===== 기본 Builder 메서드들 =====
+
+        public ShipmentsBuilder id(String id) {
+            this.id = id;
+            return this;
+        }
+
+        public ShipmentsBuilder orders(Orders orders) {
+            this.orders = orders;
+            return this;
+        }
+
+        public ShipmentsBuilder user(Users user) {
+            this.user = user;
+            return this;
+        }
+
+        public ShipmentsBuilder seller(Sellers seller) {
+            this.seller = seller;
+            return this;
+        }
+
+        public ShipmentsBuilder courier(String courier) {
+            this.courier = courier;
+            return this;
+        }
+
+        public ShipmentsBuilder trackingNumber(String trackingNumber) {
+            this.trackingNumber = trackingNumber;
+            return this;
+        }
+
+        public ShipmentsBuilder shippedAt(ZonedDateTime shippedAt) {
+            this.shippedAt = shippedAt;
+            return this;
+        }
+
+        public ShipmentsBuilder deliveredAt(ZonedDateTime deliveredAt) {
+            this.deliveredAt = deliveredAt;
+            return this;
+        }
+
+        public ShipmentsBuilder trackingUpdatedAt(ZonedDateTime trackingUpdatedAt) {
+            this.trackingUpdatedAt = trackingUpdatedAt;
+            return this;
+        }
+
+        public ShipmentsBuilder expectedShipDate(ZonedDateTime expectedShipDate) {
+            this.expectedShipDate = expectedShipDate;
+            return this;
+        }
+
+        public ShipmentsBuilder delayReason(String delayReason) {
+            this.delayReason = delayReason;
+            return this;
+        }
+
+        public ShipmentsBuilder recipientName(String recipientName) {
+            this.recipientName = recipientName;
+            return this;
+        }
+
+        public ShipmentsBuilder recipientPhone(String recipientPhone) {
+            this.recipientPhone = recipientPhone;
+            return this;
+        }
+
+        public ShipmentsBuilder zipCode(String zipCode) {
+            this.zipCode = zipCode;
+            return this;
+        }
+
+        public ShipmentsBuilder address(String address) {
+            this.address = address;
+            return this;
+        }
+
+        public ShipmentsBuilder addressDetail(String addressDetail) {
+            this.addressDetail = addressDetail;
+            return this;
+        }
+
+        public ShipmentsBuilder deliveryRequest(String deliveryRequest) {
+            this.deliveryRequest = deliveryRequest;
+            return this;
+        }
+
+        public ShipmentsBuilder isHiddenBySeller(Boolean isHiddenBySeller) {
+            this.isHiddenBySeller = isHiddenBySeller;
+            return this;
+        }
+
+        public ShipmentsBuilder hiddenAt(ZonedDateTime hiddenAt) {
+            this.hiddenAt = hiddenAt;
+            return this;
+        }
+
+        public ShipmentsBuilder shipmentMemo(String shipmentMemo) {
+            this.shipmentMemo = shipmentMemo;
+            return this;
+        }
+
+        // ===== 기존 코드 호환성을 위한 별칭 메서드들 =====
+
+        /**
+         * postalCode 설정 - zipCode로 매핑 (기존 코드 호환성)
+         */
+        public ShipmentsBuilder postalCode(String postalCode) {
+            this.zipCode = postalCode;
+            return this;
+        }
+
+        /**
+         * shippingAddress 설정 - address로 매핑 (기존 코드 호환성)
+         */
+        public ShipmentsBuilder shippingAddress(String shippingAddress) {
+            this.address = shippingAddress;
+            return this;
+        }
+
+        /**
+         * detailAddress 설정 - addressDetail로 매핑 (기존 코드 호환성)
+         */
+        public ShipmentsBuilder detailAddress(String detailAddress) {
+            this.addressDetail = detailAddress;
+            return this;
+        }
+
+        /**
+         * deliveryNote 설정 - deliveryRequest로 매핑 (기존 코드 호환성)
+         */
+        public ShipmentsBuilder deliveryNote(String deliveryNote) {
+            this.deliveryRequest = deliveryNote;
+            return this;
+        }
+
+        /**
+         * Shipments 객체 생성
+         */
+        public Shipments build() {
+            Shipments shipments = new Shipments();
+            shipments.id = this.id;
+            shipments.orders = this.orders;
+            shipments.user = this.user;
+            shipments.seller = this.seller;
+            shipments.courier = this.courier;
+            shipments.trackingNumber = this.trackingNumber;
+            shipments.shippedAt = this.shippedAt;
+            shipments.deliveredAt = this.deliveredAt;
+            shipments.trackingUpdatedAt = this.trackingUpdatedAt;
+            shipments.expectedShipDate = this.expectedShipDate;
+            shipments.delayReason = this.delayReason;
+            shipments.recipientName = this.recipientName;
+            shipments.recipientPhone = this.recipientPhone;
+            shipments.zipCode = this.zipCode;
+            shipments.address = this.address;
+            shipments.addressDetail = this.addressDetail;
+            shipments.deliveryRequest = this.deliveryRequest;
+            shipments.isHiddenBySeller = this.isHiddenBySeller != null ? this.isHiddenBySeller : Boolean.FALSE;
+            shipments.hiddenAt = this.hiddenAt;
+            shipments.shipmentMemo = this.shipmentMemo;
+            return shipments;
+        }
     }
 }
