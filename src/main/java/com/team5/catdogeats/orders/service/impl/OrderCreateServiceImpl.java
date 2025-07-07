@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.coupons.repository.BuyerCouponRepository;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
-import com.team5.catdogeats.orders.domain.OrderPendingDetails;
+import com.team5.catdogeats.orders.domain.mapping.OrderPendingDetails;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.dto.GroupSellerAndCouponsDTO;
@@ -71,9 +71,9 @@ public class OrderCreateServiceImpl implements OrderCreateService {
             Long originalTotalPrice = calculateOriginalTotalPrice(validatedOrderItems);
             Long discountAmount = applyCouponDiscount(coupons, validatedOrderItems);
 
-            Long totalDeliveryFee = calculateTotalDeliveryFee(validatedOrderItems)  ;
+            Long totalDeliveryFee = calculateTotalDeliveryFee(validatedOrderItems);
             Long discountedTotalPrice = originalTotalPrice - discountAmount;
-            Long finalPaymentAmount = calculateFinalPaymentAmount(discountedTotalPrice, totalDeliveryFee);
+            Long finalPaymentAmount = discountedTotalPrice + totalDeliveryFee;
 
             log.debug("주문 금액 계산: 원가={}원, 할인후={}원, 최종={}원",
                     originalTotalPrice, discountedTotalPrice, finalPaymentAmount);
@@ -220,11 +220,17 @@ public class OrderCreateServiceImpl implements OrderCreateService {
 
         List<OrderItemInfo> rawItems =reqs.stream()
                 .map(r -> {
-                    if (r.getQuantity() <= 0)
+                    if (r.getQuantity() <= 0) {
                         throw new IllegalArgumentException("수량은 1개 이상");
+                    }
                     Products p = productRepository.findById(r.getProductId())
                             .orElseThrow(() -> new NoSuchElementException("상품 없음: " + r.getProductId()));
                     return OrderItemInfo.of(p, r.getQuantity());
+                })
+                .peek( i -> {
+                    if (i.seller().isDeleted()) {
+                        throw new IllegalStateException("탈퇴한 판매자의 상품은 구매할 수 없습니다.");
+                    }
                 })
                 .toList();
         Map<String, OrderItemInfo> mergedByProduct = rawItems.stream()
@@ -262,12 +268,6 @@ public class OrderCreateServiceImpl implements OrderCreateService {
         if (amount <= 0 || amount > subTotal)
             throw new IllegalArgumentException("할인 금액 오류");
         return amount;
-    }
-
-    private Long calculateFinalPaymentAmount(Long discountedTotalPrice, Long totalDeliveryFee) {
-        long finalAmount = discountedTotalPrice + totalDeliveryFee;
-        // 100% 할인 등으로 최종 결제 금액이 0원이 될 경우, 최소 결제 금액 1원으로 보정
-        return Math.max(finalAmount, 1L);
     }
 
     private Orders createAndSaveOrderOnly(Buyers buyer, Long subTotalPrice, Long discountAmount, Long finalPaymentAmount, Long totalDeliveryFee) {
