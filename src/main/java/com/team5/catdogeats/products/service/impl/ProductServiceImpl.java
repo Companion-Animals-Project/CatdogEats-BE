@@ -13,8 +13,7 @@ import com.team5.catdogeats.products.domain.enums.ProductCategory;
 import com.team5.catdogeats.products.exception.DuplicateProductNumberException;
 import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.products.service.ProductService;
-import com.team5.catdogeats.reviews.domain.Reviews;
-import com.team5.catdogeats.reviews.domain.dto.ReviewDeleteRequestDto;
+import com.team5.catdogeats.reviews.repository.ReviewClassificationLLMRepository;
 import com.team5.catdogeats.reviews.repository.ReviewRepository;
 import com.team5.catdogeats.reviews.repository.ReviewSummaryLLMRepository;
 import com.team5.catdogeats.reviews.service.ReviewService;
@@ -45,8 +44,8 @@ public class ProductServiceImpl implements ProductService {
     private final ProductImageRepository productImageRepository;
     private final ProductImageService productImageService;
     private final ReviewRepository reviewRepository;
-    private final ReviewService reviewService;
     private final ReviewSummaryLLMRepository reviewSummaryLLMRepository;
+    private final ReviewClassificationLLMRepository reviewClassificationLLMRepository;
 
     @Override
     public String registerProduct(UserPrincipal userPrincipal, ProductCreateRequestDto dto) {
@@ -97,11 +96,9 @@ public class ProductServiceImpl implements ProductService {
         Products product = productRepository.findById(dto.productId())
                 .orElseThrow(() -> new NoSuchElementException("해당 아이템 정보를 찾을 수 없습니다."));
 
-        // 0. 이 상품에 대한 리뷰 및 리뷰 요약 삭제
-        List<Reviews> reviews = reviewRepository.findAllByProduct(product);
-        for (Reviews review : reviews) {
-            reviewService.deleteReview(new ReviewDeleteRequestDto(review.getId()));
-        }
+        // 0. 이 상품에 대한 리뷰 및 리뷰 요약/분류 삭제
+        reviewRepository.deleteAllByProduct(product);
+        reviewClassificationLLMRepository.deleteAllByProduct(product);
         reviewSummaryLLMRepository.deleteAllByProduct(product);
 
         // 1. 리뷰와 연결된 모든 이미지 매핑 조회
