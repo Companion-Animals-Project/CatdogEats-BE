@@ -1,6 +1,9 @@
 package com.team5.catdogeats.orders.service.impl;
 
 import com.team5.catdogeats.orders.external.DeliveryTrackingApiClient;
+import com.team5.catdogeats.orders.external.DeliveryTrackingApiConfiguration.SmartCourierApiException;
+import com.team5.catdogeats.orders.external.dto.DeliveryTrackingResponse;
+import com.team5.catdogeats.orders.external.dto.TrackingValidationResponse;
 import com.team5.catdogeats.orders.service.DeliveryTrackingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,87 +51,120 @@ public class DeliveryTrackingServiceImpl implements DeliveryTrackingService {
 
     @Override
     @Retryable(
-            value = {Exception.class},
+            value = {SmartCourierApiException.class},
             maxAttempts = 3,
-            backoff = @Backoff(delay = 2000, multiplier = 2)
+            backoff = @Backoff(delay = 2000, multiplier = 2.0)
     )
     public boolean checkDeliveryStatus(String courierCode, String trackingNumber) {
         try {
-            log.debug("배송 상태 확인 시작 - courier: {}, tracking: {}", courierCode, trackingNumber);
+            log.debug("배송 상태 확인 시작 - courierCode: {}, trackingNumber: {}", courierCode, trackingNumber);
 
             // API 호출 제한 확인
             validateApiCallLimits(trackingNumber);
 
             // 스마트택배 API 호출
-            DeliveryTrackingApiClient.DeliveryTrackingResponse response =
-                    deliveryTrackingApiClient.getTrackingInfo(apiKey, courierCode, trackingNumber);
+            DeliveryTrackingResponse response = deliveryTrackingApiClient.getTrackingInfo(
+                    apiKey, courierCode, trackingNumber);
 
             // 호출 횟수 증가
-            incrementCallCounts(trackingNumber);
+            incrementCallCount(trackingNumber);
 
-            if (response == null) {
-                log.warn("배송 추적 API 응답이 null - tracking: {}", trackingNumber);
-                return false;
+            // 응답 검증
+            if (!response.isSuccess()) {
+                log.warn("배송 상태 조회 실패 - trackingNumber: {}, message: {}",
+                        trackingNumber, response.message());
+                throw new DeliveryTrackingApiException("배송 상태 조회 실패: " + response.message());
             }
 
             boolean isDelivered = response.isDelivered();
-            log.info("배송 상태 확인 완료 - tracking: {}, status: {}, delivered: {}",
-                    trackingNumber, response.getStatusMessage(), isDelivered);
+            log.debug("배송 상태 확인 완료 - trackingNumber: {}, isDelivered: {}", trackingNumber, isDelivered);
 
             return isDelivered;
 
+        } catch (SmartCourierApiException e) {
+            if (e.isRetryable()) {
+                log.warn("재시도 가능한 API 오류 - trackingNumber: {}, error: {}", trackingNumber, e.getMessage());
+                throw e; // 재시도를 위해 예외를 다시 던짐
+            } else {
+                log.error("재시도 불가능한 API 오류 - trackingNumber: {}, error: {}", trackingNumber, e.getMessage());
+                throw new DeliveryTrackingApiException("배송 상태 확인 실패", e);
+            }
         } catch (Exception e) {
-            log.error("배송 상태 확인 실패 - courier: {}, tracking: {}, error: {}",
-                    courierCode, trackingNumber, e.getMessage());
-            throw new DeliveryTrackingApiException("배송 상태 확인 중 오류가 발생했습니다", e);
+            log.error("배송 상태 확인 중 예상치 못한 오류 - trackingNumber: {}", trackingNumber, e);
+            throw new DeliveryTrackingApiException("배송 상태 확인 중 오류 발생", e);
         }
     }
 
     @Override
     @Retryable(
-            value = {Exception.class},
-            maxAttempts = 2,
-            backoff = @Backoff(delay = 1000)
+            value = {SmartCourierApiException.class},
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 1000, multiplier = 1.5)
     )
     public ValidationResult validateTrackingNumber(String courierCode, String trackingNumber) {
         try {
-            log.debug("운송장 번호 유효성 검증 시작 - courier: {}, tracking: {}",
-                    courierCode, trackingNumber);
+            log.debug("운송장 번호 검증 시작 - courierCode: {}, trackingNumber: {}", courierCode, trackingNumber);
 
-            // API 호출 제한 확인 (유효성 검증은 좀 더 관대하게)
-            if (!canMakeApiCall()) {
-                log.warn("API 호출 제한 초과 - 유효성 검증 생략");
-                return ValidationResult.skipped("API 호출 제한으로 검증을 생략했습니다");
+            // 기본 형식 검증
+            if (!isValidFormat(courierCode, trackingNumber)) {
+                return ValidationResult.invalid("운송장 번호 형식이 올바르지 않습니다");
             }
 
-            DeliveryTrackingApiClient.DeliveryValidationResponse response =
-                    deliveryTrackingApiClient.validateInvoice(apiKey, courierCode, trackingNumber);
-
-            incrementDailyCallCount();
-
-            if (response == null) {
-                return ValidationResult.error("API 응답이 없습니다");
+            // API 호출 제한 확인
+            try {
+                validateApiCallLimits(trackingNumber);
+            } catch (Exception e) {
+                log.warn("API 제한으로 인한 기본 검증만 수행 - trackingNumber: {}", trackingNumber);
+                return ValidationResult.skipped("API 제한으로 기본 형식 검증만 수행했습니다");
             }
 
-            if (response.isValid()) {
-                log.info("운송장 번호 유효성 검증 성공 - tracking: {}", trackingNumber);
-                return ValidationResult.success("운송장 번호가 유효합니다");
-            } else {
-                log.warn("운송장 번호 유효성 검증 실패 - tracking: {}, message: {}",
+            // 스마트택배 API로 실제 검증
+            TrackingValidationResponse response = deliveryTrackingApiClient.validateTrackingNumber(
+                    apiKey, courierCode, trackingNumber);
+
+            // 호출 횟수 증가
+            incrementCallCount(trackingNumber);
+
+            // 응답 처리
+            if (!response.isSuccess()) {
+                log.warn("운송장 검증 API 실패 - trackingNumber: {}, message: {}",
                         trackingNumber, response.message());
-                return ValidationResult.invalid(response.message());
+                return ValidationResult.error("API 검증 실패: " + response.message());
             }
 
+            boolean isValid = response.isValidTrackingNumber();
+            String message = response.getValidationMessage();
+
+            log.debug("운송장 번호 검증 완료 - trackingNumber: {}, isValid: {}", trackingNumber, isValid);
+
+            return isValid ? ValidationResult.success(message) : ValidationResult.invalid(message);
+
+        } catch (SmartCourierApiException e) {
+            if (e.isRetryable()) {
+                log.warn("재시도 가능한 검증 API 오류 - trackingNumber: {}", trackingNumber);
+                throw e; // 재시도를 위해 예외를 다시 던짐
+            } else {
+                log.warn("재시도 불가능한 검증 API 오류 - trackingNumber: {}, 기본 검증으로 대체", trackingNumber);
+                // API 실패 시 기본 형식 검증 결과로 대체
+                boolean isValidFormat = isValidFormat(courierCode, trackingNumber);
+                return isValidFormat
+                        ? ValidationResult.success("기본 형식 검증 통과 (API 검증 실패)")
+                        : ValidationResult.invalid("운송장 번호 형식이 올바르지 않습니다");
+            }
         } catch (Exception e) {
-            log.error("운송장 번호 유효성 검증 중 오류 - courier: {}, tracking: {}, error: {}",
-                    courierCode, trackingNumber, e.getMessage());
-            return ValidationResult.error("유효성 검증 중 오류가 발생했습니다: " + e.getMessage());
+            log.error("운송장 번호 검증 중 예상치 못한 오류 - trackingNumber: {}", trackingNumber, e);
+            // 예외 발생 시 기본 형식 검증으로 대체
+            boolean isValidFormat = isValidFormat(courierCode, trackingNumber);
+            return isValidFormat
+                    ? ValidationResult.success("기본 형식 검증 통과 (API 오류)")
+                    : ValidationResult.invalid("운송장 번호 형식이 올바르지 않습니다");
         }
     }
 
     @Override
     public ApiCallStatus getApiCallStatus() {
-        resetCountersIfNewDay();
+        resetCountsIfNewDay();
+
         return new ApiCallStatus(
                 dailyCallCount.get(),
                 dailyTotalLimit,
@@ -138,11 +174,10 @@ public class DeliveryTrackingServiceImpl implements DeliveryTrackingService {
     }
 
     /**
-     * API 호출 제한 확인
+     * API 호출 제한 검증
      */
     private void validateApiCallLimits(String trackingNumber) {
-        // 날짜가 바뀌면 카운터 초기화
-        resetCountersIfNewDay();
+        resetCountsIfNewDay();
 
         // 전체 일일 호출 제한 확인
         if (dailyCallCount.get() >= dailyTotalLimit) {
@@ -150,9 +185,8 @@ public class DeliveryTrackingServiceImpl implements DeliveryTrackingService {
         }
 
         // 운송장별 일일 호출 제한 확인
-        String trackingKey = formatTrackingKey(trackingNumber);
         AtomicInteger trackingCount = trackingCallCounts.computeIfAbsent(
-                trackingKey, k -> new AtomicInteger(0));
+                trackingNumber, k -> new AtomicInteger(0));
 
         if (trackingCount.get() >= dailyLimitPerTracking) {
             throw new DeliveryTrackingApiException(
@@ -162,46 +196,53 @@ public class DeliveryTrackingServiceImpl implements DeliveryTrackingService {
     }
 
     /**
-     * API 호출 가능 여부 확인 (유효성 검증용)
-     */
-    private boolean canMakeApiCall() {
-        resetCountersIfNewDay();
-        return dailyCallCount.get() < dailyTotalLimit;
-    }
-
-    /**
      * API 호출 횟수 증가
      */
-    private void incrementCallCounts(String trackingNumber) {
-        incrementDailyCallCount();
-
-        String trackingKey = formatTrackingKey(trackingNumber);
-        trackingCallCounts.computeIfAbsent(trackingKey, k -> new AtomicInteger(0))
+    private void incrementCallCount(String trackingNumber) {
+        dailyCallCount.incrementAndGet();
+        trackingCallCounts.computeIfAbsent(trackingNumber, k -> new AtomicInteger(0))
                 .incrementAndGet();
-    }
 
-    private void incrementDailyCallCount() {
-        int newCount = dailyCallCount.incrementAndGet();
-        log.debug("API 호출 횟수 증가 - 오늘: {}/{}", newCount, dailyTotalLimit);
+        log.debug("API 호출 횟수 증가 - 전체: {}/{}, 운송장: {}/{}",
+                dailyCallCount.get(), dailyTotalLimit,
+                trackingCallCounts.get(trackingNumber).get(), dailyLimitPerTracking);
     }
 
     /**
-     * 날짜 변경시 카운터 초기화
+     * 새로운 날짜 시 호출 횟수 초기화
      */
-    private void resetCountersIfNewDay() {
-        String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
-        if (!today.equals(lastResetDate)) {
-            log.info("날짜 변경 감지 - API 호출 카운터 초기화: {} -> {}", lastResetDate, today);
+    private void resetCountsIfNewDay() {
+        String currentDate = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+
+        if (!currentDate.equals(lastResetDate)) {
             dailyCallCount.set(0);
             trackingCallCounts.clear();
-            lastResetDate = today;
+            lastResetDate = currentDate;
+
+            log.info("API 호출 횟수 초기화 - 날짜: {}", currentDate);
         }
     }
 
     /**
-     * 운송장 번호 키 포맷팅
+     * 기본 운송장 번호 형식 검증
      */
-    private String formatTrackingKey(String trackingNumber) {
-        return LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE) + ":" + trackingNumber;
+    private boolean isValidFormat(String courierCode, String trackingNumber) {
+        if (trackingNumber == null || trackingNumber.trim().isEmpty()) {
+            return false;
+        }
+
+        String normalized = trackingNumber.trim().replaceAll("-", "");
+
+        return switch (courierCode) {
+            case "01" -> normalized.matches("^[0-9]{13}$"); // 우체국택배: 13자리 숫자
+            case "04" -> normalized.matches("^[0-9]{10,12}$"); // CJ대한통운: 10-12자리 숫자
+            case "05" -> normalized.matches("^[0-9]{12}$"); // 한진택배: 12자리 숫자
+            case "06" -> normalized.matches("^[0-9]{11,12}$"); // 로젠택배: 11-12자리 숫자
+            case "08" -> normalized.matches("^[0-9]{12,13}$"); // 롯데택배: 12-13자리 숫자
+            default -> {
+                log.warn("지원하지 않는 택배사 코드: {}", courierCode);
+                yield false;
+            }
+        };
     }
 }
