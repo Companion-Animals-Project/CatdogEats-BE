@@ -160,8 +160,7 @@ public class ReviewServiceImpl implements ReviewService {
     public void deleteReview(ReviewDeleteRequestDto dto) {
         Reviews review = reviewRepository.findById(dto.reviewId())
                 .orElseThrow(() -> new NoSuchElementException("해당 리뷰를 찾을 수 없습니다."));
-        // 0. summary 및 classification 결과 먼저 삭제
-        reviewSummaryLLMRepository.deleteAllByReview(review);
+        // 0. classification 결과 먼저 삭제
         reviewClassificationLLMRepository.deleteAllByReview(review);
         // 1. 리뷰와 연결된 모든 이미지 매핑 조회
         List<ReviewsImages> mappings = reviewImageRepository.findAllByReviewsId(dto.reviewId());
