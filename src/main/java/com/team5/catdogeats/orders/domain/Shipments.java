@@ -160,17 +160,31 @@ public class Shipments extends BaseEntity {
     public void updateTrackingTimestamp() {
         this.trackingUpdatedAt = ZonedDateTime.now();
     }
+    public String getFullShippingAddress() {
+        return String.format("%s %s %s", address, addressDetail != null ? addressDetail : "", zipCode);
+    }
 
+    public String getDeliveryNote() {
+        return deliveryRequest;
+    }
+
+    public void setExpectedShipDate(ZonedDateTime expectedShipDate) {
+        this.expectedShipDate = expectedShipDate;
+    }
+
+    public void setDelayReason(String delayReason) {
+        this.delayReason = delayReason;
+    }
+
+    public String getFullAddress() {
+        return getFullShippingAddress();
+    }
     /**
      * 운송장이 등록된 상태인지 확인
      * @return 운송장 등록 여부
      */
     public boolean isShipped() {
-        return trackingNumber != null &&
-                !trackingNumber.trim().isEmpty() &&
-                courier != null &&
-                !courier.trim().isEmpty() &&
-                shippedAt != null;
+        return trackingNumber != null && !trackingNumber.trim().isEmpty();
     }
 
     /**

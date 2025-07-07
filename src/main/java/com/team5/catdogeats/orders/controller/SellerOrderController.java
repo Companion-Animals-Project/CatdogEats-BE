@@ -23,7 +23,6 @@ import java.util.NoSuchElementException;
 /**
  * 판매자용 주문 관리 컨트롤러 (완전 확장)
  * 판매자가 본인이 판매한 상품의 주문/배송 관리를 할 수 있는 모든 API를 제공
- *
  * 내부적으로 기능별 서비스들을 사용하지만,
  * 기존 SellerOrderService 인터페이스를 통해 Facade 패턴으로 접근
  */
@@ -169,8 +168,8 @@ public class SellerOrderController {
         } catch (IllegalStateException e) {
             log.warn("주문 상태 변경 실패 - 상태 오류: {}", e.getMessage());
             return ResponseEntity
-                    .status(ResponseCode.INVALID_STATE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INVALID_STATE, e.getMessage()));
+                    .status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
 
         } catch (Exception e) {
             log.error("주문 상태 변경 중 서버 오류 - orderNumber: {}", request.orderNumber(), e);
@@ -216,8 +215,8 @@ public class SellerOrderController {
         } catch (IllegalStateException e) {
             log.warn("운송장 번호 등록 실패 - 상태 오류: {}", e.getMessage());
             return ResponseEntity
-                    .status(ResponseCode.INVALID_STATE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INVALID_STATE, e.getMessage()));
+                    .status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
 
         } catch (Exception e) {
             log.error("운송장 번호 등록 중 서버 오류 - orderNumber: {}", request.orderNumber(), e);
@@ -248,8 +247,8 @@ public class SellerOrderController {
             } else {
                 log.warn("주문 목록 숨김 처리 실패 - 이미 숨겨진 주문: {}", orderNumber);
                 return ResponseEntity
-                        .status(ResponseCode.INVALID_STATE.getStatus())
-                        .body(ApiResponse.error(ResponseCode.INVALID_STATE, "이미 숨겨진 주문입니다."));
+                        .status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
+                        .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, "이미 숨겨진 주문입니다."));
             }
 
         } catch (NoSuchElementException e) {

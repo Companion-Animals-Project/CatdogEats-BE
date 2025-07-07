@@ -280,4 +280,7 @@ public record TrackingNumberRegisterRequest(
         return new TrackingNumberRegisterRequest(
                 orderNumber, courierCompany, trackingNumber, shipmentMemo, startShipment, enableValidation);
     }
+    public boolean shouldStartShipment() {
+        return startShipment;
+    }
 }

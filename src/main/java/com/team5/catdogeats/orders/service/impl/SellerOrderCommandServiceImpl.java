@@ -187,7 +187,7 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
      */
     private void validateSellerOwnership(Sellers seller, Orders order) {
         boolean hasSellerItem = order.getOrderItems().stream()
-                .anyMatch(orderItem -> orderItem.getProducts().getSellers().equals(seller));
+                .anyMatch(orderItem -> orderItem.getProducts().getSeller().equals(seller));
 
         if (!hasSellerItem) {
             throw new IllegalArgumentException("해당 주문에 대한 권한이 없습니다");
@@ -270,10 +270,10 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
             // 결과 변환
             return switch (result.type()) {
                 case "SUCCESS" -> TrackingNumberRegisterResponse.ValidationResult.success(result.message());
-                case "INVALID" -> TrackingNumberRegisterResponse.ValidationResult.failed(result.message());
-                case "ERROR" -> TrackingNumberRegisterResponse.ValidationResult.failed(result.message());
+                case "INVALID" -> TrackingNumberRegisterResponse.ValidationResult.invalid(result.message());
+                case "ERROR" -> TrackingNumberRegisterResponse.ValidationResult.invalid(result.message());
                 case "SKIPPED" -> TrackingNumberRegisterResponse.ValidationResult.skipped(result.message());
-                default -> TrackingNumberRegisterResponse.ValidationResult.failed("알 수 없는 검증 결과");
+                default -> TrackingNumberRegisterResponse.ValidationResult.invalid("알 수 없는 검증 결과");
             };
 
         } catch (DeliveryTrackingService.DeliveryTrackingApiException e) {
@@ -286,7 +286,7 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
                 return TrackingNumberRegisterResponse.ValidationResult.success(
                         "기본 형식 검증 통과 (API 검증 실패)");
             } else {
-                return TrackingNumberRegisterResponse.ValidationResult.failed(
+                return TrackingNumberRegisterResponse.ValidationResult.invalid(
                         "운송장 번호 형식이 올바르지 않습니다");
             }
         } catch (Exception e) {
@@ -297,7 +297,7 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
             boolean isValidFormat = request.isValidTrackingNumberFormat();
             return isValidFormat
                     ? TrackingNumberRegisterResponse.ValidationResult.success("기본 형식 검증만 수행됨")
-                    : TrackingNumberRegisterResponse.ValidationResult.failed("운송장 번호 형식이 올바르지 않습니다");
+                    : TrackingNumberRegisterResponse.ValidationResult.invalid("운송장 번호 형식이 올바르지 않습니다");
         }
     }
 
