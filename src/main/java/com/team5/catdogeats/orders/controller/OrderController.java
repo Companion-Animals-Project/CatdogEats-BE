@@ -8,6 +8,7 @@ import com.team5.catdogeats.orders.dto.request.OrderDeleteRequest;
 import com.team5.catdogeats.orders.dto.response.OrderCreateResponse;
 import com.team5.catdogeats.orders.dto.response.OrderDeleteResponse;
 import com.team5.catdogeats.orders.dto.response.OrderDetailResponse;
+import com.team5.catdogeats.orders.service.OderDeleteService;
 import com.team5.catdogeats.orders.service.OrderCreateService;
 import com.team5.catdogeats.orders.service.OrderDetailService;
 import jakarta.validation.Valid;
@@ -33,6 +34,7 @@ public class OrderController {
 
     private final OrderCreateService orderCreateService;
     private final OrderDetailService orderDetailService;
+    private final OderDeleteService orderDeleteService;
 
     /**
      * 주문 생성 (구매자) - 기존 메서드 유지
@@ -137,7 +139,7 @@ public class OrderController {
             log.info("주문 내역 삭제 요청 - provider: {}, providerId: {}, orderNumber: {}",
                     userPrincipal.provider(), userPrincipal.providerId(), request.orderNumber());
 
-            OrderDeleteResponse response = orderCreateService.deleteOrder(userPrincipal, request.orderNumber());
+            OrderDeleteResponse response = orderDeleteService.deleteOrder(userPrincipal, request.orderNumber());
 
             if (response.success()) {
                 log.info("주문 내역 삭제 성공 - orderNumber: {}, orderId: {}",
