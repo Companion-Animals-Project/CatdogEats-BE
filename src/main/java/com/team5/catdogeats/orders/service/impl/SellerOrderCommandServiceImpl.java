@@ -12,6 +12,7 @@ import com.team5.catdogeats.orders.dto.response.OrderStatusUpdateResponse;
 import com.team5.catdogeats.orders.dto.response.TrackingNumberRegisterResponse;
 import com.team5.catdogeats.orders.repository.OrderRepository;
 import com.team5.catdogeats.orders.repository.ShipmentRepository;
+import com.team5.catdogeats.orders.service.DeliveryTrackingService;
 import com.team5.catdogeats.orders.service.SellerOrderCommandService;
 import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
@@ -38,6 +39,7 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
     private final SellersRepository sellerRepository;
     private final OrderRepository orderRepository;
     private final ShipmentRepository shipmentRepository;
+    private final DeliveryTrackingService deliveryTrackingService; // 추가: 실제 API 서비스
 
     /**
      * 주문 상태 변경 (배송 상태 관리)
@@ -129,8 +131,8 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
             // 7. 배송 정보 업데이트
             ZonedDateTime shippedAt = updateShipmentWithTracking(shipment, request);
 
-            // 8. 주문 상태 변경 (요청 시)
-            if (request.shouldStartShipmentImmediately()) {
+            // 8. 자동으로 배송중 상태로 변경 (요청 시)
+            if (request.shouldStartShipment()) {
                 order.setOrderStatus(OrderStatus.IN_DELIVERY);
                 orderRepository.save(order);
             }
@@ -140,7 +142,7 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
                     order, shipment, request, validationResult, shippedAt);
 
             log.info("운송장 번호 등록 성공 - orderNumber={}, trackingNumber={}, courier={}",
-                    request.orderNumber(), request.trackingNumber(), request.getCourierDisplayName());
+                    request.orderNumber(), request.trackingNumber(), request.courierCompany());
 
             return response;
 
@@ -158,53 +160,7 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
         }
     }
 
-    /**
-     * 주문 내역 삭제 (목록 숨김 처리)
-     */
-    @Override
-    @JpaTransactional
-    public boolean deleteOrder(UserPrincipal userPrincipal, String orderNumber) {
-        try {
-            log.debug("주문 내역 삭제 시작 - provider={}, providerId={}, orderNumber={}",
-                    userPrincipal.provider(), userPrincipal.providerId(), orderNumber);
-
-            // 1. 판매자 인증 및 조회
-            Sellers seller = findSellerByPrincipal(userPrincipal);
-
-            // 2. 주문 조회 및 권한 확인
-            Shipments shipment = findShipmentByOrderNumber(orderNumber);
-            Orders order = shipment.getOrders();
-
-            // 3. 판매자 소유 상품 확인
-            validateSellerOwnership(seller, order);
-
-            // 4. 삭제 가능 상태 확인
-            validateDeletableStatus(order);
-
-            // 5. 이미 숨김 처리 확인
-            validateNotAlreadyHidden(shipment);
-
-            // 6. 숨김 처리 실행
-            shipment.setHiddenFromSeller(true);
-            shipment.setHiddenAt(ZonedDateTime.now());
-            shipmentRepository.save(shipment);
-
-            log.info("주문 내역 삭제 성공 - orderNumber={}", orderNumber);
-            return true;
-
-        } catch (NoSuchElementException e) {
-            log.warn("주문 내역 삭제 실패 - orderNumber={}, reason={}", orderNumber, e.getMessage());
-            throw e;
-        } catch (IllegalArgumentException | IllegalStateException e) {
-            log.warn("주문 내역 삭제 검증 실패 - orderNumber={}, reason={}", orderNumber, e.getMessage());
-            throw e;
-        } catch (Exception e) {
-            log.error("주문 내역 삭제 중 오류 - orderNumber={}", orderNumber, e);
-            return false;
-        }
-    }
-
-    // ===== Helper Methods =====
+    // ===== Private Helper Methods =====
 
     /**
      * 판매자 조회
@@ -214,27 +170,27 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
                         userPrincipal.provider(), userPrincipal.providerId())
                 .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다"));
 
-        return sellerRepository.findByUserId(user.getId())
+        return sellerRepository.findByUsers(user)
                 .orElseThrow(() -> new IllegalArgumentException("판매자 권한이 없습니다"));
     }
 
     /**
-     * 주문번호로 배송 정보 조회
+     * 주문번호로 배송정보 조회
      */
     private Shipments findShipmentByOrderNumber(String orderNumber) {
-        return shipmentRepository.findByOrderNumber(orderNumber)
-                .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없습니다: " + orderNumber));
+        return shipmentRepository.findByOrdersOrderNumber(orderNumber)
+                .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없습니다"));
     }
 
     /**
      * 판매자 소유 상품 확인
      */
     private void validateSellerOwnership(Sellers seller, Orders order) {
-        boolean hasSellerProducts = order.getOrderItems().stream()
-                .anyMatch(item -> item.getProducts().getSeller().getId().equals(seller.getId()));
+        boolean hasSellerItem = order.getOrderItems().stream()
+                .anyMatch(orderItem -> orderItem.getProducts().getSellers().equals(seller));
 
-        if (!hasSellerProducts) {
-            throw new IllegalArgumentException("해당 주문에 대한 접근 권한이 없습니다");
+        if (!hasSellerItem) {
+            throw new IllegalArgumentException("해당 주문에 대한 권한이 없습니다");
         }
     }
 
@@ -243,53 +199,30 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
      */
     private void validateStatusTransition(OrderStatus currentStatus, OrderStatus newStatus,
                                           OrderStatusUpdateRequest request) {
-        // 동일 상태 전환 방지
-        if (currentStatus == newStatus) {
-            throw new IllegalArgumentException("현재 상태와 동일한 상태로 변경할 수 없습니다");
-        }
-
-        // 허용된 상태 전환 확인
-        Set<OrderStatus> allowedTransitions = getAllowedStatusTransitions(currentStatus);
-        if (!allowedTransitions.contains(newStatus)) {
-            throw new IllegalArgumentException(
-                    String.format("%s 상태에서 %s 상태로 변경할 수 없습니다",
-                            currentStatus, newStatus));
-        }
-
-        // 취소 시 사유 필수 확인
-        if (newStatus == OrderStatus.CANCELLED &&
-                (request.reason() == null || request.reason().trim().isEmpty())) {
-            throw new IllegalArgumentException("주문 취소 시 취소 사유가 필요합니다");
-        }
-
-        // 출고 지연 시 사유 확인
-        if (Boolean.TRUE.equals(request.isDelayed()) &&
-                (request.reason() == null || request.reason().trim().isEmpty())) {
-            throw new IllegalArgumentException("출고 지연 시 지연 사유가 필요합니다");
-        }
-    }
-
-    /**
-     * 허용된 상태 전환 목록 반환
-     */
-    private Set<OrderStatus> getAllowedStatusTransitions(OrderStatus currentStatus) {
-        return switch (currentStatus) {
-            case PAYMENT_COMPLETED -> Set.of(OrderStatus.PREPARING, OrderStatus.CANCELLED);
-            case PREPARING -> Set.of(OrderStatus.READY_FOR_SHIPMENT, OrderStatus.CANCELLED);
-            case READY_FOR_SHIPMENT -> Set.of(OrderStatus.IN_DELIVERY);
-            default -> Set.of();
+        // 허용된 상태 전환 규칙 검증
+        boolean isValidTransition = switch (currentStatus) {
+            case PAYMENT_COMPLETED -> newStatus == OrderStatus.PREPARING;
+            case PREPARING -> newStatus == OrderStatus.READY_FOR_SHIPMENT ||
+                    newStatus == OrderStatus.CANCELLED;
+            case READY_FOR_SHIPMENT -> newStatus == OrderStatus.IN_DELIVERY ||
+                    newStatus == OrderStatus.CANCELLED;
+            default -> false;
         };
+
+        if (!isValidTransition) {
+            throw new IllegalArgumentException(
+                    String.format("상태 전환이 불가능합니다: %s -> %s", currentStatus, newStatus));
+        }
     }
 
     /**
-     * 배송 정보 상태 변경 반영
+     * 배송 정보 상태 변경 시 업데이트
      */
     private void updateShipmentForStatusChange(Shipments shipment, OrderStatusUpdateRequest request) {
-        if (request.newStatus() == OrderStatus.CANCELLED) {
-            // 취소 시 배송 정보 초기화
-            shipment.setCourier(null);
-            shipment.setTrackingNumber(null);
-            shipment.setShippedAt(null);
+        // 출고 지연 처리
+        if (request.isDelayed() && request.expectedShipDate() != null) {
+            shipment.setExpectedShipDate(request.expectedShipDate());
+            shipment.setDelayReason(request.reason());
         }
 
         shipmentRepository.save(shipment);
@@ -317,29 +250,54 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
     }
 
     /**
-     * 스마트택배 API 검증
+     * 스마트택배 API 검증 (수정된 버전)
      */
     private TrackingNumberRegisterResponse.ValidationResult validateWithSmartDeliveryApi(
             TrackingNumberRegisterRequest request) {
+
         if (!request.shouldValidateWithApi()) {
             return TrackingNumberRegisterResponse.ValidationResult.skipped("API 검증을 건너뜀");
         }
 
         try {
-            // TODO: 실제 스마트택배 API 호출 구현
-            // 현재는 기본 형식 검증만 수행
-            boolean isValid = request.isValidTrackingNumberFormat();
+            log.debug("스마트택배 API 검증 시작 - courierCode={}, trackingNumber={}",
+                    request.getCourierApiCode(), request.trackingNumber());
 
-            if (isValid) {
-                return TrackingNumberRegisterResponse.ValidationResult.success("운송장 번호 형식이 유효합니다");
+            // DeliveryTrackingService를 통해 실제 API 검증 수행
+            DeliveryTrackingService.ValidationResult result = deliveryTrackingService
+                    .validateTrackingNumber(request.getCourierApiCode(), request.trackingNumber());
+
+            // 결과 변환
+            return switch (result.type()) {
+                case "SUCCESS" -> TrackingNumberRegisterResponse.ValidationResult.success(result.message());
+                case "INVALID" -> TrackingNumberRegisterResponse.ValidationResult.failed(result.message());
+                case "ERROR" -> TrackingNumberRegisterResponse.ValidationResult.failed(result.message());
+                case "SKIPPED" -> TrackingNumberRegisterResponse.ValidationResult.skipped(result.message());
+                default -> TrackingNumberRegisterResponse.ValidationResult.failed("알 수 없는 검증 결과");
+            };
+
+        } catch (DeliveryTrackingService.DeliveryTrackingApiException e) {
+            log.warn("스마트택배 API 검증 실패 - orderNumber={}, trackingNumber={}, reason={}",
+                    request.orderNumber(), request.trackingNumber(), e.getMessage());
+
+            // API 실패 시 기본 형식 검증으로 대체
+            boolean isValidFormat = request.isValidTrackingNumberFormat();
+            if (isValidFormat) {
+                return TrackingNumberRegisterResponse.ValidationResult.success(
+                        "기본 형식 검증 통과 (API 검증 실패)");
             } else {
-                return TrackingNumberRegisterResponse.ValidationResult.failed("운송장 번호 형식이 올바르지 않습니다");
+                return TrackingNumberRegisterResponse.ValidationResult.failed(
+                        "운송장 번호 형식이 올바르지 않습니다");
             }
-
         } catch (Exception e) {
-            log.warn("스마트택배 API 호출 실패 - orderNumber={}, trackingNumber={}",
+            log.error("스마트택배 API 검증 중 예상치 못한 오류 - orderNumber={}, trackingNumber={}",
                     request.orderNumber(), request.trackingNumber(), e);
-            return TrackingNumberRegisterResponse.ValidationResult.failed("API 검증 실패: " + e.getMessage());
+
+            // 예외 발생 시에도 기본 형식 검증으로 대체
+            boolean isValidFormat = request.isValidTrackingNumberFormat();
+            return isValidFormat
+                    ? TrackingNumberRegisterResponse.ValidationResult.success("기본 형식 검증만 수행됨")
+                    : TrackingNumberRegisterResponse.ValidationResult.failed("운송장 번호 형식이 올바르지 않습니다");
         }
     }
 
@@ -360,26 +318,6 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
 
         shipmentRepository.save(shipment);
         return shippedAt;
-    }
-
-    /**
-     * 삭제 가능 상태 확인
-     */
-    private void validateDeletableStatus(Orders order) {
-        Set<OrderStatus> deletableStatuses = Set.of(OrderStatus.DELIVERED, OrderStatus.CANCELLED);
-
-        if (!deletableStatuses.contains(order.getOrderStatus())) {
-            throw new IllegalStateException("완료된 주문(배송완료, 취소)만 삭제할 수 있습니다");
-        }
-    }
-
-    /**
-     * 이미 숨김 처리 확인
-     */
-    private void validateNotAlreadyHidden(Shipments shipment) {
-        if (shipment.isHiddenFromSeller()) {
-            throw new IllegalStateException("이미 삭제된 주문입니다");
-        }
     }
 
     /**
