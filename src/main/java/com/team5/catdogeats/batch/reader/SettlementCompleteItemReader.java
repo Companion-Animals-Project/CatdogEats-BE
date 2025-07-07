@@ -33,7 +33,7 @@ public class SettlementCompleteItemReader implements ItemReader<SettlementBatchI
     }
 
     @Override
-    public SettlementBatchItem read() throws Exception, UnexpectedInputException,
+    public SettlementBatchItem read() throws UnexpectedInputException,
             ParseException, NonTransientResourceException {
 
         // 현재 청크에서 더 읽을 데이터가 있는지 확인
