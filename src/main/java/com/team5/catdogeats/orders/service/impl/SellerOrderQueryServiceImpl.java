@@ -403,7 +403,7 @@ public class SellerOrderQueryServiceImpl implements SellerOrderQueryService {
         if (name == null || name.length() < 2) {
             return "*";
         }
-        return name.substring(0, 1) + "*".repeat(name.length() - 1);
+        return name.charAt(0) + "*".repeat(name.length() - 1);
     }
 
     /**
@@ -415,7 +415,7 @@ public class SellerOrderQueryServiceImpl implements SellerOrderQueryService {
             fullAddress.append(shipment.getAddress());
         }
         if (shipment.getAddressDetail() != null && !shipment.getAddressDetail().trim().isEmpty()) {
-            if (fullAddress.length() > 0) {
+            if (!fullAddress.isEmpty()) {
                 fullAddress.append(" ");
             }
             fullAddress.append(shipment.getAddressDetail());

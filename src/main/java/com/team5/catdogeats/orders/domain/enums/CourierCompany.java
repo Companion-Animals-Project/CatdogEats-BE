@@ -1,10 +1,13 @@
 package com.team5.catdogeats.orders.domain.enums;
 
+import lombok.Getter;
+
 /**
  * 택배사 열거형
  * 스마트택배 API 연동을 위한 택배사 정보
  * 지원 택배사: 우체국택배, CJ대한통운, 한진택배, 로젠택배, 롯데택배
  */
+@Getter
 public enum CourierCompany {
 
     /**
@@ -37,64 +40,22 @@ public enum CourierCompany {
      */
     LOTTE("08", "롯데택배");
 
+    /**
+     * -- GETTER --
+     *  스마트택배 API에서 사용하는 택배사 코드
+     *API 코드
+     */
     private final String apiCode;
+    /**
+     * -- GETTER --
+     *  사용자에게 표시되는 택배사명
+     *배사 표시명
+     */
     private final String displayName;
 
     CourierCompany(String apiCode, String displayName) {
         this.apiCode = apiCode;
         this.displayName = displayName;
-    }
-
-    /**
-     * 스마트택배 API에서 사용하는 택배사 코드
-     * @return API 코드
-     */
-    public String getApiCode() {
-        return apiCode;
-    }
-
-    /**
-     * 사용자에게 표시되는 택배사명
-     * @return 택배사 표시명
-     */
-    public String getDisplayName() {
-        return displayName;
-    }
-
-    /**
-     * API 코드로 택배사 조회
-     * @param apiCode 스마트택배 API 코드
-     * @return 해당하는 택배사 (없으면 null)
-     */
-    public static CourierCompany fromApiCode(String apiCode) {
-        if (apiCode == null) {
-            return null;
-        }
-
-        for (CourierCompany courier : values()) {
-            if (courier.apiCode.equals(apiCode)) {
-                return courier;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * 표시명으로 택배사 조회
-     * @param displayName 택배사 표시명
-     * @return 해당하는 택배사 (없으면 null)
-     */
-    public static CourierCompany fromDisplayName(String displayName) {
-        if (displayName == null) {
-            return null;
-        }
-
-        for (CourierCompany courier : values()) {
-            if (courier.displayName.equals(displayName)) {
-                return courier;
-            }
-        }
-        return null;
     }
 
     /**
@@ -112,8 +73,7 @@ public enum CourierCompany {
 
         return switch (this) {
             case POST_OFFICE -> normalized.matches("^[0-9]{13}$"); // 13자리 숫자
-            case CJ_LOGISTICS -> normalized.matches("^[0-9]{10,12}$"); // 10-12자리 숫자
-            case HANJIN -> normalized.matches("^[0-9]{10,12}$"); // 10-12자리 숫자
+            case CJ_LOGISTICS, HANJIN -> normalized.matches("^[0-9]{10,12}$"); // 10-12자리 숫자
             case LOGEN -> normalized.matches("^[0-9]{11,12}$"); // 11-12자리 숫자
             case LOTTE -> normalized.matches("^[0-9]{12,13}$"); // 12-13자리 숫자
         };

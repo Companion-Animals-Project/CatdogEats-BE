@@ -3,7 +3,6 @@ package com.team5.catdogeats.orders.service;
 /**
  * 배송 추적 서비스 인터페이스
  * 스마트택배 배송 추적 API를 호출하여 배송 상태를 확인하는 서비스
- *
  * API 제한사항 관리:
  * - 프리티어: 동일 운송장 일 최대 10건 조회 제한
  * - 일일 전체 호출 제한: 1000건
@@ -31,14 +30,6 @@ public interface DeliveryTrackingService {
      * @return 유효성 검증 결과
      */
     ValidationResult validateTrackingNumber(String courierCode, String trackingNumber);
-
-    /**
-     * API 호출 현황 조회
-     * 일일 호출 현황과 제한 상태를 확인합니다.
-     *
-     * @return API 호출 현황 정보
-     */
-    ApiCallStatus getApiCallStatus();
 
     /**
      * 유효성 검증 결과
@@ -75,13 +66,6 @@ public interface DeliveryTrackingService {
             int trackingNumbersCount,   // 오늘 조회한 운송장 개수
             String lastResetDate        // 마지막 초기화 날짜
     ) {
-        public boolean isNearLimit() {
-            return dailyCallCount > (dailyTotalLimit * 0.8);
-        }
-
-        public int getRemainingCalls() {
-            return Math.max(0, dailyTotalLimit - dailyCallCount);
-        }
     }
 
     /**

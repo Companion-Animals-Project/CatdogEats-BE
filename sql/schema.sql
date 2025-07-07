@@ -415,6 +415,8 @@ CREATE TABLE shipments (
                            tracking_updated_at TIMESTAMP WITH TIME ZONE,           -- 운송장 정보 최종 업데이트 시각
 
     -- 판매자 배송 관리 추가 필드
+                           expected_ship_date TIMESTAMP WITH TIME ZONE,            -- 예상 배송일 (출고 지연 시 사용)
+                           delay_reason VARCHAR(500),                              -- 배송 지연 사유
                            is_hidden_by_seller BOOLEAN DEFAULT FALSE,              -- 판매자 목록 숨김 여부
                            hidden_at TIMESTAMP WITH TIME ZONE,                     -- 판매자 숨김 처리 시각 (hidden_by_seller_at → hidden_at)
                            shipment_memo VARCHAR(500),                             -- 배송 메모
@@ -436,6 +438,7 @@ CREATE INDEX IF NOT EXISTS idx_shipments_tracking ON shipments(courier, tracking
 CREATE INDEX IF NOT EXISTS idx_shipments_shipped_at ON shipments(shipped_at);
 CREATE INDEX IF NOT EXISTS idx_shipments_delivered_at ON shipments(delivered_at);
 CREATE INDEX IF NOT EXISTS idx_shipments_hidden_seller ON shipments(seller_id, is_hidden_by_seller);
+CREATE INDEX IF NOT EXISTS idx_shipments_expected_ship_date ON shipments(expected_ship_date);  -- 예상 배송일 인덱스 추가
 
 -- 검색 성능을 위한 복합 인덱스
 CREATE INDEX IF NOT EXISTS idx_shipments_seller_recipient ON shipments(seller_id, recipient_name);

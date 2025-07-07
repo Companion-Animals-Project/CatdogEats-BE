@@ -17,16 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 /**
- * 판매자용 주문 관리 서비스 구현체 (CQRS Facade 패턴)
- * 기존 인터페이스를 유지하면서 내부적으로 CQRS 패턴으로 재구성된 서비스들을 조합
- *
- * CQRS 구조:
- * - SellerOrderQueryService: 읽기 전용 작업 (주문 조회 관련)
- * - SellerOrderCommandService: 쓰기 전용 작업 (주문 변경 관련)
- *
- * 기존 5개 서비스에서 2개 CQRS 서비스로 재구성:
- * [기존] SellerOrderQueryService + SellerOrderListService → [신규] SellerOrderQueryService (읽기)
- * [기존] SellerOrderStatusService + SellerOrderTrackingService + SellerOrderVisibilityService → [신규] SellerOrderCommandService (쓰기)
+ * 판매자용 주문 관리 서비스 구현체
  */
 @Slf4j
 @Service
@@ -138,7 +129,7 @@ public class SellerOrderServiceImpl implements SellerOrderService {
                 .orders(filteredOrders)
                 .currentPage(response.currentPage())
                 .totalPages(response.totalPages())
-                .totalElements((long) filteredOrders.size())
+                .totalElements(filteredOrders.size())
                 .pageSize(response.pageSize())
                 .hasNext(response.hasNext())
                 .hasPrevious(response.hasPrevious())
@@ -166,7 +157,7 @@ public class SellerOrderServiceImpl implements SellerOrderService {
                 .orders(filteredOrders)
                 .currentPage(response.currentPage())
                 .totalPages(response.totalPages())
-                .totalElements((long) filteredOrders.size())
+                .totalElements(filteredOrders.size())
                 .pageSize(response.pageSize())
                 .hasNext(response.hasNext())
                 .hasPrevious(response.hasPrevious())

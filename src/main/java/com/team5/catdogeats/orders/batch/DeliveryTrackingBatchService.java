@@ -20,7 +20,6 @@ import java.util.concurrent.TimeUnit;
 /**
  * 배송 추적 배치 서비스
  * 8시간마다 실행되어 배송중인 주문들의 상태를 스마트택배 API로 확인하고 업데이트
- *
  * API 제한 고려사항:
  * - 스마트택배 프리티어: 동일 운송장 일 최대 10건 조회 제한
  * - 8시간 주기 실행 (하루 3회)으로 제한 준수
@@ -156,55 +155,4 @@ public class DeliveryTrackingBatchService {
             throw e;
         }
     }
-
-    /**
-     * 배치 작업 통계 조회
-     * @return 배치 작업 현황
-     */
-    public BatchStatusInfo getBatchStatus() {
-        long inDeliveryCount = shipmentRepository.countByOrderStatus(OrderStatus.IN_DELIVERY);
-        long deliveredTodayCount = shipmentRepository.countDeliveredToday();
-
-        return BatchStatusInfo.builder()
-                .inDeliveryCount(inDeliveryCount)
-                .deliveredTodayCount(deliveredTodayCount)
-                .nextExecutionTime(getNextExecutionTime())
-                .lastExecutionTime(getLastExecutionTime())
-                .build();
-    }
-
-    /**
-     * API 호출 현황 조회
-     * @return API 호출 현황
-     */
-    public DeliveryTrackingService.ApiCallStatus getApiCallStatus() {
-        return deliveryTrackingService.getApiCallStatus();
-    }
-
-    /**
-     * 다음 실행 시간 계산
-     */
-    private ZonedDateTime getNextExecutionTime() {
-        // 현재 시간에서 8시간 후
-        return ZonedDateTime.now().plusHours(8);
-    }
-
-    /**
-     * 마지막 실행 시간 조회 (추정)
-     */
-    private ZonedDateTime getLastExecutionTime() {
-        // TODO: 실제 구현에서는 Redis나 DB에서 관리하거나 스케줄러 메타데이터 활용
-        return ZonedDateTime.now().minusHours(8);
-    }
-
-    /**
-     * 배치 작업 상태 정보
-     */
-    @lombok.Builder
-    public record BatchStatusInfo(
-            long inDeliveryCount,           // 배송 중인 주문 수
-            long deliveredTodayCount,       // 오늘 배송 완료된 주문 수
-            ZonedDateTime nextExecutionTime,    // 다음 실행 시간
-            ZonedDateTime lastExecutionTime     // 마지막 실행 시간 (추정)
-    ) {}
 }

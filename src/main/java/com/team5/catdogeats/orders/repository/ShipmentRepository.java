@@ -8,8 +8,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,16 +33,6 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
     WHERE o.orderNumber = :orderNumber
     """)
     Optional<Shipments> findByOrderNumber(@Param("orderNumber") String orderNumber);
-
-    /**
-     * 운송장 번호로 배송 정보 조회
-     */
-    Optional<Shipments> findByTrackingNumber(String trackingNumber);
-
-    /**
-     * 주문 ID로 배송 정보 존재 여부 확인
-     */
-    boolean existsByOrders(Orders orders);
 
     // ===== 판매자 기능을 위한 추가 메서드들 =====
 
@@ -90,33 +78,6 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
      */
     Optional<Shipments> findByCourierAndTrackingNumber(String courier, String trackingNumber);
 
-    /**
-     * 판매자별 주문 상태별 개수 조회 (통계용)
-     */
-    @Query("""
-    SELECT o.orderStatus, COUNT(DISTINCT o.id)
-    FROM Shipments s
-    JOIN s.orders o
-    JOIN o.orderItems oi
-    JOIN oi.products p
-    WHERE p.seller.userId = :sellerId
-    AND (s.isHiddenBySeller = false OR s.isHiddenBySeller IS NULL)
-    GROUP BY o.orderStatus
-    """)
-    List<Object[]> findOrderStatusCountBySeller(@Param("sellerId") String sellerId);
-
-    /**
-     * 특정 기간 내 배송 완료된 주문 조회
-     */
-    @Query("""
-    SELECT s FROM Shipments s
-    WHERE s.deliveredAt BETWEEN :startDate AND :endDate
-    ORDER BY s.deliveredAt DESC
-    """)
-    List<Shipments> findDeliveredBetween(
-            @Param("startDate") ZonedDateTime startDate,
-            @Param("endDate") ZonedDateTime endDate
-    );
 
     /**
      * 배송중인 주문 목록 조회 (배치 작업용)
@@ -133,8 +94,6 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
     List<Shipments> findByOrderStatusAndTrackingNumberIsNotNull(
             @Param("orderStatus") OrderStatus orderStatus
     );
-
-
 
     // ===== 배치 작업용 메서드들 (DeliveryTrackingBatchService용) =====
 

@@ -10,7 +10,6 @@ import java.time.ZonedDateTime;
 /**
  * 운송장 번호 등록 응답 DTO
  * API: POST /v1/sellers/orders/tracking-number
- *
  * 판매자의 운송장 번호 등록 요청 처리 결과를 담는 응답 구조
  */
 @Builder

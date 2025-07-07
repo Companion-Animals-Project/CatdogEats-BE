@@ -52,9 +52,9 @@ public class Shipments extends BaseEntity {
     @Column(name = "tracking_updated_at")
     private ZonedDateTime trackingUpdatedAt;
 
-    // ===== 새로 추가된 필드들 =====
+    // ===== 판매자 배송 관리 추가 필드들 =====
     /**
-     * 예상 배송일
+     * 예상 배송일 (출고 지연 시 사용)
      */
     @Column(name = "expected_ship_date")
     private ZonedDateTime expectedShipDate;
@@ -192,58 +192,6 @@ public class Shipments extends BaseEntity {
         }
         String[] parts = address.trim().split("\\s+");
         return parts.length > 2 ? parts[2] : "";
-    }
-
-    /**
-     * 배송 완료 여부 확인
-     */
-    public boolean isShipped() {
-        return shippedAt != null;
-    }
-
-    // ===== 운송장 관리 편의 메서드들 =====
-
-    /**
-     * 운송장 정보 설정
-     * @param courier 택배사명
-     * @param trackingNumber 운송장 번호
-     */
-    public void setTrackingInfo(String courier, String trackingNumber) {
-        this.courier = courier;
-        this.trackingNumber = trackingNumber;
-        this.shippedAt = ZonedDateTime.now();
-        this.trackingUpdatedAt = ZonedDateTime.now();
-    }
-
-    /**
-     * 배송 완료 처리
-     */
-    public void markAsDelivered() {
-        this.deliveredAt = ZonedDateTime.now();
-        this.trackingUpdatedAt = ZonedDateTime.now();
-    }
-
-    /**
-     * 판매자에 의한 숨김 처리
-     */
-    public void hideFromSeller() {
-        this.isHiddenBySeller = Boolean.TRUE;
-        this.hiddenAt = ZonedDateTime.now();
-    }
-
-    /**
-     * 판매자에 의한 숨김 해제
-     */
-    public void showToSeller() {
-        this.isHiddenBySeller = Boolean.FALSE;
-        this.hiddenAt = null;
-    }
-
-    /**
-     * 배송 메모 업데이트
-     */
-    public void updateShipmentMemo(String memo) {
-        this.shipmentMemo = memo;
     }
 
     // ===== 커스텀 Builder 클래스 (기존 코드 호환성) =====

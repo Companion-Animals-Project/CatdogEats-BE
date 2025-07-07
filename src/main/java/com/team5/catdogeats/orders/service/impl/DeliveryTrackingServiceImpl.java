@@ -19,7 +19,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * 배송 추적 서비스 구현체
  * 스마트택배 배송 추적 API를 호출하여 배송 상태를 확인하는 서비스
- *
  * API 제한사항 관리:
  * - 프리티어: 동일 운송장 일 최대 10건 조회 제한
  * - 일일 전체 호출 제한: 1000건
@@ -50,8 +49,7 @@ public class DeliveryTrackingServiceImpl implements DeliveryTrackingService {
 
     @Override
     @Retryable(
-            value = {SmartCourierApiException.class},
-            maxAttempts = 3,
+            retryFor = {SmartCourierApiException.class},
             backoff = @Backoff(delay = 2000, multiplier = 2.0)
     )
     public boolean checkDeliveryStatus(String courierCode, String trackingNumber) {
@@ -95,8 +93,7 @@ public class DeliveryTrackingServiceImpl implements DeliveryTrackingService {
 
     @Override
     @Retryable(
-            value = {SmartCourierApiException.class},
-            maxAttempts = 3,
+            retryFor = {SmartCourierApiException.class},
             backoff = @Backoff(delay = 1000, multiplier = 1.5)
     )
     public ValidationResult validateTrackingNumber(String courierCode, String trackingNumber) {

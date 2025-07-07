@@ -9,25 +9,24 @@ import jakarta.validation.constraints.Size;
 /**
  * 운송장 번호 등록 요청 DTO
  * API: POST /v1/sellers/orders/tracking-number
- *
  * 판매자가 택배사에서 발급받은 운송장 번호를 등록하여 배송을 시작할 때 사용하는 요청 구조
  */
 public record TrackingNumberRegisterRequest(
 
-        /**
+        /*
          * 운송장 번호를 등록할 주문 번호
          */
         @NotBlank(message = "주문 번호는 필수입니다")
         String orderNumber,
 
-        /**
+        /*
          * 택배사
          * CourierCompany enum 값 중 하나여야 함
          */
         @NotNull(message = "택배사는 필수입니다")
         CourierCompany courierCompany,
 
-        /**
+        /*
          * 운송장 번호
          * 택배사에서 발급받은 실제 운송장 번호
          * 영문, 숫자, 하이픈만 허용 (택배사별로 형식이 다를 수 있음)
@@ -37,21 +36,21 @@ public record TrackingNumberRegisterRequest(
         @Pattern(regexp = "^[A-Za-z0-9\\-]+$", message = "운송장 번호는 영문, 숫자, 하이픈만 입력 가능합니다")
         String trackingNumber,
 
-        /**
+        /*
          * 배송 메모 (선택사항)
          * 배송 시 특별히 주의할 사항이나 배송 관련 메모
          */
         @Size(max = 200, message = "배송 메모는 200자를 초과할 수 없습니다")
         String shipmentMemo,
 
-        /**
+        /*
          * 즉시 배송 시작 여부
          * true: 운송장 등록과 동시에 배송 중 상태로 변경
          * false: 운송장만 등록하고 별도로 상태 변경 필요
          */
         Boolean startShipmentImmediately,
 
-        /**
+        /*
          * 스마트택배 API 연동 여부
          * true: 운송장 번호 유효성을 스마트택배 API로 검증
          * false: 유효성 검증 없이 등록 (API 장애 시 사용)

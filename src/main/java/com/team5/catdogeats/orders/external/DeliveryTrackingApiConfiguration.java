@@ -3,12 +3,11 @@ package com.team5.catdogeats.orders.external;
 import feign.Logger;
 import feign.RequestInterceptor;
 import feign.codec.ErrorDecoder;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.concurrent.TimeUnit;
 
 /**
  * 스마트택배 API Feign 클라이언트 설정
@@ -94,21 +93,13 @@ public class DeliveryTrackingApiConfiguration {
     /**
      * 스마트택배 API 전용 예외 클래스
      */
+    @Getter
     public static class SmartCourierApiException extends RuntimeException {
         private final int statusCode;
 
         public SmartCourierApiException(String message, int statusCode) {
             super(message);
             this.statusCode = statusCode;
-        }
-
-        public SmartCourierApiException(String message, int statusCode, Throwable cause) {
-            super(message, cause);
-            this.statusCode = statusCode;
-        }
-
-        public int getStatusCode() {
-            return statusCode;
         }
 
         /**
