@@ -3,7 +3,7 @@ package com.team5.catdogeats.orders.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.coupons.domain.enums.DiscountType; // 추가된 import
-import com.team5.catdogeats.orders.domain.OrderPendingDetails; // 추가된 import
+import com.team5.catdogeats.orders.domain.mapping.OrderPendingDetails; // 추가된 import
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.dto.request.OrderCreateRequest;

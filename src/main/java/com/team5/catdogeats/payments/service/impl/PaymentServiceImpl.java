@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
-import com.team5.catdogeats.orders.domain.OrderPendingDetails;
+import com.team5.catdogeats.orders.domain.mapping.OrderPendingDetails;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.dto.common.OrderItemInfo;

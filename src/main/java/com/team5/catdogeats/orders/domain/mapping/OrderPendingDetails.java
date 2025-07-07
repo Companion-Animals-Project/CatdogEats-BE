@@ -1,6 +1,7 @@
-package com.team5.catdogeats.orders.domain;
+package com.team5.catdogeats.orders.domain.mapping;
 
 import com.team5.catdogeats.baseEntity.BaseEntity;
+import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.users.domain.mapping.Buyers;
 import jakarta.persistence.*;
 import lombok.*;
