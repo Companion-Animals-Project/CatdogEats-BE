@@ -80,6 +80,36 @@ public record TrackingNumberRegisterRequest(
         }
     }
 
+    // ===== 접근자 메서드들 (일관성 확보) =====
+
+    /**
+     * 즉시 배송 시작 여부 반환 (주 접근자)
+     */
+    public Boolean shouldStartShipmentImmediately() {
+        return startShipmentImmediately;
+    }
+
+    /**
+     * 간단한 배송 시작 여부 체크 (호환성 유지)
+     */
+    public boolean shouldStartShipment() {
+        return Boolean.TRUE.equals(startShipmentImmediately);
+    }
+
+    /**
+     * API 검증 여부 반환
+     */
+    public Boolean shouldValidateWithApi() {
+        return enableApiValidation;
+    }
+
+    /**
+     * API 검증 여부 반환 (기본 접근자)
+     */
+    public Boolean enableApiValidation() {
+        return enableApiValidation;
+    }
+
     /**
      * 택배사의 API 코드 반환
      * @return 스마트택배 API에서 사용하는 택배사 코드
@@ -93,90 +123,35 @@ public record TrackingNumberRegisterRequest(
      * @return 사용자에게 표시되는 택배사명
      */
     public String getCourierDisplayName() {
-        return courierCompany != null ? courierCompany.getDisplayName() : null;
+        return courierCompany != null ? courierCompany.getDisplayName() : "알 수 없음";
     }
 
     /**
-     * 정규화된 운송장 번호 반환
-     * 공백 제거 및 대문자 변환
-     * @return 정규화된 운송장 번호
-     */
-    public String getNormalizedTrackingNumber() {
-        if (trackingNumber == null) {
-            return null;
-        }
-        return trackingNumber.trim().toUpperCase();
-    }
-
-    /**
-     * 스마트택배 API 검증 수행 여부
-     * @return API 검증을 수행할지 여부
-     */
-    public boolean shouldValidateWithApi() {
-        return Boolean.TRUE.equals(enableApiValidation);
-    }
-
-    /**
-     * 즉시 배송 시작 여부
-     * @return 운송장 등록과 동시에 배송 시작할지 여부
-     */
-    public boolean shouldStartShipmentImmediately() {
-        return Boolean.TRUE.equals(startShipmentImmediately);
-    }
-
-    /**
-     * 운송장 번호 유효성 검증 (기본 형식)
-     * 스마트택배 API 호출 전 기본적인 형식 검증
+     * 운송장 번호 형식 검증
      * @return 유효한 형식인지 여부
      */
-    public boolean isValidTrackingNumberFormat() {
-        if (trackingNumber == null || trackingNumber.trim().isEmpty() || courierCompany == null) {
+    private boolean isValidTrackingNumberFormat() {
+        if (trackingNumber == null || trackingNumber.trim().isEmpty()) {
             return false;
         }
 
-        return courierCompany.isValidTrackingNumberFormat(getNormalizedTrackingNumber());
-    }
-
-    /**
-     * 배송 메모 존재 여부
-     * @return 배송 메모가 있는지 여부
-     */
-    public boolean hasShipmentMemo() {
-        return shipmentMemo != null && !shipmentMemo.trim().isEmpty();
-    }
-
-    /**
-     * 배송 추적 URL 생성
-     * @return 택배사별 배송 추적 URL
-     */
-    public String generateTrackingUrl() {
-        if (courierCompany == null || trackingNumber == null) {
-            return null;
+        // 기본 길이 검증
+        if (trackingNumber.length() < 8 || trackingNumber.length() > 50) {
+            return false;
         }
-        return courierCompany.generateTrackingUrl(getNormalizedTrackingNumber());
+
+        // 택배사별 세부 검증 (간소화)
+        return trackingNumber.matches("^[A-Za-z0-9\\-]+$");
     }
 
     /**
-     * 요청 정보 요약
-     * 로깅 및 디버깅용
-     * @return 요청 정보 요약 문자열
+     * 디버깅용 정보 출력
+     * @return 디버깅 정보 문자열
      */
-    public String getSummary() {
-        return String.format("주문:%s, 택배사:%s, 운송장:%s, 즉시시작:%s, API검증:%s",
-                orderNumber,
-                getCourierDisplayName(),
-                trackingNumber,
-                shouldStartShipmentImmediately(),
-                shouldValidateWithApi());
-    }
-
-    /**
-     * 민감정보 마스킹된 요청 정보
-     * 로그에서 운송장 번호를 부분적으로 마스킹
-     * @return 마스킹된 요청 정보
-     */
-    public String getMaskedSummary() {
-        String maskedTracking = trackingNumber != null && trackingNumber.length() > 4
+    @Override
+    public String toString() {
+        // 운송장 번호 마스킹 처리
+        String maskedTracking = trackingNumber != null && trackingNumber.length() > 6
                 ? trackingNumber.substring(0, 4) + "****" + trackingNumber.substring(trackingNumber.length() - 2)
                 : "****";
 
@@ -197,6 +172,8 @@ public record TrackingNumberRegisterRequest(
                 courierCompany != null &&
                 isValidTrackingNumberFormat();
     }
+
+    // ===== 정적 팩토리 메서드들 =====
 
     /**
      * 정적 팩토리 메서드 - 기본 운송장 등록
@@ -279,8 +256,5 @@ public record TrackingNumberRegisterRequest(
             boolean enableValidation) {
         return new TrackingNumberRegisterRequest(
                 orderNumber, courierCompany, trackingNumber, shipmentMemo, startShipment, enableValidation);
-    }
-    public boolean shouldStartShipment() {
-        return startShipment;
     }
 }
