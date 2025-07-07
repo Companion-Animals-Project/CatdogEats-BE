@@ -1,4 +1,4 @@
-package com.team5.catdogeats.orders.external.dto;
+package com.team5.catdogeats.orders.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

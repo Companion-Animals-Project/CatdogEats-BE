@@ -2,8 +2,7 @@ package com.team5.catdogeats.orders.service.impl;
 
 import com.team5.catdogeats.orders.external.DeliveryTrackingApiClient;
 import com.team5.catdogeats.orders.external.DeliveryTrackingApiConfiguration.SmartCourierApiException;
-import com.team5.catdogeats.orders.external.dto.DeliveryTrackingResponse;
-import com.team5.catdogeats.orders.external.dto.TrackingValidationResponse;
+import com.team5.catdogeats.orders.dto.response.TrackingValidationResponse;
 import com.team5.catdogeats.orders.service.DeliveryTrackingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -63,9 +62,8 @@ public class DeliveryTrackingServiceImpl implements DeliveryTrackingService {
             validateApiCallLimits(trackingNumber);
 
             // 스마트택배 API 호출
-            DeliveryTrackingResponse response = deliveryTrackingApiClient.getTrackingInfo(
+            TrackingValidationResponse response = deliveryTrackingApiClient.validateTrackingNumber(
                     apiKey, courierCode, trackingNumber);
-
             // 호출 횟수 증가
             incrementCallCount(trackingNumber);
 
@@ -76,7 +74,7 @@ public class DeliveryTrackingServiceImpl implements DeliveryTrackingService {
                 throw new DeliveryTrackingApiException("배송 상태 조회 실패: " + response.message());
             }
 
-            boolean isDelivered = response.isDelivered();
+            boolean isDelivered = response.isValidTrackingNumber() && "배송완료".equals(response.level());
             log.debug("배송 상태 확인 완료 - trackingNumber: {}, isDelivered: {}", trackingNumber, isDelivered);
 
             return isDelivered;

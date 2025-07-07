@@ -1,8 +1,6 @@
 package com.team5.catdogeats.orders.external;
 
-import com.team5.catdogeats.orders.external.dto.CourierCompanyListResponse;
-import com.team5.catdogeats.orders.external.dto.DeliveryTrackingResponse;
-import com.team5.catdogeats.orders.external.dto.TrackingValidationResponse;
+import com.team5.catdogeats.orders.dto.response.TrackingValidationResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,35 +23,6 @@ import org.springframework.web.bind.annotation.RequestParam;
         configuration = DeliveryTrackingApiConfiguration.class
 )
 public interface DeliveryTrackingApiClient {
-
-    /**
-     * 배송 조회 API
-     * 운송장 번호로 배송 상태를 조회합니다.
-     *
-     * @param t_key API 키
-     * @param t_code 택배사 코드 (01: 우체국, 04: CJ대한통운, 05: 한진, 06: 로젠, 08: 롯데)
-     * @param t_invoice 운송장 번호
-     * @return 배송 추적 정보
-     */
-    @GetMapping("/trackingInfo")
-    DeliveryTrackingResponse getTrackingInfo(
-            @RequestParam("t_key") String t_key,
-            @RequestParam("t_code") String t_code,
-            @RequestParam("t_invoice") String t_invoice
-    );
-
-    /**
-     * 택배사 리스트 조회 API
-     * 지원하는 택배사 목록을 조회합니다.
-     *
-     * @param t_key API 키
-     * @return 택배사 목록
-     */
-    @GetMapping("/companylist")
-    CourierCompanyListResponse getCompanyList(
-            @RequestParam("t_key") String t_key
-    );
-
     /**
      * 운송장 번호 유효성 검증 API
      * 운송장 번호가 올바른 형식이고 실제 존재하는지 검증합니다.
@@ -71,19 +40,5 @@ public interface DeliveryTrackingApiClient {
             @RequestParam("t_key") String t_key,
             @RequestParam("t_code") String t_code,
             @RequestParam("t_invoice") String t_invoice
-    );
-
-    /**
-     * 추천 배송업체 조회 API (선택 사용)
-     * 수취인 주소 기반으로 최적의 택배사를 추천받습니다.
-     *
-     * @param t_key API 키
-     * @param t_zipcode 우편번호
-     * @return 추천 택배사 정보
-     */
-    @GetMapping("/recommend")
-    CourierCompanyListResponse getRecommendedCouriers(
-            @RequestParam("t_key") String t_key,
-            @RequestParam("t_zipcode") String t_zipcode
     );
 }
