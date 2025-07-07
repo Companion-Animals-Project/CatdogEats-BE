@@ -4,7 +4,7 @@ package com.team5.catdogeats.orders.domain.dto;
  * 정산 요약 정보 DTO
  * 총 정산 건수, 금액, 상태별 금액 등을 담는 Record
  */
-public record SettlementSummaryDto(
+public record SettlementSummaryDTO(
         /**
          * 총 정산 건수
          * Settlement 테이블의 모든 데이터

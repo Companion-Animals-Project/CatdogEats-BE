@@ -1,8 +1,8 @@
 package com.team5.catdogeats.orders.mapper;
 
 import com.team5.catdogeats.orders.domain.dto.MonthlySettlementStatusDto;
-import com.team5.catdogeats.orders.domain.dto.SettlementItemDto;
-import com.team5.catdogeats.orders.domain.dto.SettlementSummaryDto;
+import com.team5.catdogeats.orders.domain.dto.SettlementItemDTO;
+import com.team5.catdogeats.orders.domain.dto.SettlementSummaryDTO;
 import org.apache.ibatis.annotations.*;
 import org.springframework.data.repository.query.Param;
 
@@ -53,7 +53,7 @@ public interface SettlementMapper {
             @Arg(column = "settlement_created_at", javaType = java.time.LocalDateTime.class),
             @Arg(column = "settlement_status", javaType = com.team5.catdogeats.orders.domain.enums.SettlementStatus.class)
     })
-    List<SettlementItemDto> findSettlementsBySellerId(
+    List<SettlementItemDTO> findSettlementsBySellerId(
             @Param("sellerId") String sellerId,
             @Param("offset") long offset,
             @Param("limit") int limit
@@ -103,7 +103,7 @@ public interface SettlementMapper {
             @Arg(column = "completed_amount", javaType = Long.class),
             @Arg(column = "inprogress_amount", javaType = Long.class)
     })
-    SettlementSummaryDto getSettlementSummaryBySellerId(@Param("sellerId") String sellerId);
+    SettlementSummaryDTO getSettlementSummaryBySellerId(@Param("sellerId") String sellerId);
 
     /**
      * 판매자의 기간별 정산 리스트 조회 (페이징)
@@ -142,7 +142,7 @@ public interface SettlementMapper {
             @Arg(column = "settlement_created_at", javaType = java.time.LocalDateTime.class),
             @Arg(column = "settlement_status", javaType = com.team5.catdogeats.orders.domain.enums.SettlementStatus.class)
     })
-    List<SettlementItemDto> findSettlementsBySellerIdAndPeriod(
+    List<SettlementItemDTO> findSettlementsBySellerIdAndPeriod(
             @Param("sellerId") String sellerId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate,
@@ -200,7 +200,7 @@ public interface SettlementMapper {
             @Arg(column = "completed_amount", javaType = Long.class),
             @Arg(column = "inprogress_amount", javaType = Long.class)
     })
-    SettlementSummaryDto getSettlementSummaryBySellerIdAndPeriod(
+    SettlementSummaryDTO getSettlementSummaryBySellerIdAndPeriod(
             @Param("sellerId") String sellerId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
@@ -293,7 +293,7 @@ public interface SettlementMapper {
             @Arg(column = "settlement_created_at", javaType = java.time.LocalDateTime.class),
             @Arg(column = "settlement_status", javaType = com.team5.catdogeats.orders.domain.enums.SettlementStatus.class)
     })
-    List<SettlementItemDto> findMonthlySettlements(
+    List<SettlementItemDTO> findMonthlySettlements(
             @Param("sellerId") String sellerId,
             @Param("targetMonth") YearMonth targetMonth
     );

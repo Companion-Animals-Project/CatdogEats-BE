@@ -6,7 +6,7 @@ import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.orders.domain.dto.MonthlySettlementReceiptDto;
 import com.team5.catdogeats.orders.domain.dto.MonthlySettlementStatusDto;
 import com.team5.catdogeats.orders.domain.dto.SettlementListResponseDto;
-import com.team5.catdogeats.orders.domain.dto.SettlementPeriodRequestDto;
+import com.team5.catdogeats.orders.domain.dto.SettlementPeriodRequestDTO;
 import com.team5.catdogeats.orders.service.SettlementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -25,9 +25,8 @@ import java.time.format.DateTimeParseException;
 import java.util.NoSuchElementException;
 
 /**
- * 정산현황 관리 컨트롤러 (수정된 버전)
+ * 정산현황 관리 컨트롤러
  * Settlement 테이블 기반으로만 조회 (배송완료 후 7일 지난 데이터만)
- * pendingAmount 제거, inProgressAmount 추가
  */
 @Slf4j
 @RestController
@@ -40,8 +39,6 @@ public class SettlementController {
 
     /**
      * 전체 정산 리스트 조회 (페이징)
-     * 1-1. 주문번호, 상품명, 주문금액, 수수료, 정산금액, 주문일, 상태의 정산 리스트 출력 (페이징)
-     * 1-2. 총 정산내역 건수, 총 정산금액, 완료금액, 처리중금액
      */
     @GetMapping
     @Operation(
@@ -83,8 +80,6 @@ public class SettlementController {
 
     /**
      * 기간별 정산 리스트 조회 (페이징)
-     * 2. 사용자가 선택한 기간동안의 정산 리스트 출력 (페이징)
-     * 2-2. 선택한 기간동안의 정산내역 건수, 총 정산금액, 완료금액, 처리중금액
      */
     @PostMapping("/period")
     @Operation(
@@ -93,7 +88,7 @@ public class SettlementController {
     )
     public ResponseEntity<ApiResponse<SettlementListResponseDto>> getSettlementListByPeriod(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @Valid @RequestBody SettlementPeriodRequestDto periodRequest,
+            @Valid @RequestBody SettlementPeriodRequestDTO periodRequest,
             @PageableDefault(size = 20) Pageable pageable) {
 
         try {
@@ -171,7 +166,6 @@ public class SettlementController {
 
     /**
      * 월별 정산내역 영수증 조회 (CSV Export용)
-     * 3-2. 월별 정산내역 영수증 (나중에 CSV 파일로 export)
      */
     @GetMapping("/monthly-receipt/{targetMonth}")
     @Operation(

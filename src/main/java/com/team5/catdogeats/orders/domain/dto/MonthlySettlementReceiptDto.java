@@ -26,7 +26,7 @@ public record MonthlySettlementReceiptDto(
         /**
          * 월별 정산 아이템 리스트
          */
-        List<SettlementItemDto> items,
+        List<SettlementItemDTO> items,
 
         /**
          * 월별 정산 요약 정보 (개수와 금액 모두 포함)

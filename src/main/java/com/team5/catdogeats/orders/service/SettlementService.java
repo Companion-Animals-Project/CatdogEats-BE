@@ -4,7 +4,7 @@ import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.orders.domain.dto.MonthlySettlementReceiptDto;
 import com.team5.catdogeats.orders.domain.dto.MonthlySettlementStatusDto;
 import com.team5.catdogeats.orders.domain.dto.SettlementListResponseDto;
-import com.team5.catdogeats.orders.domain.dto.SettlementPeriodRequestDto;
+import com.team5.catdogeats.orders.domain.dto.SettlementPeriodRequestDTO;
 import org.springframework.data.domain.Pageable;
 
 import java.time.YearMonth;
@@ -40,7 +40,7 @@ public interface SettlementService {
      */
     SettlementListResponseDto getSettlementListByPeriod(
             UserPrincipal userPrincipal,
-            SettlementPeriodRequestDto periodRequest,
+            SettlementPeriodRequestDTO periodRequest,
             Pageable pageable
     );
 

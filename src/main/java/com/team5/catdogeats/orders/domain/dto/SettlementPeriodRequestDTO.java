@@ -7,7 +7,7 @@ import java.time.LocalDate;
 /**
  * 기간별 정산 조회 요청 DTO
  */
-public record SettlementPeriodRequestDto(
+public record SettlementPeriodRequestDTO(
         @NotNull(message = "시작일은 필수입니다")
         LocalDate startDate,    // 조회 시작일
 

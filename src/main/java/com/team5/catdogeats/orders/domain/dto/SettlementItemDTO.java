@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
  * 정산 아이템 상세 정보 DTO
  * 정산 리스트의 개별 아이템 정보를 담는 Record
  */
-public record SettlementItemDto(
+public record SettlementItemDTO(
         String orderNumber,      // 주문번호
         String productName,      // 상품명
         Long orderAmount,        // 주문금액

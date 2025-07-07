@@ -45,17 +45,17 @@ public class SettlementServiceImpl implements SettlementService {
         int limit = pageable.getPageSize();
 
         // 3. 정산 리스트 조회 (Settlement 테이블만)
-        List<SettlementItemDto> settlements = settlementMapper.findSettlementsBySellerId(
+        List<SettlementItemDTO> settlements = settlementMapper.findSettlementsBySellerId(
                 sellerId, offset, limit);
 
         // 4. 총 건수 조회
         Long totalCount = settlementMapper.countSettlementsBySellerId(sellerId);
 
         // 5. 정산 요약 정보 조회 (새로운 구조)
-        SettlementSummaryDto summary = settlementMapper.getSettlementSummaryBySellerId(sellerId);
+        SettlementSummaryDTO summary = settlementMapper.getSettlementSummaryBySellerId(sellerId);
 
         // 6. Page 객체 생성
-        Page<SettlementItemDto> settlementPage = new PageImpl<>(settlements, pageable, totalCount);
+        Page<SettlementItemDTO> settlementPage = new PageImpl<>(settlements, pageable, totalCount);
 
         log.info("전체 정산 리스트 조회 완료 - sellerId: {}, 총건수: {}, 현재페이지: {}",
                 sellerId, totalCount, pageable.getPageNumber());
@@ -66,7 +66,7 @@ public class SettlementServiceImpl implements SettlementService {
     @Override
     public SettlementListResponseDto getSettlementListByPeriod(
             UserPrincipal userPrincipal,
-            SettlementPeriodRequestDto periodRequest,
+            SettlementPeriodRequestDTO periodRequest,
             Pageable pageable) {
 
         log.info("기간별 정산 리스트 조회 시작 - provider: {}, providerId: {}, 기간: {} ~ {}",
@@ -86,7 +86,7 @@ public class SettlementServiceImpl implements SettlementService {
         int limit = pageable.getPageSize();
 
         // 4. 기간별 정산 리스트 조회 (Settlement 테이블만)
-        List<SettlementItemDto> settlements = settlementMapper.findSettlementsBySellerIdAndPeriod(
+        List<SettlementItemDTO> settlements = settlementMapper.findSettlementsBySellerIdAndPeriod(
                 sellerId, periodRequest.startDate(), periodRequest.endDate(), offset, limit);
 
         // 5. 기간별 총 건수 조회
@@ -94,11 +94,11 @@ public class SettlementServiceImpl implements SettlementService {
                 sellerId, periodRequest.startDate(), periodRequest.endDate());
 
         // 6. 기간별 정산 요약 정보 조회
-        SettlementSummaryDto summary = settlementMapper.getSettlementSummaryBySellerIdAndPeriod(
+        SettlementSummaryDTO summary = settlementMapper.getSettlementSummaryBySellerIdAndPeriod(
                 sellerId, periodRequest.startDate(), periodRequest.endDate());
 
         // 7. Page 객체 생성
-        Page<SettlementItemDto> settlementPage = new PageImpl<>(settlements, pageable, totalCount);
+        Page<SettlementItemDTO> settlementPage = new PageImpl<>(settlements, pageable, totalCount);
 
         log.info("기간별 정산 리스트 조회 완료 - sellerId: {}, 총건수: {}, 기간: {} ~ {}",
                 sellerId, totalCount, periodRequest.startDate(), periodRequest.endDate());
@@ -141,7 +141,7 @@ public class SettlementServiceImpl implements SettlementService {
         SellerDTO sellerDTO = validateAndGetSellerInfo(userPrincipal);
 
         // 2. 월별 정산 아이템 조회 (Settlement 테이블만)
-        List<SettlementItemDto> items = settlementMapper.findMonthlySettlements(
+        List<SettlementItemDTO> items = settlementMapper.findMonthlySettlements(
                 sellerDTO.userId(), targetMonth);
 
         // 3. 월별 정산 요약 정보 조회 (새로운 구조: 개수 포함)
