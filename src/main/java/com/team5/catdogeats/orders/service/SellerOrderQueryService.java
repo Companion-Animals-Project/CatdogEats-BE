@@ -1,277 +1,73 @@
-package com.team5.catdogeats.orders.service.seller;
+package com.team5.catdogeats.orders.service;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.global.annotation.JpaTransactional;
-import com.team5.catdogeats.orders.domain.Orders;
-import com.team5.catdogeats.orders.domain.Shipments;
-import com.team5.catdogeats.orders.domain.enums.CourierCompany;
-import com.team5.catdogeats.orders.domain.enums.OrderStatus;
-import com.team5.catdogeats.orders.domain.mapping.OrderItems;
 import com.team5.catdogeats.orders.dto.response.SellerOrderDetailResponse;
-import com.team5.catdogeats.orders.repository.ShipmentRepository;
-import com.team5.catdogeats.products.domain.Products;
-import com.team5.catdogeats.users.domain.Users;
-import com.team5.catdogeats.users.domain.mapping.Sellers;
-import com.team5.catdogeats.users.repository.SellerRepository;
-import com.team5.catdogeats.users.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
+import com.team5.catdogeats.orders.dto.response.SellerOrderListResponse;
+import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
- * 판매자용 주문 상세 조회 서비스
- * 단일 책임: 주문 상세 정보 조회 및 DTO 변환
+ * 판매자용 주문 읽기 전용 서비스 인터페이스 (CQRS Query)
+ * 단일 책임: 주문 조회 관련 기능만 담당
+ *
+ * 포함 기능:
+ * - 주문 상세 조회 (배송지 정보 포함)
+ * - 주문 목록 조회 (단순 페이징만, 필터링/검색은 프론트 처리)
  */
-@Slf4j
-@Service
-@RequiredArgsConstructor
-public class SellerOrderQueryService {
-
-    private final UserRepository userRepository;
-    private final SellerRepository sellerRepository;
-    private final ShipmentRepository shipmentRepository;
+public interface SellerOrderQueryService {
 
     /**
-     * 판매자용 주문 상세 조회
-     * @param userPrincipal 인증된 판매자 정보
-     * @param orderNumber 주문 번호
-     * @return 주문 상세 정보
+     * 판매자용 주문 상세 조회 (배송지 정보 포함)
+     * 판매자가 본인이 판매한 상품이 포함된 주문의 배송지 정보를 조회
+     *
+     * 처리 과정:
+     * 1. UserPrincipal로 판매자 인증 및 권한 확인
+     * 2. 주문번호로 주문 조회 및 판매자 소유 상품 확인
+     * 3. 배송지 정보 조회 (Shipments 엔티티에서)
+     * 4. 해당 판매자의 상품만 필터링하여 반환
+     * 5. 판매자에게 필요한 정보만 포함된 응답 DTO 생성
+     *
+     * 보안 정책:
+     * - 판매자는 본인이 판매한 상품이 포함된 주문만 조회 가능
+     * - 구매자의 민감정보(결제정보 등)는 제외하고 배송에 필요한 정보만 제공
+     * - 다른 판매자의 상품 정보는 접근 불가
+     *
+     * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
+     * @param orderNumber 조회할 주문 번호
+     * @return 판매자용 주문 상세 정보 (배송지 정보 + 해당 판매자 상품 목록)
+     * @throws NoSuchElementException 주문이 존재하지 않거나 접근 권한이 없는 경우
+     * @throws IllegalArgumentException 판매자 권한이 없는 경우
      */
-    @JpaTransactional(readOnly = true)
-    public SellerOrderDetailResponse getSellerOrderDetail(UserPrincipal userPrincipal, String orderNumber) {
-        try {
-            log.debug("판매자 주문 상세 조회 시작 - provider={}, providerId={}, orderNumber={}",
-                    userPrincipal.provider(), userPrincipal.providerId(), orderNumber);
+    SellerOrderDetailResponse getSellerOrderDetail(UserPrincipal userPrincipal, String orderNumber);
 
-            // 1. 판매자 인증 및 조회
-            Sellers seller = findSellerByPrincipal(userPrincipal);
-
-            // 2. 주문 조회 및 권한 검증
-            Shipments shipment = shipmentRepository
-                    .findShippingInfoByOrderNumberAndSeller(orderNumber, seller.getUserId())
-                    .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없거나 접근 권한이 없습니다"));
-
-            // 3. 해당 판매자 상품 목록 필터링
-            List<OrderItems> sellerOrderItems = shipment.getOrders().getOrderItems().stream()
-                    .filter(item -> item.getProducts().getSeller().getUserId().equals(seller.getUserId()))
-                    .toList();
-
-            // 4. DTO 변환 및 반환
-            return buildSellerOrderDetailResponse(shipment, sellerOrderItems, seller.getUserId());
-
-        } catch (NoSuchElementException | IllegalArgumentException e) {
-            log.warn("주문 상세 조회 실패 - orderNumber={}, reason={}", orderNumber, e.getMessage());
-            throw e;
-        } catch (Exception e) {
-            log.error("주문 상세 조회 중 오류 - orderNumber={}", orderNumber, e);
-            throw new RuntimeException("주문 상세 조회 중 서버 오류가 발생했습니다", e);
-        }
-    }
-
-    // ===== Private Helper Methods =====
-
-    private Sellers findSellerByPrincipal(UserPrincipal userPrincipal) {
-        Users user = userRepository.findByProviderAndProviderId(
-                        userPrincipal.provider(), userPrincipal.providerId())
-                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다"));
-
-        return sellerRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new IllegalArgumentException("판매자 권한이 없습니다"));
-    }
-
-    private SellerOrderDetailResponse buildSellerOrderDetailResponse(
-            Shipments shipment, List<OrderItems> orderItems, String sellerId) {
-
-        Orders order = shipment.getOrders();
-
-        // 배송지 정보 생성
-        SellerOrderDetailResponse.ShippingAddress shippingAddress =
-                buildShippingAddress(shipment);
-
-        // 주문 상품 정보 변환
-        List<SellerOrderDetailResponse.SellerOrderDetailItem> sellerItems =
-                orderItems.stream()
-                        .map(this::convertToSellerOrderDetailItem)
-                        .toList();
-
-        // 주문 요약 정보 생성
-        SellerOrderDetailResponse.OrderSummary orderSummary =
-                buildOrderSummary(sellerItems);
-
-        // 배송 정보 생성
-        SellerOrderDetailResponse.ShipmentInfo shipmentInfo =
-                buildShipmentInfo(shipment);
-
-        // 상태 관리 정보 생성
-        SellerOrderDetailResponse.StatusManagement statusManagement =
-                buildStatusManagement(order.getOrderStatus(), shipment);
-
-        return SellerOrderDetailResponse.of(
-                order.getOrderNumber(),
-                order.getOrderStatus(),
-                order.getCreatedAt(),
-                shippingAddress,
-                sellerItems,
-                orderSummary,
-                shipmentInfo,
-                statusManagement
-        );
-    }
-
-    private SellerOrderDetailResponse.ShippingAddress buildShippingAddress(Shipments shipment) {
-        return SellerOrderDetailResponse.ShippingAddress.builder()
-                .recipientName(shipment.getRecipientName())
-                .recipientPhone(shipment.getRecipientPhone())
-                .maskedPhone(shipment.getMaskedPhone())
-                .zipCode(shipment.getZipCode())
-                .address(shipment.getAddress())
-                .addressDetail(shipment.getAddressDetail())
-                .fullAddress(buildFullAddress(shipment))
-                .deliveryRequest(shipment.getDeliveryRequest())
-                .build();
-    }
-
-    private SellerOrderDetailResponse.SellerOrderDetailItem convertToSellerOrderDetailItem(OrderItems orderItem) {
-        Products product = orderItem.getProducts();
-        return SellerOrderDetailResponse.SellerOrderDetailItem.builder()
-                .productId(product.getId())
-                .productName(product.getProductName())
-                .productImageUrl(product.getImageUrl())
-                .productDescription(product.getDescription())
-                .unitPrice(orderItem.getUnitPrice())
-                .quantity(orderItem.getQuantity())
-                .totalPrice(orderItem.getUnitPrice() * orderItem.getQuantity())
-                .productOptions(orderItem.getProductOptions())
-                .productSku(product.getSku())
-                .categoryName(product.getCategory() != null ? product.getCategory().getCategoryName() : null)
-                .build();
-    }
-
-    private SellerOrderDetailResponse.OrderSummary buildOrderSummary(
-            List<SellerOrderDetailResponse.SellerOrderDetailItem> items) {
-
-        Long totalProductPrice = items.stream()
-                .mapToLong(SellerOrderDetailResponse.SellerOrderDetailItem::totalPrice)
-                .sum();
-
-        int totalItemCount = items.size();
-        int totalQuantity = items.stream()
-                .mapToInt(SellerOrderDetailResponse.SellerOrderDetailItem::quantity)
-                .sum();
-
-        // 배송비는 판매자별로 별도 계산 (현재는 0으로 설정)
-        Long deliveryFee = 0L;
-        Long discountAmount = 0L;
-        Long finalAmount = totalProductPrice + deliveryFee - discountAmount;
-
-        return SellerOrderDetailResponse.OrderSummary.builder()
-                .totalProductPrice(totalProductPrice)
-                .deliveryFee(deliveryFee)
-                .discountAmount(discountAmount)
-                .finalAmount(finalAmount)
-                .totalItemCount(totalItemCount)
-                .totalQuantity(totalQuantity)
-                .build();
-    }
-
-    private SellerOrderDetailResponse.ShipmentInfo buildShipmentInfo(Shipments shipment) {
-        String trackingUrl = null;
-        if (shipment.getCourier() != null && shipment.getTrackingNumber() != null) {
-            CourierCompany courier = CourierCompany.fromDisplayName(shipment.getCourier());
-            if (courier != null) {
-                trackingUrl = courier.generateTrackingUrl(shipment.getTrackingNumber());
-            }
-        }
-
-        return SellerOrderDetailResponse.ShipmentInfo.builder()
-                .courier(shipment.getCourier())
-                .trackingNumber(shipment.getTrackingNumber())
-                .shippedAt(shipment.getShippedAt())
-                .deliveredAt(shipment.getDeliveredAt())
-                .trackingUpdatedAt(shipment.getTrackingUpdatedAt())
-                .trackingUrl(trackingUrl)
-                .shipmentMemo(shipment.getShipmentMemo())
-                .build();
-    }
-
-    private SellerOrderDetailResponse.StatusManagement buildStatusManagement(
-            OrderStatus currentStatus, Shipments shipment) {
-
-        List<OrderStatus> availableStatuses = getAvailableStatusTransitions(currentStatus);
-        boolean canChangeStatus = canChangeOrderStatus(currentStatus);
-        boolean requiresTracking = currentStatus == OrderStatus.READY_FOR_SHIPMENT && !shipment.isShipped();
-        boolean canRegisterTracking = requiresTracking;
-        boolean canHideOrder = currentStatus == OrderStatus.DELIVERED || currentStatus == OrderStatus.CANCELLED;
-        String nextAction = generateNextAction(currentStatus, shipment);
-        String statusDescription = getStatusDescription(currentStatus);
-
-        return SellerOrderDetailResponse.StatusManagement.builder()
-                .canChangeStatus(canChangeStatus)
-                .availableStatuses(availableStatuses)
-                .requiresTracking(requiresTracking)
-                .canRegisterTracking(canRegisterTracking)
-                .canHideOrder(canHideOrder)
-                .nextAction(nextAction)
-                .statusDescription(statusDescription)
-                .build();
-    }
-
-    private String buildFullAddress(Shipments shipment) {
-        StringBuilder fullAddress = new StringBuilder();
-        if (shipment.getZipCode() != null) {
-            fullAddress.append("(").append(shipment.getZipCode()).append(") ");
-        }
-        if (shipment.getAddress() != null) {
-            fullAddress.append(shipment.getAddress());
-        }
-        if (shipment.getAddressDetail() != null) {
-            fullAddress.append(" ").append(shipment.getAddressDetail());
-        }
-        return fullAddress.toString().trim();
-    }
-
-    private boolean canChangeOrderStatus(OrderStatus status) {
-        return switch (status) {
-            case PAYMENT_COMPLETED, PREPARING, READY_FOR_SHIPMENT -> true;
-            case IN_DELIVERY, DELIVERED, CANCELLED, REFUND_PROCESSING, REFUNDED -> false;
-            default -> false;
-        };
-    }
-
-    private List<OrderStatus> getAvailableStatusTransitions(OrderStatus currentStatus) {
-        return switch (currentStatus) {
-            case PAYMENT_COMPLETED -> List.of(OrderStatus.PREPARING, OrderStatus.CANCELLED);
-            case PREPARING -> List.of(OrderStatus.READY_FOR_SHIPMENT, OrderStatus.CANCELLED);
-            case READY_FOR_SHIPMENT -> List.of(OrderStatus.IN_DELIVERY);
-            default -> List.of();
-        };
-    }
-
-    private String generateNextAction(OrderStatus currentStatus, Shipments shipment) {
-        return switch (currentStatus) {
-            case PAYMENT_COMPLETED -> "상품 준비를 시작하고 '상품준비중' 상태로 변경해주세요";
-            case PREPARING -> "상품 포장이 완료되면 '배송준비완료' 상태로 변경해주세요";
-            case READY_FOR_SHIPMENT -> shipment.isShipped() ?
-                    "배송이 진행 중입니다" : "택배사에 접수 후 운송장 번호를 등록해주세요";
-            case IN_DELIVERY -> "배송이 완료되면 자동으로 상태가 변경됩니다";
-            case DELIVERED -> "배송이 완료되었습니다";
-            case CANCELLED -> "주문이 취소되었습니다";
-            default -> "추가 작업이 필요하지 않습니다";
-        };
-    }
-
-    private String getStatusDescription(OrderStatus status) {
-        return switch (status) {
-            case PAYMENT_COMPLETED -> "결제가 완료되어 주문이 확정되었습니다";
-            case PREPARING -> "상품을 준비하고 있습니다";
-            case READY_FOR_SHIPMENT -> "배송 준비가 완료되었습니다";
-            case IN_DELIVERY -> "상품이 배송 중입니다";
-            case DELIVERED -> "배송이 완료되었습니다";
-            case CANCELLED -> "주문이 취소되었습니다";
-            default -> "주문 상태를 확인해주세요";
-        };
-    }
+    /**
+     * 판매자용 주문 목록 조회 (단순 페이징)
+     * 판매자가 본인이 판매한 상품이 포함된 주문 목록을 페이징으로 조회
+     *
+     * 주의사항:
+     * - 복잡한 필터링/검색 기능은 제외 (프론트엔드에서 처리)
+     * - 단순 페이징과 기본 정렬만 지원
+     * - 성능 최적화를 위해 최소한의 조회만 수행
+     *
+     * 처리 과정:
+     * 1. UserPrincipal로 판매자 인증 및 권한 확인
+     * 2. 페이징 정보 검증 및 정렬 조건 적용
+     * 3. 판매자 소유 주문 목록 조회 (숨김 처리된 주문 제외)
+     * 4. 각 주문별 판매자 상품만 필터링
+     * 5. 민감정보 마스킹 처리 (전화번호 등)
+     * 6. 응답 DTO 생성 및 반환
+     *
+     * 보안 정책:
+     * - 판매자는 본인이 판매한 상품이 포함된 주문만 조회 가능
+     * - 구매자 개인정보는 필요 최소한만 제공 (배송용)
+     * - 다른 판매자의 상품 정보는 제외
+     *
+     * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
+     * @param pageable 페이징 및 정렬 정보
+     * @return 판매자용 주문 목록 (페이징)
+     * @throws IllegalArgumentException 판매자 권한이 없는 경우, 잘못된 페이징 정보인 경우
+     * @throws NoSuchElementException 판매자를 찾을 수 없는 경우
+     */
+    SellerOrderListResponse getSellerOrders(UserPrincipal userPrincipal, Pageable pageable);
 }

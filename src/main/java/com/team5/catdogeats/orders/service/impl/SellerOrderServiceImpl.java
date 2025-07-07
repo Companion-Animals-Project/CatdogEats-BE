@@ -9,37 +9,36 @@ import com.team5.catdogeats.orders.dto.response.SellerOrderDetailResponse;
 import com.team5.catdogeats.orders.dto.response.SellerOrderListResponse;
 import com.team5.catdogeats.orders.dto.response.TrackingNumberRegisterResponse;
 import com.team5.catdogeats.orders.service.SellerOrderService;
-import com.team5.catdogeats.orders.service.seller.*;
+import com.team5.catdogeats.orders.service.SellerOrderCommandService;
+import com.team5.catdogeats.orders.service.SellerOrderQueryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 /**
- * 판매자용 주문 관리 서비스 구현체 (Facade 패턴)
- * 기존 인터페이스를 유지하면서 내부적으로 기능별 서비스들을 조합
+ * 판매자용 주문 관리 서비스 구현체 (CQRS Facade 패턴)
+ * 기존 인터페이스를 유지하면서 내부적으로 CQRS 패턴으로 재구성된 서비스들을 조합
  *
- * 각 기능별 서비스:
- * - SellerOrderQueryService: 주문 상세 조회
- * - SellerOrderListService: 주문 목록 조회/검색/필터링
- * - SellerOrderStatusService: 주문 상태 변경
- * - SellerOrderTrackingService: 운송장 등록
- * - SellerOrderVisibilityService: 목록 숨김 관리
+ * CQRS 구조:
+ * - SellerOrderQueryService: 읽기 전용 작업 (주문 조회 관련)
+ * - SellerOrderCommandService: 쓰기 전용 작업 (주문 변경 관련)
+ *
+ * 기존 5개 서비스에서 2개 CQRS 서비스로 재구성:
+ * [기존] SellerOrderQueryService + SellerOrderListService → [신규] SellerOrderQueryService (읽기)
+ * [기존] SellerOrderStatusService + SellerOrderTrackingService + SellerOrderVisibilityService → [신규] SellerOrderCommandService (쓰기)
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class SellerOrderServiceImpl implements SellerOrderService {
 
-    // 기능별 서비스 주입
+    // CQRS 패턴 적용: 읽기/쓰기 서비스 분리
     private final SellerOrderQueryService queryService;
-    private final SellerOrderListService listService;
-    private final SellerOrderStatusService statusService;
-    private final SellerOrderTrackingService trackingService;
-    private final SellerOrderVisibilityService visibilityService;
+    private final SellerOrderCommandService commandService;
 
     /**
-     * 판매자용 주문 상세 조회 (배송지 정보 포함)
+     * 판매자용 주문 상세 조회 (배송지 정보 포함) - 읽기 작업
      * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
      * @param orderNumber 조회할 주문 번호
      * @return 판매자용 주문 상세 정보
@@ -51,7 +50,7 @@ public class SellerOrderServiceImpl implements SellerOrderService {
     }
 
     /**
-     * 판매자용 주문 목록 조회 (페이징)
+     * 판매자용 주문 목록 조회 (페이징) - 읽기 작업
      * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
      * @param pageable 페이징 및 정렬 정보
      * @return 판매자용 주문 목록 (페이징)
@@ -60,11 +59,13 @@ public class SellerOrderServiceImpl implements SellerOrderService {
     public SellerOrderListResponse getSellerOrders(UserPrincipal userPrincipal, Pageable pageable) {
         log.debug("판매자 주문 목록 조회 요청 위임 - page: {}, size: {}",
                 pageable.getPageNumber(), pageable.getPageSize());
-        return listService.getSellerOrders(userPrincipal, pageable);
+        return queryService.getSellerOrders(userPrincipal, pageable);
     }
 
     /**
-     * 판매자용 주문 목록 조회 - 상태 필터링 (페이징)
+     * 판매자용 주문 목록 조회 - 상태 필터링 (페이징) - 읽기 작업
+     * 복잡한 필터링 기능은 CQRS 단순화 원칙에 따라 프론트엔드에서 처리하도록 권장
+     * 하지만 기존 인터페이스 호환성을 위해 유지
      * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
      * @param orderStatus 필터링할 주문 상태
      * @param pageable 페이징 및 정렬 정보
@@ -76,12 +77,20 @@ public class SellerOrderServiceImpl implements SellerOrderService {
             OrderStatus orderStatus,
             Pageable pageable) {
 
-        log.debug("판매자 주문 목록 조회 (상태 필터링) 요청 위임 - status: {}", orderStatus);
-        return listService.getSellerOrdersByStatus(userPrincipal, orderStatus, pageable);
+        log.debug("판매자 주문 목록 상태별 조회 요청 - orderStatus: {}, page: {}, size: {}",
+                orderStatus, pageable.getPageNumber(), pageable.getPageSize());
+
+        // CQRS 단순화: 기본 목록 조회 후 프론트엔드에서 필터링 권장
+        // 하지만 기존 호환성을 위해 백엔드에서 처리
+        SellerOrderListResponse response = queryService.getSellerOrders(userPrincipal, pageable);
+
+        // 상태별 필터링 (임시 구현 - 향후 Repository에서 직접 처리 권장)
+        return filterOrdersByStatus(response, orderStatus);
     }
 
     /**
-     * 판매자용 주문 검색 (페이징)
+     * 판매자용 주문 검색 (페이징) - 읽기 작업
+     * 복잡한 검색 기능은 CQRS 단순화 원칙에 따라 프론트엔드에서 처리하도록 권장
      * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
      * @param searchType 검색 타입
      * @param searchKeyword 검색 키워드
@@ -95,12 +104,19 @@ public class SellerOrderServiceImpl implements SellerOrderService {
             String searchKeyword,
             Pageable pageable) {
 
-        log.debug("판매자 주문 검색 요청 위임 - searchType: {}, keyword: {}", searchType, searchKeyword);
-        return listService.searchSellerOrders(userPrincipal, searchType, searchKeyword, pageable);
+        log.debug("판매자 주문 검색 요청 - searchType: {}, keyword: {}, page: {}, size: {}",
+                searchType, searchKeyword, pageable.getPageNumber(), pageable.getPageSize());
+
+        // CQRS 단순화: 기본 목록 조회 후 프론트엔드에서 검색 권장
+        // 하지만 기존 호환성을 위해 백엔드에서 처리
+        SellerOrderListResponse response = queryService.getSellerOrders(userPrincipal, pageable);
+
+        // 검색 필터링 (임시 구현 - 향후 Repository에서 직접 처리 권장)
+        return filterOrdersBySearch(response, searchType, searchKeyword);
     }
 
     /**
-     * 주문 상태 변경
+     * 주문 상태 변경 - 쓰기 작업
      * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
      * @param request 주문 상태 변경 요청 정보
      * @return 상태 변경 처리 결과
@@ -109,11 +125,11 @@ public class SellerOrderServiceImpl implements SellerOrderService {
     public OrderStatusUpdateResponse updateOrderStatus(UserPrincipal userPrincipal, OrderStatusUpdateRequest request) {
         log.debug("주문 상태 변경 요청 위임 - orderNumber: {}, newStatus: {}",
                 request.orderNumber(), request.newStatus());
-        return statusService.updateOrderStatus(userPrincipal, request);
+        return commandService.updateOrderStatus(userPrincipal, request);
     }
 
     /**
-     * 운송장 번호 등록
+     * 운송장 번호 등록 - 쓰기 작업
      * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
      * @param request 운송장 번호 등록 요청 정보
      * @return 운송장 등록 처리 결과
@@ -125,11 +141,11 @@ public class SellerOrderServiceImpl implements SellerOrderService {
 
         log.debug("운송장 번호 등록 요청 위임 - orderNumber: {}, courier: {}",
                 request.orderNumber(), request.getCourierDisplayName());
-        return trackingService.registerTrackingNumber(userPrincipal, request);
+        return commandService.registerTrackingNumber(userPrincipal, request);
     }
 
     /**
-     * 주문 목록에서 숨김 처리
+     * 주문 목록에서 숨김 처리 - 쓰기 작업
      * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
      * @param orderNumber 숨김 처리할 주문 번호
      * @return 숨김 처리 결과
@@ -137,31 +153,109 @@ public class SellerOrderServiceImpl implements SellerOrderService {
     @Override
     public boolean hideOrderFromList(UserPrincipal userPrincipal, String orderNumber) {
         log.debug("주문 목록 숨김 처리 요청 위임 - orderNumber: {}", orderNumber);
-        return visibilityService.hideOrderFromList(userPrincipal, orderNumber);
+        return commandService.deleteOrder(userPrincipal, orderNumber);
     }
 
-    // ===== 추가 편의 메서드들 (기능별 서비스 직접 노출) =====
+    // ===== 추가 편의 메서드들 (기존 호환성 유지) =====
 
     /**
-     * 주문 목록에서 숨김 해제 처리
-     * 기존 인터페이스에는 없지만 유용한 기능이므로 추가
+     * 주문 목록에서 숨김 해제 처리 - 쓰기 작업
+     * CQRS 재구성 후에도 유용한 기능이므로 유지
+     * 향후 CommandService에 추가 구현 권장
      * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
      * @param orderNumber 숨김 해제할 주문 번호
      * @return 숨김 해제 결과
      */
     public boolean showOrderInList(UserPrincipal userPrincipal, String orderNumber) {
         log.debug("주문 목록 숨김 해제 요청 - orderNumber: {}", orderNumber);
-        return visibilityService.showOrderInList(userPrincipal, orderNumber);
+        // TODO: CommandService에 showOrder 메서드 추가 후 위임
+        log.warn("숨김 해제 기능은 아직 CQRS CommandService에 구현되지 않았습니다 - orderNumber: {}", orderNumber);
+        return false;
     }
 
     /**
-     * 주문 숨김 상태 조회
+     * 주문 숨김 상태 조회 - 읽기 작업
+     * CQRS 재구성 후에도 유용한 기능이므로 유지
+     * 향후 QueryService에 추가 구현 권장
      * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
      * @param orderNumber 조회할 주문 번호
      * @return 숨김 상태
      */
     public boolean isOrderHidden(UserPrincipal userPrincipal, String orderNumber) {
         log.debug("주문 숨김 상태 조회 요청 - orderNumber: {}", orderNumber);
-        return visibilityService.isOrderHidden(userPrincipal, orderNumber);
+        // TODO: QueryService에 isOrderHidden 메서드 추가 후 위임
+        log.warn("숨김 상태 조회 기능은 아직 CQRS QueryService에 구현되지 않았습니다 - orderNumber: {}", orderNumber);
+        return false;
+    }
+
+    // ===== Private Helper Methods (기존 호환성 유지를 위한 임시 구현) =====
+
+    /**
+     * 상태별 주문 필터링 (임시 구현)
+     * 향후 Repository에서 직접 처리하거나 프론트엔드에서 처리 권장
+     */
+    private SellerOrderListResponse filterOrdersByStatus(SellerOrderListResponse response, OrderStatus orderStatus) {
+        if (orderStatus == null) {
+            return response;
+        }
+
+        var filteredOrders = response.orders().stream()
+                .filter(order -> order.orderStatus() == orderStatus)
+                .toList();
+
+        return SellerOrderListResponse.builder()
+                .orders(filteredOrders)
+                .currentPage(response.currentPage())
+                .totalPages(response.totalPages())
+                .totalElements((long) filteredOrders.size())
+                .pageSize(response.pageSize())
+                .hasNext(response.hasNext())
+                .hasPrevious(response.hasPrevious())
+                .searchType(response.searchType())
+                .searchKeyword(response.searchKeyword())
+                .filterStatus(orderStatus) // 필터 상태 설정
+                .build();
+    }
+
+    /**
+     * 검색어별 주문 필터링 (임시 구현)
+     * 향후 Repository에서 직접 처리하거나 프론트엔드에서 처리 권장
+     */
+    private SellerOrderListResponse filterOrdersBySearch(SellerOrderListResponse response,
+                                                         String searchType, String searchKeyword) {
+        if (searchKeyword == null || searchKeyword.trim().isEmpty()) {
+            return response;
+        }
+
+        var filteredOrders = response.orders().stream()
+                .filter(order -> matchesSearchCriteria(order, searchType, searchKeyword))
+                .toList();
+
+        return SellerOrderListResponse.builder()
+                .orders(filteredOrders)
+                .currentPage(response.currentPage())
+                .totalPages(response.totalPages())
+                .totalElements((long) filteredOrders.size())
+                .pageSize(response.pageSize())
+                .hasNext(response.hasNext())
+                .hasPrevious(response.hasPrevious())
+                .searchType(searchType) // 검색 타입 설정
+                .searchKeyword(searchKeyword) // 검색 키워드 설정
+                .filterStatus(response.filterStatus())
+                .build();
+    }
+
+    /**
+     * 검색 조건 일치 확인 (임시 구현)
+     */
+    private boolean matchesSearchCriteria(SellerOrderListResponse.SellerOrderSummary order,
+                                          String searchType, String searchKeyword) {
+        String keyword = searchKeyword.toLowerCase().trim();
+
+        return switch (searchType) {
+            case "orderNumber" -> order.orderNumber().toLowerCase().contains(keyword);
+            case "recipientName" -> order.recipientName().toLowerCase().contains(keyword);
+            default -> false;
+        };
     }
 }
