@@ -14,23 +14,20 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Shipments 엔티티 Repository (확장)
- * 배송 정보 및 배송지 정보 관리를 위한 데이터 접근 계층
- * 판매자 배송 관리 기능을 위한 메서드들이 추가됨
+ * Shipments 엔티티 Repository
+ * 기존 메서드는 유지하고 판매자 기능에 필요한 메서드만 추가
  */
 public interface ShipmentRepository extends JpaRepository<Shipments, String> {
 
+    // ===== 기존 메서드들 (수정하지 않음) =====
+
     /**
      * 주문으로 배송 정보 조회
-     * @param orders 주문 엔티티
-     * @return 배송 정보 (Optional)
      */
     Optional<Shipments> findByOrders(Orders orders);
 
     /**
      * 주문 번호로 배송 정보 조회 (주문과 함께 조회)
-     * @param orderNumber 주문 번호
-     * @return 배송 정보 (Optional)
      */
     @Query("""
     SELECT s FROM Shipments s
@@ -41,25 +38,19 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
 
     /**
      * 운송장 번호로 배송 정보 조회
-     * @param trackingNumber 운송장 번호
-     * @return 배송 정보 (Optional)
      */
     Optional<Shipments> findByTrackingNumber(String trackingNumber);
 
     /**
      * 주문 ID로 배송 정보 존재 여부 확인
-     * @param orders 주문 엔티티
-     * @return 존재 여부
      */
     boolean existsByOrders(Orders orders);
+
+    // ===== 판매자 기능을 위한 추가 메서드들 =====
 
     /**
      * 판매자가 주문번호로 배송정보 조회 (권한 검증 포함)
      * 판매자는 본인이 판매한 상품이 포함된 주문의 배송지 정보만 조회할 수 있다
-     * OrderItems와 Products를 함께 조회하여 판매자 권한을 검증
-     * @param orderNumber 주문 번호
-     * @param sellerId 판매자 userId (Sellers의 userId 필드)
-     * @return 배송 정보 (Optional)
      */
     @Query("""
     SELECT DISTINCT s FROM Shipments s
@@ -76,22 +67,18 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
     );
 
     /**
-     * 판매자별 주문 목록 조회 (페이징)
-     * 판매자가 본인이 판매한 상품이 포함된 주문 목록을 페이징으로 조회
-     * 숨김 처리된 주문은 제외
-     * @param sellerId 판매자 userId
-     * @param pageable 페이징 정보
-     * @return 주문 목록 (페이징)
+     * 판매자의 주문 목록 조회 (페이징)
+     * 판매자가 판매한 상품이 포함된 주문의 배송 정보 목록을 조회
+     * 숨김 처리된 배송 정보는 제외
      */
     @Query("""
     SELECT DISTINCT s FROM Shipments s
     JOIN FETCH s.orders o
-    JOIN FETCH o.orderItems oi
-    JOIN FETCH oi.products p
-    JOIN FETCH p.seller ps
-    WHERE ps.userId = :sellerId
-    AND (s.isHiddenBySeller IS NULL OR s.isHiddenBySeller = false)
-    ORDER BY o.createdAt DESC
+    JOIN o.orderItems oi
+    JOIN oi.products p
+    WHERE p.seller.userId = :sellerId
+    AND (s.isHiddenBySeller = false OR s.isHiddenBySeller IS NULL)
+    ORDER BY s.createdAt DESC
     """)
     Page<Shipments> findSellerOrdersWithPaging(
             @Param("sellerId") String sellerId,
@@ -99,91 +86,40 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
     );
 
     /**
-     * 판매자별 주문 목록 조회 - 상태 필터링 (페이징)
-     * @param sellerId 판매자 userId
-     * @param orderStatus 필터링할 주문 상태
-     * @param pageable 페이징 정보
-     * @return 주문 목록 (페이징)
+     * 택배사와 운송장 번호 조합으로 배송 정보 조회 (중복 검증용)
      */
-    @Query("""
-    SELECT DISTINCT s FROM Shipments s
-    JOIN FETCH s.orders o
-    JOIN FETCH o.orderItems oi
-    JOIN FETCH oi.products p
-    JOIN FETCH p.seller ps
-    WHERE ps.userId = :sellerId
-    AND o.orderStatus = :orderStatus
-    AND (s.isHiddenBySeller IS NULL OR s.isHiddenBySeller = false)
-    ORDER BY o.createdAt DESC
-    """)
-    Page<Shipments> findSellerOrdersByStatusWithPaging(
-            @Param("sellerId") String sellerId,
-            @Param("orderStatus") OrderStatus orderStatus,
-            Pageable pageable
-    );
+    Optional<Shipments> findByCourierAndTrackingNumber(String courier, String trackingNumber);
 
     /**
-     * 판매자별 주문 검색 - 주문번호로 검색 (페이징)
-     * @param sellerId 판매자 userId
-     * @param orderNumber 검색할 주문번호 (부분 일치)
-     * @param pageable 페이징 정보
-     * @return 주문 목록 (페이징)
+     * 판매자별 주문 상태별 개수 조회 (통계용)
      */
     @Query("""
-    SELECT DISTINCT s FROM Shipments s
-    JOIN FETCH s.orders o
-    JOIN FETCH o.orderItems oi
-    JOIN FETCH oi.products p
-    JOIN FETCH p.seller ps
-    WHERE ps.userId = :sellerId
-    AND o.orderNumber LIKE %:orderNumber%
-    AND (s.isHiddenBySeller IS NULL OR s.isHiddenBySeller = false)
-    ORDER BY o.createdAt DESC
+    SELECT o.orderStatus, COUNT(DISTINCT o.id)
+    FROM Shipments s
+    JOIN s.orders o
+    JOIN o.orderItems oi
+    JOIN oi.products p
+    WHERE p.seller.userId = :sellerId
+    AND (s.isHiddenBySeller = false OR s.isHiddenBySeller IS NULL)
+    GROUP BY o.orderStatus
     """)
-    Page<Shipments> findSellerOrdersByOrderNumberWithPaging(
-            @Param("sellerId") String sellerId,
-            @Param("orderNumber") String orderNumber,
-            Pageable pageable
-    );
+    List<Object[]> findOrderStatusCountBySeller(@Param("sellerId") String sellerId);
 
     /**
-     * 판매자별 주문 검색 - 수령인명으로 검색 (페이징)
-     * @param sellerId 판매자 userId
-     * @param recipientName 검색할 수령인명 (부분 일치)
-     * @param pageable 페이징 정보
-     * @return 주문 목록 (페이징)
+     * 특정 기간 내 배송 완료된 주문 조회
      */
     @Query("""
-    SELECT DISTINCT s FROM Shipments s
-    JOIN FETCH s.orders o
-    JOIN FETCH o.orderItems oi
-    JOIN FETCH oi.products p
-    JOIN FETCH p.seller ps
-    WHERE ps.userId = :sellerId
-    AND s.recipientName LIKE %:recipientName%
-    AND (s.isHiddenBySeller IS NULL OR s.isHiddenBySeller = false)
-    ORDER BY o.createdAt DESC
+    SELECT s FROM Shipments s
+    WHERE s.deliveredAt BETWEEN :startDate AND :endDate
+    ORDER BY s.deliveredAt DESC
     """)
-    Page<Shipments> findSellerOrdersByRecipientNameWithPaging(
-            @Param("sellerId") String sellerId,
-            @Param("recipientName") String recipientName,
-            Pageable pageable
+    List<Shipments> findDeliveredBetween(
+            @Param("startDate") ZonedDateTime startDate,
+            @Param("endDate") ZonedDateTime endDate
     );
-
-    /**
-     * 운송장 번호 중복 확인
-     * 동일한 택배사에서 같은 운송장 번호가 이미 등록되어 있는지 확인
-     * @param courier 택배사
-     * @param trackingNumber 운송장 번호
-     * @return 중복 여부
-     */
-    boolean existsByCourierAndTrackingNumber(String courier, String trackingNumber);
 
     /**
      * 배송중인 주문 목록 조회 (배치 작업용)
-     * 배송 추적 API 호출을 위해 배송중 상태인 모든 주문을 조회
-     * @param orderStatus 주문 상태 (IN_DELIVERY)
-     * @return 배송중인 배송 정보 목록
      */
     @Query("""
     SELECT s FROM Shipments s
@@ -199,77 +135,21 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
     );
 
     /**
-     * 주문 상태별 배송 정보 개수 조회 (배치 통계용)
-     * @param orderStatus 주문 상태
-     * @return 해당 상태의 주문 수
-     */
-    @Query("""
-    SELECT COUNT(s) FROM Shipments s
-    JOIN s.orders o
-    WHERE o.orderStatus = :orderStatus
-    """)
-    long countByOrderStatus(@Param("orderStatus") OrderStatus orderStatus);
-
-    /**
-     * 오늘 배송 완료된 주문 수 조회 (배치 통계용)
-     * @return 오늘 배송 완료 건수
+     * 판매자별 최근 배송 정보 조회 (최대 N개)
      */
     @Query(value = """
-    SELECT COUNT(*) FROM shipments s
+    SELECT DISTINCT s.* FROM shipments s
     JOIN orders o ON s.order_id = o.id
-    WHERE o.order_status = 'DELIVERED'
-    AND DATE(s.delivered_at) = CURRENT_DATE
+    JOIN order_items oi ON o.id = oi.order_id
+    JOIN products p ON oi.product_id = p.id
+    JOIN sellers ps ON p.seller_id = ps.user_id
+    WHERE ps.user_id = :sellerId
+    AND (s.is_hidden_by_seller = false OR s.is_hidden_by_seller IS NULL)
+    ORDER BY s.created_at DESC
+    LIMIT :limit
     """, nativeQuery = true)
-    long countDeliveredToday();
-
-    /**
-     * 판매자의 숨김 처리된 주문 수 조회
-     * @param sellerId 판매자 userId
-     * @return 숨김 처리된 주문 수
-     */
-    @Query("""
-    SELECT COUNT(DISTINCT s) FROM Shipments s
-    JOIN s.orders o
-    JOIN o.orderItems oi
-    JOIN oi.products p
-    JOIN p.seller ps
-    WHERE ps.userId = :sellerId
-    AND s.isHiddenBySeller = true
-    """)
-    long countHiddenOrdersBySeller(@Param("sellerId") String sellerId);
-
-    /**
-     * 특정 기간 내 배송 완료된 주문 조회
-     * @param startDate 시작 일시
-     * @param endDate 종료 일시
-     * @return 해당 기간 배송 완료 목록
-     */
-    @Query("""
-    SELECT s FROM Shipments s
-    JOIN FETCH s.orders o
-    WHERE o.orderStatus = 'DELIVERED'
-    AND s.deliveredAt BETWEEN :startDate AND :endDate
-    ORDER BY s.deliveredAt DESC
-    """)
-    List<Shipments> findDeliveredBetween(
-            @Param("startDate") ZonedDateTime startDate,
-            @Param("endDate") ZonedDateTime endDate
+    List<Shipments> findRecentSellerShipments(
+            @Param("sellerId") String sellerId,
+            @Param("limit") int limit
     );
-
-    /**
-     * 운송장 정보가 업데이트되지 않은 지 오래된 배송 정보 조회
-     * 배치 작업 우선순위 결정용
-     * @param cutoffTime 기준 시간
-     * @return 업데이트가 필요한 배송 정보 목록
-     */
-    @Query("""
-    SELECT s FROM Shipments s
-    JOIN FETCH s.orders o
-    WHERE o.orderStatus = 'IN_DELIVERY'
-    AND s.trackingNumber IS NOT NULL
-    AND (s.trackingUpdatedAt IS NULL 
-         OR s.trackingUpdatedAt < :cutoffTime)
-    ORDER BY s.shippedAt ASC
-    """)
-    List<Shipments> findStaleTrackingInfo(@Param("cutoffTime") ZonedDateTime cutoffTime);
 }
