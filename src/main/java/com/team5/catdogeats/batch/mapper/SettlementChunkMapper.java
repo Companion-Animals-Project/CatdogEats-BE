@@ -25,7 +25,8 @@ public interface SettlementChunkMapper {
         INNER JOIN order_items oi ON o.id = oi.order_id
         INNER JOIN products p ON oi.product_id = p.id
         WHERE s.delivered_at IS NOT NULL
-          AND s.delivered_at >= CURRENT_DATE - INTERVAL '10 days'
+          AND s.delivered_at <= CURRENT_DATE - INTERVAL '7 days'
+          AND s.delivered_at >= CURRENT_DATE - INTERVAL '14 days'
           AND o.order_status = 'DELIVERED'
           AND o.is_hidden = false
           AND NOT EXISTS (
@@ -171,7 +172,8 @@ public interface SettlementChunkMapper {
         INNER JOIN orders o ON s.order_id = o.id
         INNER JOIN order_items oi ON o.id = oi.order_id
         WHERE s.delivered_at IS NOT NULL
-          AND s.delivered_at >= CURRENT_DATE - INTERVAL '10 days'
+         AND s.delivered_at <= CURRENT_DATE - INTERVAL '7 days'
+        AND s.delivered_at >= CURRENT_DATE - INTERVAL '14 days'
           AND o.order_status = 'DELIVERED'
           AND o.is_hidden = false
           AND NOT EXISTS (
