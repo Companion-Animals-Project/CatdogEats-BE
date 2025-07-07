@@ -766,3 +766,64 @@ COMMENT ON INDEX idx_settlements_inprogress_complete_performance IS
     '정산 완료 배치: IN_PROGRESS 상태 + 최근 60일 조회 + 정렬 최적화';
 
 -- =========================================================================================================
+
+
+-- ===================== 정산 매출 분석 VIEW ==============================
+
+-- 목적: 정산 완료된 데이터만을 기반으로 매출 분석을 위한 View 생성
+-- 데이터 소스: settlements (COMPLETED 상태만) + order_items + products + orders
+-- 기간: settlement의 created_at 기준 (정산 생성 날짜)
+
+CREATE VIEW v_sales_analytics AS
+SELECT
+    -- 기본 식별자
+    st.seller_id,
+    oi.product_id,
+    p.title as product_name,
+    o.order_number,
+    st.id as settlement_id,
+    oi.id as order_item_id,
+
+    -- 날짜 관련 (정산 생성 날짜 기준)
+    EXTRACT(YEAR FROM st.created_at) as sales_year,
+    EXTRACT(MONTH FROM st.created_at) as sales_month,
+    st.created_at as settlement_date,
+    o.created_at as order_date,
+
+    -- 수량 및 금액 정보
+    oi.quantity,
+    oi.price as unit_price,                    -- 주문 시점 상품 단가
+    (oi.quantity * oi.price) as total_amount,  -- 총 주문 금액
+    st.settlement_amount,                      -- 정산 금액 (수수료 제외)
+    st.commission_amount,                      -- 수수료
+    st.item_price                             -- 정산 기준 상품 금액
+FROM settlements st
+         INNER JOIN order_items oi ON st.order_item_id = oi.id
+         INNER JOIN products p ON oi.product_id = p.id
+         INNER JOIN orders o ON oi.order_id = o.id
+WHERE
+  -- 정산 완료된 데이터만
+    st.settlement_status = 'COMPLETED'
+  -- 취소되지 않은 주문만
+  AND o.order_status != 'CANCELLED'
+  -- 숨겨지지 않은 주문만
+  AND o.is_hidden = false;
+
+
+-- View 성능 최적화를 위한 인덱스
+
+-- 1. 매출 분석 조회 최적화 인덱스 (판매자별 + 연도별)
+CREATE INDEX IF NOT EXISTS idx_settlements_sales_analytics
+    ON settlements (seller_id, settlement_status, created_at)
+    WHERE settlement_status = 'COMPLETED';
+
+-- 2. 상품별 매출 분석 최적화 인덱스
+CREATE INDEX IF NOT EXISTS idx_order_items_product_analysis
+    ON order_items (product_id, quantity, price);
+
+-- 3. 기간별 조회 최적화 인덱스
+CREATE INDEX IF NOT EXISTS idx_settlements_date_range
+    ON settlements (created_at, seller_id, settlement_status)
+    WHERE settlement_status = 'COMPLETED';
+
+-- =========================================================================================================
