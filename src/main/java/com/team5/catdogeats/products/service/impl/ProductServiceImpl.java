@@ -91,6 +91,7 @@ public class ProductServiceImpl implements ProductService {
         product.updateFromDto(dto);
     }
 
+    @JpaTransactional
     @Override
     public void deleteProduct(ProductDeleteRequestDto dto) {
         Products product = productRepository.findById(dto.productId())
