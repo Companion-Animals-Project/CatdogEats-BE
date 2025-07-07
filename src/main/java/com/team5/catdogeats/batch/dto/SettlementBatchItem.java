@@ -11,6 +11,7 @@ import java.time.OffsetDateTime;
 /**
  * 정산 배치 처리용 DTO
  * Chunk 기반 배치에서 ItemReader와 ItemWriter 간 데이터 전달용
+ * PENDING 상태 제거로 단순화됨
  */
 @Getter
 @Builder
@@ -19,7 +20,7 @@ import java.time.OffsetDateTime;
 public class SettlementBatchItem {
 
     /**
-     * 정산 ID (UPDATE/COMPLETE 작업 시 사용)
+     * 정산 ID (COMPLETE 작업 시 사용)
      */
     private String settlementId;
 
@@ -69,16 +70,11 @@ public class SettlementBatchItem {
     private OffsetDateTime deliveredAt;
 
     /**
-     * 정산 상태 변경 대상인지 확인 (UPDATE 작업용)
-     */
-    private boolean readyForProgress;
-
-    /**
      * 처리 타입별 생성자들
      */
 
     /**
-     * 정산 생성용 생성자
+     * 정산 생성용 생성자 - 바로 IN_PROGRESS 상태로 생성
      */
     public static SettlementBatchItem forCreate(String sellerId, String orderItemId,
                                                 String orderNumber, String productTitle,
@@ -99,23 +95,7 @@ public class SettlementBatchItem {
     }
 
     /**
-     * 정산 상태 갱신용 생성자
-     */
-    public static SettlementBatchItem forUpdate(String settlementId, String sellerId,
-                                                String orderNumber, String productTitle,
-                                                OffsetDateTime deliveredAt) {
-        return SettlementBatchItem.builder()
-                .settlementId(settlementId)
-                .sellerId(sellerId)
-                .orderNumber(orderNumber)
-                .productTitle(productTitle)
-                .deliveredAt(deliveredAt)
-                .readyForProgress(true)
-                .build();
-    }
-
-    /**
-     * 정산 완료용 생성자
+     * 정산 완료용 생성자 - IN_PROGRESS → COMPLETED
      */
     public static SettlementBatchItem forComplete(String settlementId, String sellerId,
                                                   String orderNumber, String productTitle,
@@ -130,7 +110,7 @@ public class SettlementBatchItem {
     }
 
     /**
-     * 수수료 계산 헬퍼 메서드
+     * 수수료 계산 메서드
      */
     private static Long calculateCommission(Long itemPrice, BigDecimal commissionRate) {
         if (itemPrice == null || commissionRate == null) {
@@ -152,9 +132,6 @@ public class SettlementBatchItem {
                 settlementId, sellerId, orderNumber, productTitle, itemPrice, settlementAmount);
     }
 
-    /**
-     * 배치 처리 검증 메서드들
-     */
 
     /**
      * 정산 생성용 데이터 유효성 검증
@@ -164,15 +141,6 @@ public class SettlementBatchItem {
                 && orderItemId != null && !orderItemId.trim().isEmpty()
                 && itemPrice != null && itemPrice > 0
                 && commissionRate != null && commissionRate.compareTo(BigDecimal.ZERO) >= 0;
-    }
-
-    /**
-     * 정산 상태 갱신용 데이터 유효성 검증
-     */
-    public boolean isValidForUpdate() {
-        return settlementId != null && !settlementId.trim().isEmpty()
-                && deliveredAt != null
-                && readyForProgress;
     }
 
     /**

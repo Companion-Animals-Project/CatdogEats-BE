@@ -2,10 +2,8 @@ package com.team5.catdogeats.batch.config;
 
 import com.team5.catdogeats.batch.reader.SettlementCompleteItemReader;
 import com.team5.catdogeats.batch.reader.SettlementCreateItemReader;
-import com.team5.catdogeats.batch.reader.SettlementUpdateItemReader;
 import com.team5.catdogeats.batch.writer.SettlementCompleteItemWriter;
 import com.team5.catdogeats.batch.writer.SettlementCreateItemWriter;
-import com.team5.catdogeats.batch.writer.SettlementUpdateItemWriter;
 import com.team5.catdogeats.batch.dto.SettlementBatchItem;
 import com.team5.catdogeats.batch.mapper.SettlementChunkMapper;
 import lombok.RequiredArgsConstructor;
@@ -43,13 +41,12 @@ public class SettlementChunkBatchConfig {
     private final PlatformTransactionManager batchTransactionManager;
 
     /**
-     * 정산 데이터 생성/갱신 청크 배치 작업 (매일 오전 2시)
+     * 정산 데이터 생성 청크 배치 작업 (매일 오전 2시)
      */
     @Bean(name = "settlementChunkDailyJob")
     public Job settlementChunkDailyJob() {
         return new JobBuilder("settlementChunkDailyJob", jobRepository)
                 .start(createSettlementsChunkStep())
-                .next(updateSettlementsChunkStep())
                 .build();
     }
 
@@ -85,27 +82,6 @@ public class SettlementChunkBatchConfig {
     }
 
     /**
-     * 정산 상태 갱신 청크 스텝 (PENDING -> IN_PROGRESS)
-     */
-    @Bean
-    public Step updateSettlementsChunkStep() {
-        return new StepBuilder("updateSettlementsChunkStep", jobRepository)
-                .<SettlementBatchItem, SettlementBatchItem>chunk(batchProperties.getChunkSize(), batchTransactionManager)
-                .reader(settlementUpdateItemReader())
-                .processor(settlementUpdateItemProcessor())
-                .writer(settlementUpdateItemWriter())
-                .faultTolerant()
-                .skip(Exception.class)
-                .skipLimit(batchProperties.getSkipLimit())
-                .skipPolicy(customSkipPolicy())
-                .retry(TransientDataAccessException.class)
-                .retry(DeadlockLoserDataAccessException.class)
-                .retryLimit(batchProperties.getRetryLimit())
-                .listener(updateStepExecutionListener())
-                .build();
-    }
-
-    /**
      * 정산 완료 처리 청크 스텝 (IN_PROGRESS -> COMPLETED)
      */
     @Bean
@@ -135,10 +111,6 @@ public class SettlementChunkBatchConfig {
                 batchProperties.getCommissionRate(), batchProperties.getChunkSize());
     }
 
-    @Bean
-    public SettlementUpdateItemReader settlementUpdateItemReader() {
-        return new SettlementUpdateItemReader(settlementChunkMapper, batchProperties.getChunkSize());
-    }
 
     @Bean
     public SettlementCompleteItemReader settlementCompleteItemReader() {
@@ -151,11 +123,6 @@ public class SettlementChunkBatchConfig {
     @Bean
     public SettlementCreateItemWriter settlementCreateItemWriter() {
         return new SettlementCreateItemWriter(settlementChunkMapper);
-    }
-
-    @Bean
-    public SettlementUpdateItemWriter settlementUpdateItemWriter() {
-        return new SettlementUpdateItemWriter(settlementChunkMapper);
     }
 
     @Bean
@@ -176,22 +143,6 @@ public class SettlementChunkBatchConfig {
             if (!item.isValidForCreate()) {
                 log.warn("정산 생성 데이터 검증 실패 - 스킵 처리: {}", item);
                 return null; // null 반환하면 해당 아이템은 Writer로 전달되지 않음
-            }
-
-            return item;
-        };
-    }
-
-    @Bean
-    public ItemProcessor<SettlementBatchItem, SettlementBatchItem> settlementUpdateItemProcessor() {
-        return item -> {
-            log.debug("정산 상태 갱신 처리 - settlementId: {}, orderNumber: {}",
-                    item.getSettlementId(), item.getOrderNumber());
-
-            // 유효성 검증
-            if (!item.isValidForUpdate()) {
-                log.warn("정산 상태 갱신 데이터 검증 실패 - 스킵 처리: {}", item);
-                return null;
             }
 
             return item;
@@ -267,11 +218,6 @@ public class SettlementChunkBatchConfig {
     @Bean
     public SettlementStepExecutionListener createStepExecutionListener() {
         return new SettlementStepExecutionListener("정산생성");
-    }
-
-    @Bean
-    public SettlementStepExecutionListener updateStepExecutionListener() {
-        return new SettlementStepExecutionListener("정산갱신");
     }
 
     @Bean

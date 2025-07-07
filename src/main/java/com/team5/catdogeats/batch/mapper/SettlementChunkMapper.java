@@ -47,38 +47,6 @@ public interface SettlementChunkMapper {
                                                  @Param("limit") int limit);
 
     /**
-     * 정산 상태 갱신 대상 조회
-     */
-    @Select("""
-        SELECT 
-            st.id as settlement_id,
-            st.seller_id,
-            o.order_number,
-            p.title as product_title,
-            s.delivered_at
-        FROM settlements st
-        INNER JOIN order_items oi ON st.order_item_id = oi.id
-        INNER JOIN orders o ON oi.order_id = o.id
-        INNER JOIN products p ON oi.product_id = p.id
-        INNER JOIN shipments s ON o.id = s.order_id
-        WHERE st.settlement_status = 'PENDING'
-          AND s.delivered_at IS NOT NULL
-          AND s.delivered_at < CURRENT_DATE - INTERVAL '6 days'
-          AND s.delivered_at >= CURRENT_DATE - INTERVAL '180 days'
-        ORDER BY s.delivered_at ASC, st.id ASC
-        LIMIT #{limit} OFFSET #{offset}
-        """)
-    @Results({
-            @Result(property = "settlementId", column = "settlement_id"),
-            @Result(property = "sellerId", column = "seller_id"),
-            @Result(property = "orderNumber", column = "order_number"),
-            @Result(property = "productTitle", column = "product_title"),
-            @Result(property = "deliveredAt", column = "delivered_at")
-    })
-    List<SettlementBatchItem> findPendingSettlementsReadyForProgress(@Param("offset") int offset,
-                                                                     @Param("limit") int limit);
-
-    /**
      * 정산 완료 대상 조회
      * 오래된 IN_PROGRESS 정산은 처리할 필요 없으므로 2개월로 제한
      */
@@ -131,24 +99,12 @@ public interface SettlementChunkMapper {
             #{commissionRate},
             #{commissionAmount},
             #{settlementAmount},
-            'PENDING',
+            'IN_PROGRESS',
             NOW(),
             NOW()
         )
         """)
     void insertSettlement(SettlementBatchItem item);
-
-    /**
-     * 정산 상태를 IN_PROGRESS로 변경
-     */
-    @Update("""
-        UPDATE settlements 
-        SET settlement_status = 'IN_PROGRESS',
-            updated_at = NOW()
-        WHERE id = #{settlementId}
-          AND settlement_status = 'PENDING'
-        """)
-    int updateToInProgress(@Param("settlementId") String settlementId);
 
     /**
      * 정산 상태를 COMPLETED로 변경
@@ -183,21 +139,6 @@ public interface SettlementChunkMapper {
         """)
     int countUnsettledItems();
 
-    /**
-     * 정산 상태 갱신 대상 전체 건수
-     */
-    @Select("""
-        SELECT COUNT(*)
-        FROM settlements st
-        INNER JOIN order_items oi ON st.order_item_id = oi.id
-        INNER JOIN orders o ON oi.order_id = o.id
-        INNER JOIN shipments s ON o.id = s.order_id
-        WHERE st.settlement_status = 'PENDING'
-          AND s.delivered_at IS NOT NULL
-          AND s.delivered_at <= CURRENT_DATE - INTERVAL '7 days'
-          AND s.delivered_at >= CURRENT_DATE - INTERVAL '180 days'
-        """)
-    int countPendingSettlementsReadyForProgress();
 
     /**
      * 정산 완료 대상 전체 건수

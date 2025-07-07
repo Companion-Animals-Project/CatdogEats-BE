@@ -49,7 +49,7 @@ public class SettlementChunkBatchAdminController {
 
             // 처리 전 현황 조회
             int unsettledCount = settlementChunkMapper.countUnsettledItems();
-            int pendingReadyCount = settlementChunkMapper.countPendingSettlementsReadyForProgress();
+
 
             long startTime = System.currentTimeMillis();
             BatchExecutionResult result = settlementChunkBatchScheduler.runChunkDailyJobManually();
@@ -58,10 +58,6 @@ public class SettlementChunkBatchAdminController {
             Map<String, Object> response = Map.of(
                     "status", result.isSuccess() ? "success" : "failed",
                     "message", result.getMessage(),
-                    "beforeExecution", Map.of(
-                            "unsettledItemsCount", unsettledCount,
-                            "pendingReadyForProgressCount", pendingReadyCount
-                    ),
                     "executionSummary", result.getExecutionSummary(),
                     "executionTime", endTime - startTime,
                     "batchType", "chunk-based",
@@ -146,7 +142,7 @@ public class SettlementChunkBatchAdminController {
 
             int unsettledCount = settlementChunkMapper.countUnsettledItems();
             int inProgressCount = settlementChunkMapper.countInProgressSettlements();
-            int pendingReadyCount = settlementChunkMapper.countPendingSettlementsReadyForProgress();
+
 
             // 현재 실행중인 배치 조회
             List<SettlementBatchExecutionStatus> runningBatches = batchConcurrencyService.getRunningBatches();
@@ -155,7 +151,6 @@ public class SettlementChunkBatchAdminController {
                     "currentStatus", Map.of(
                             "unsettledItemsCount", unsettledCount,
                             "inProgressSettlementsCount", inProgressCount,
-                            "pendingReadyForProgressCount", pendingReadyCount,
                             "runningBatchesCount", runningBatches.size()
                     ),
                     "runningBatches", runningBatches.stream().map(batch -> Map.of(

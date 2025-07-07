@@ -29,8 +29,7 @@ public class SettlementChunkBatchScheduler {
     private final SettlementBatchProperties batchProperties;
 
     /**
-     * 정산 데이터 생성/갱신 청크 스케줄러
-     * 설정 파일의 cron 표현식 사용
+     * 정산 데이터 생성스케줄러
      */
     @Scheduled(cron = "${batch.settlement.daily-cron}")
     public void runChunkDailySettlementJob() {
@@ -115,7 +114,7 @@ public class SettlementChunkBatchScheduler {
      */
     public BatchExecutionResult runChunkDailyJobManually() {
         try {
-            log.info("🔧 수동 정산 청크 일일 배치 작업 시작");
+            log.info("수동 정산 청크 일일 배치 작업 시작");
 
             BatchExecutionResult result = batchExecutionService.executeChunkDailyJob();
 
@@ -139,7 +138,7 @@ public class SettlementChunkBatchScheduler {
      */
     public BatchExecutionResult runChunkMonthlyJobManually() {
         try {
-            log.info("🔧 수동 정산 청크 월간 완료 배치 작업 시작");
+            log.info("수동 정산 청크 월간 완료 배치 작업 시작");
 
             BatchExecutionResult result = batchExecutionService.executeChunkMonthlyJob();
 
@@ -254,7 +253,7 @@ public class SettlementChunkBatchScheduler {
                     batchConcurrencyService.forceReleaseLock(batch.getBatchName());
 
                     // 강제 정리 알림
-                    log.error("🔧 강제 정리 완료 - batchName: {}, 실행시간: {}분 → IDLE로 변경",
+                    log.error("강제 정리 완료 - batchName: {}, 실행시간: {}분 → IDLE로 변경",
                             batch.getBatchName(), runningMinutes);
                 }
             }
