@@ -19,9 +19,9 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
- * 정산현황 관리 서비스 구현체
- * MyBatis를 활용한 복잡한 정산 쿼리 처리
- * UserPrincipal을 통한 판매자 권한 검증
+ * 정산현황 관리 서비스 구현체 (수정된 버전)
+ * Settlement 테이블 기반으로만 조회 (배송완료 후 7일 지난 데이터만)
+ * pendingAmount 제거, inProgressAmount 추가
  */
 @Slf4j
 @Service
@@ -44,14 +44,14 @@ public class SettlementServiceImpl implements SettlementService {
         long offset = pageable.getOffset();
         int limit = pageable.getPageSize();
 
-        // 3. 정산 리스트 조회
+        // 3. 정산 리스트 조회 (Settlement 테이블만)
         List<SettlementItemDto> settlements = settlementMapper.findSettlementsBySellerId(
                 sellerId, offset, limit);
 
         // 4. 총 건수 조회
         Long totalCount = settlementMapper.countSettlementsBySellerId(sellerId);
 
-        // 5. 정산 요약 정보 조회
+        // 5. 정산 요약 정보 조회 (새로운 구조)
         SettlementSummaryDto summary = settlementMapper.getSettlementSummaryBySellerId(sellerId);
 
         // 6. Page 객체 생성
@@ -85,7 +85,7 @@ public class SettlementServiceImpl implements SettlementService {
         long offset = pageable.getOffset();
         int limit = pageable.getPageSize();
 
-        // 4. 기간별 정산 리스트 조회
+        // 4. 기간별 정산 리스트 조회 (Settlement 테이블만)
         List<SettlementItemDto> settlements = settlementMapper.findSettlementsBySellerIdAndPeriod(
                 sellerId, periodRequest.startDate(), periodRequest.endDate(), offset, limit);
 
@@ -118,17 +118,15 @@ public class SettlementServiceImpl implements SettlementService {
         YearMonth currentMonth = YearMonth.now();
 
         // 3. 이번달 정산현황 조회
-        SettlementSummaryDto summary = settlementMapper.getMonthlySettlementStatus(sellerId, currentMonth);
+        MonthlySettlementStatusDto summary = settlementMapper.getMonthlySettlementStatus(sellerId, currentMonth);
 
-        // 4. 정산현황 DTO 변환
-        Long totalMonthlyAmount = summary.totalSettlementAmount();
-        Long confirmedAmount = summary.completedAmount(); // 정산완료 + 처리중
-        Long pendingAmount = summary.pendingAmount();     // 대기중
+        // 4. 정산현황 로그 (개수 정보 포함)
+        log.info("이번달 정산현황 조회 완료 - sellerId: {}, 총건수: {}, 총금액: {}, 완료: {}건/{}원, 처리중: {}건/{}원",
+                sellerId, summary.totalCount(), summary.totalMonthlyAmount(),
+                summary.completedCount(), summary.completedAmount(),
+                summary.inProgressCount(), summary.inProgressAmount());
 
-        log.info("이번달 정산현황 조회 완료 - sellerId: {}, 총금액: {}, 확정금액: {}, 예정금액: {}",
-                sellerId, totalMonthlyAmount, confirmedAmount, pendingAmount);
-
-        return new MonthlySettlementStatusDto(totalMonthlyAmount, confirmedAmount, pendingAmount);
+        return summary;
     }
 
     @Override
@@ -142,12 +140,12 @@ public class SettlementServiceImpl implements SettlementService {
         // 1. 판매자 권한 검증 및 정보 조회
         SellerDTO sellerDTO = validateAndGetSellerInfo(userPrincipal);
 
-        // 2. 월별 정산 아이템 조회
+        // 2. 월별 정산 아이템 조회 (Settlement 테이블만)
         List<SettlementItemDto> items = settlementMapper.findMonthlySettlements(
                 sellerDTO.userId(), targetMonth);
 
-        // 3. 월별 정산 요약 정보 조회
-        SettlementSummaryDto summary = settlementMapper.getMonthlySettlementSummary(
+        // 3. 월별 정산 요약 정보 조회 (새로운 구조: 개수 포함)
+        MonthlySettlementStatusDto summary = settlementMapper.getMonthlySettlementSummary(
                 sellerDTO.userId(), targetMonth);
 
         log.info("월별 정산내역 영수증 조회 완료 - sellerId: {}, 대상월: {}, 아이템수: {}",

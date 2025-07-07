@@ -1,5 +1,6 @@
 package com.team5.catdogeats.orders.mapper;
 
+import com.team5.catdogeats.orders.domain.dto.MonthlySettlementStatusDto;
 import com.team5.catdogeats.orders.domain.dto.SettlementItemDto;
 import com.team5.catdogeats.orders.domain.dto.SettlementSummaryDto;
 import org.apache.ibatis.annotations.*;
@@ -11,7 +12,7 @@ import java.util.List;
 
 /**
  * 정산현황 조회를 위한 MyBatis Mapper (어노테이션 방식)
- * Settlements 테이블 기반으로 정산 데이터 조회
+ * Settlement 테이블 기반으로 정산 데이터 조회 (배송완료 후 7일 지난 데이터만)
  */
 @Mapper
 public interface SettlementMapper {
@@ -28,6 +29,7 @@ public interface SettlementMapper {
             st.settlement_amount,
             o.created_at::timestamp as order_date,
             s.delivered_at::timestamp as delivery_date,
+            st.created_at::timestamp as settlement_created_at,
             st.settlement_status
         FROM settlements st
         INNER JOIN order_items oi ON st.order_item_id = oi.id
@@ -48,6 +50,7 @@ public interface SettlementMapper {
             @Arg(column = "settlement_amount", javaType = Long.class),
             @Arg(column = "order_date", javaType = java.time.LocalDateTime.class),
             @Arg(column = "delivery_date", javaType = java.time.LocalDateTime.class),
+            @Arg(column = "settlement_created_at", javaType = java.time.LocalDateTime.class),
             @Arg(column = "settlement_status", javaType = com.team5.catdogeats.orders.domain.enums.SettlementStatus.class)
     })
     List<SettlementItemDto> findSettlementsBySellerId(
@@ -72,7 +75,6 @@ public interface SettlementMapper {
 
     /**
      * 판매자의 전체 정산 요약 정보 조회
-     * Record 클래스를 위한 생성자 기반 매핑
      */
     @Select("""
         SELECT 
@@ -84,11 +86,10 @@ public interface SettlementMapper {
                 ELSE 0 
             END), 0) as completed_amount,
             COALESCE(SUM(CASE 
-                WHEN st.settlement_status IN ('PENDING', 'IN_PROGRESS')
+                WHEN st.settlement_status = 'IN_PROGRESS'
                 THEN st.settlement_amount
                 ELSE 0 
-            END), 0) as pending_amount,
-            COALESCE(ROUND(AVG(st.settlement_amount)), 0) as average_settlement_amount
+            END), 0) as inprogress_amount
         FROM settlements st
         INNER JOIN order_items oi ON st.order_item_id = oi.id
         INNER JOIN orders o ON oi.order_id = o.id
@@ -100,8 +101,7 @@ public interface SettlementMapper {
             @Arg(column = "total_count", javaType = Long.class),
             @Arg(column = "total_settlement_amount", javaType = Long.class),
             @Arg(column = "completed_amount", javaType = Long.class),
-            @Arg(column = "pending_amount", javaType = Long.class),
-            @Arg(column = "average_settlement_amount", javaType = Long.class)
+            @Arg(column = "inprogress_amount", javaType = Long.class)
     })
     SettlementSummaryDto getSettlementSummaryBySellerId(@Param("sellerId") String sellerId);
 
@@ -117,6 +117,7 @@ public interface SettlementMapper {
             st.settlement_amount,
             o.created_at::timestamp as order_date,
             s.delivered_at::timestamp as delivery_date,
+            st.created_at::timestamp as settlement_created_at,
             st.settlement_status
         FROM settlements st
         INNER JOIN order_items oi ON st.order_item_id = oi.id
@@ -126,8 +127,8 @@ public interface SettlementMapper {
         WHERE st.seller_id = #{sellerId}
         AND o.order_status != 'CANCELLED'
         AND o.is_hidden = false
-        AND DATE(o.created_at) BETWEEN #{startDate} AND #{endDate}
-        ORDER BY o.created_at DESC
+        AND DATE(st.created_at) BETWEEN #{startDate} AND #{endDate}
+        ORDER BY st.created_at DESC
         LIMIT #{limit} OFFSET #{offset}
         """)
     @ConstructorArgs({
@@ -138,6 +139,7 @@ public interface SettlementMapper {
             @Arg(column = "settlement_amount", javaType = Long.class),
             @Arg(column = "order_date", javaType = java.time.LocalDateTime.class),
             @Arg(column = "delivery_date", javaType = java.time.LocalDateTime.class),
+            @Arg(column = "settlement_created_at", javaType = java.time.LocalDateTime.class),
             @Arg(column = "settlement_status", javaType = com.team5.catdogeats.orders.domain.enums.SettlementStatus.class)
     })
     List<SettlementItemDto> findSettlementsBySellerIdAndPeriod(
@@ -159,7 +161,7 @@ public interface SettlementMapper {
         WHERE st.seller_id = #{sellerId}
         AND o.order_status != 'CANCELLED'
         AND o.is_hidden = false
-        AND DATE(o.created_at) BETWEEN #{startDate} AND #{endDate}
+        AND DATE(st.created_at) BETWEEN #{startDate} AND #{endDate}
         """)
     Long countSettlementsBySellerIdAndPeriod(
             @Param("sellerId") String sellerId,
@@ -180,25 +182,23 @@ public interface SettlementMapper {
                 ELSE 0 
             END), 0) as completed_amount,
             COALESCE(SUM(CASE 
-                WHEN st.settlement_status IN ('PENDING', 'IN_PROGRESS')
+                WHEN st.settlement_status = 'IN_PROGRESS'
                 THEN st.settlement_amount
                 ELSE 0 
-            END), 0) as pending_amount,
-            COALESCE(ROUND(AVG(st.settlement_amount)), 0) as average_settlement_amount
+            END), 0) as inprogress_amount
         FROM settlements st
         INNER JOIN order_items oi ON st.order_item_id = oi.id
         INNER JOIN orders o ON oi.order_id = o.id
         WHERE st.seller_id = #{sellerId}
         AND o.order_status != 'CANCELLED'
         AND o.is_hidden = false
-        AND DATE(o.created_at) BETWEEN #{startDate} AND #{endDate}
+        AND DATE(st.created_at) BETWEEN #{startDate} AND #{endDate}
         """)
     @ConstructorArgs({
             @Arg(column = "total_count", javaType = Long.class),
             @Arg(column = "total_settlement_amount", javaType = Long.class),
             @Arg(column = "completed_amount", javaType = Long.class),
-            @Arg(column = "pending_amount", javaType = Long.class),
-            @Arg(column = "average_settlement_amount", javaType = Long.class)
+            @Arg(column = "inprogress_amount", javaType = Long.class)
     })
     SettlementSummaryDto getSettlementSummaryBySellerIdAndPeriod(
             @Param("sellerId") String sellerId,
@@ -208,47 +208,56 @@ public interface SettlementMapper {
 
     /**
      * 판매자의 이번달 정산현황 조회
-     * PostgreSQL EXTRACT 함수 사용
+     * 새로운 구조: 개수와 금액 모두 포함
      */
     @Select("""
         SELECT 
             COUNT(*) as total_count,
             COALESCE(SUM(st.settlement_amount), 0) as total_settlement_amount,
             COALESCE(SUM(CASE 
-                WHEN st.settlement_status IN ('COMPLETED', 'IN_PROGRESS')
+                WHEN st.settlement_status = 'COMPLETED'
+                THEN 1
+                ELSE 0 
+            END), 0) as completed_count,
+            COALESCE(SUM(CASE 
+                WHEN st.settlement_status = 'COMPLETED'
                 THEN st.settlement_amount
                 ELSE 0 
             END), 0) as completed_amount,
             COALESCE(SUM(CASE 
-                WHEN st.settlement_status = 'PENDING'
+                WHEN st.settlement_status = 'IN_PROGRESS'
+                THEN 1
+                ELSE 0 
+            END), 0) as inprogress_count,
+            COALESCE(SUM(CASE 
+                WHEN st.settlement_status = 'IN_PROGRESS'
                 THEN st.settlement_amount
                 ELSE 0 
-            END), 0) as pending_amount,
-            COALESCE(ROUND(AVG(st.settlement_amount)), 0) as average_settlement_amount
+            END), 0) as inprogress_amount
         FROM settlements st
         INNER JOIN order_items oi ON st.order_item_id = oi.id
         INNER JOIN orders o ON oi.order_id = o.id
         WHERE st.seller_id = #{sellerId}
         AND o.order_status != 'CANCELLED'
         AND o.is_hidden = false
-        AND EXTRACT(YEAR FROM o.created_at) = #{currentMonth.year}
-        AND EXTRACT(MONTH FROM o.created_at) = #{currentMonth.monthValue}
+        AND EXTRACT(YEAR FROM st.created_at) = #{currentMonth.year}
+        AND EXTRACT(MONTH FROM st.created_at) = #{currentMonth.monthValue}
         """)
     @ConstructorArgs({
             @Arg(column = "total_count", javaType = Long.class),
             @Arg(column = "total_settlement_amount", javaType = Long.class),
+            @Arg(column = "completed_count", javaType = Long.class),
             @Arg(column = "completed_amount", javaType = Long.class),
-            @Arg(column = "pending_amount", javaType = Long.class),
-            @Arg(column = "average_settlement_amount", javaType = Long.class)
+            @Arg(column = "inprogress_count", javaType = Long.class),
+            @Arg(column = "inprogress_amount", javaType = Long.class)
     })
-    SettlementSummaryDto getMonthlySettlementStatus(
+    MonthlySettlementStatusDto getMonthlySettlementStatus(
             @Param("sellerId") String sellerId,
             @Param("currentMonth") YearMonth currentMonth
     );
 
     /**
      * 판매자의 월별 정산내역 조회 (영수증용)
-     * PostgreSQL EXTRACT 함수 사용
      */
     @Select("""
         SELECT 
@@ -259,6 +268,7 @@ public interface SettlementMapper {
             st.settlement_amount,
             o.created_at::timestamp as order_date,
             s.delivered_at::timestamp as delivery_date,
+            st.created_at::timestamp as settlement_created_at,
             st.settlement_status
         FROM settlements st
         INNER JOIN order_items oi ON st.order_item_id = oi.id
@@ -268,9 +278,9 @@ public interface SettlementMapper {
         WHERE st.seller_id = #{sellerId}
         AND o.order_status != 'CANCELLED'
         AND o.is_hidden = false
-        AND EXTRACT(YEAR FROM o.created_at) = #{targetMonth.year}
-        AND EXTRACT(MONTH FROM o.created_at) = #{targetMonth.monthValue}
-        ORDER BY o.created_at DESC
+        AND EXTRACT(YEAR FROM st.created_at) = #{targetMonth.year}
+        AND EXTRACT(MONTH FROM st.created_at) = #{targetMonth.monthValue}
+        ORDER BY st.created_at DESC
         """)
     @ConstructorArgs({
             @Arg(column = "order_number", javaType = String.class),
@@ -280,6 +290,7 @@ public interface SettlementMapper {
             @Arg(column = "settlement_amount", javaType = Long.class),
             @Arg(column = "order_date", javaType = java.time.LocalDateTime.class),
             @Arg(column = "delivery_date", javaType = java.time.LocalDateTime.class),
+            @Arg(column = "settlement_created_at", javaType = java.time.LocalDateTime.class),
             @Arg(column = "settlement_status", javaType = com.team5.catdogeats.orders.domain.enums.SettlementStatus.class)
     })
     List<SettlementItemDto> findMonthlySettlements(
@@ -289,7 +300,7 @@ public interface SettlementMapper {
 
     /**
      * 판매자의 월별 정산 요약 정보 조회
-     * PostgreSQL EXTRACT 함수 사용
+     * 개수와 금액 모두 포함
      */
     @Select("""
         SELECT 
@@ -297,32 +308,42 @@ public interface SettlementMapper {
             COALESCE(SUM(st.settlement_amount), 0) as total_settlement_amount,
             COALESCE(SUM(CASE 
                 WHEN st.settlement_status = 'COMPLETED'
+                THEN 1
+                ELSE 0 
+            END), 0) as completed_count,
+            COALESCE(SUM(CASE 
+                WHEN st.settlement_status = 'COMPLETED'
                 THEN st.settlement_amount
                 ELSE 0 
             END), 0) as completed_amount,
             COALESCE(SUM(CASE 
-                WHEN st.settlement_status IN ('PENDING', 'IN_PROGRESS')
+                WHEN st.settlement_status = 'IN_PROGRESS'
+                THEN 1
+                ELSE 0 
+            END), 0) as inprogress_count,
+            COALESCE(SUM(CASE 
+                WHEN st.settlement_status = 'IN_PROGRESS'
                 THEN st.settlement_amount
                 ELSE 0 
-            END), 0) as pending_amount,
-            COALESCE(ROUND(AVG(st.settlement_amount)), 0) as average_settlement_amount
+            END), 0) as inprogress_amount
         FROM settlements st
         INNER JOIN order_items oi ON st.order_item_id = oi.id
         INNER JOIN orders o ON oi.order_id = o.id
         WHERE st.seller_id = #{sellerId}
         AND o.order_status != 'CANCELLED'
         AND o.is_hidden = false
-        AND EXTRACT(YEAR FROM o.created_at) = #{targetMonth.year}
-        AND EXTRACT(MONTH FROM o.created_at) = #{targetMonth.monthValue}
+        AND EXTRACT(YEAR FROM st.created_at) = #{targetMonth.year}
+        AND EXTRACT(MONTH FROM st.created_at) = #{targetMonth.monthValue}
         """)
     @ConstructorArgs({
             @Arg(column = "total_count", javaType = Long.class),
             @Arg(column = "total_settlement_amount", javaType = Long.class),
+            @Arg(column = "completed_count", javaType = Long.class),
             @Arg(column = "completed_amount", javaType = Long.class),
-            @Arg(column = "pending_amount", javaType = Long.class),
-            @Arg(column = "average_settlement_amount", javaType = Long.class)
+            @Arg(column = "inprogress_count", javaType = Long.class),
+            @Arg(column = "inprogress_amount", javaType = Long.class)
     })
-    SettlementSummaryDto getMonthlySettlementSummary(
+    MonthlySettlementStatusDto getMonthlySettlementSummary(
             @Param("sellerId") String sellerId,
             @Param("targetMonth") YearMonth targetMonth
     );

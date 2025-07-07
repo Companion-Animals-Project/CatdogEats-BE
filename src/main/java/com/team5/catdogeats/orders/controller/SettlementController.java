@@ -25,9 +25,9 @@ import java.time.format.DateTimeParseException;
 import java.util.NoSuchElementException;
 
 /**
- * 정산현황 관리 컨트롤러
- * 판매자의 정산 현황 조회, 기간별 조회, 월별 현황 등을 제공
- * UserPrincipal을 통한 인증 및 권한 검증
+ * 정산현황 관리 컨트롤러 (수정된 버전)
+ * Settlement 테이블 기반으로만 조회 (배송완료 후 7일 지난 데이터만)
+ * pendingAmount 제거, inProgressAmount 추가
  */
 @Slf4j
 @RestController
@@ -41,12 +41,12 @@ public class SettlementController {
     /**
      * 전체 정산 리스트 조회 (페이징)
      * 1-1. 주문번호, 상품명, 주문금액, 수수료, 정산금액, 주문일, 상태의 정산 리스트 출력 (페이징)
-     * 1-2. 총 정산내역 건수, 총 정산금액, 상태금액, 평균 정산금액
+     * 1-2. 총 정산내역 건수, 총 정산금액, 완료금액, 처리중금액
      */
     @GetMapping
     @Operation(
             summary = "전체 정산 리스트 조회",
-            description = "판매자의 전체 정산 내역을 페이징으로 조회합니다."
+            description = "판매자의 전체 정산 내역을 페이징으로 조회합니다. (Settlement 테이블 데이터만, 배송완료 후 7일 지난 데이터)"
     )
     public ResponseEntity<ApiResponse<SettlementListResponseDto>> getSettlementList(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -84,12 +84,12 @@ public class SettlementController {
     /**
      * 기간별 정산 리스트 조회 (페이징)
      * 2. 사용자가 선택한 기간동안의 정산 리스트 출력 (페이징)
-     * 2-2. 선택한 기간동안의 정산내역 건수, 총 정산금액, 상태금액, 평균 정산금액
+     * 2-2. 선택한 기간동안의 정산내역 건수, 총 정산금액, 완료금액, 처리중금액
      */
     @PostMapping("/period")
     @Operation(
             summary = "기간별 정산 리스트 조회",
-            description = "판매자의 지정 기간 정산 내역을 페이징으로 조회합니다."
+            description = "판매자의 지정 기간 정산 내역을 페이징으로 조회합니다. (Settlement 테이블 데이터만)"
     )
     public ResponseEntity<ApiResponse<SettlementListResponseDto>> getSettlementListByPeriod(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -129,14 +129,14 @@ public class SettlementController {
 
     /**
      * 이번달 정산현황 조회
-     * 3-1. 이번달 총 정산금액 = (정산확정금액 + 정산예정금액)
-     *      정산확정금액 = (정산완료 + 처리중)
-     *      정산예정금액 = 대기중
+     * 3-1. 이번달 총 정산금액 = (정산완료금액 + 정산처리중금액)
+     *      정산완료금액 = COMPLETED 상태
+     *      정산처리중금액 = IN_PROGRESS 상태
      */
     @GetMapping("/monthly-status")
     @Operation(
             summary = "이번달 정산현황 조회",
-            description = "판매자의 이번달 정산현황(총금액, 확정금액, 예정금액)을 조회합니다."
+            description = "판매자의 이번달 정산현황(총금액, 완료금액, 처리중금액)을 조회합니다. (Settlement 테이블 데이터만)"
     )
     public ResponseEntity<ApiResponse<MonthlySettlementStatusDto>> getMonthlySettlementStatus(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
@@ -147,8 +147,8 @@ public class SettlementController {
 
             MonthlySettlementStatusDto response = settlementService.getMonthlySettlementStatus(userPrincipal);
 
-            log.info("이번달 정산현황 조회 성공 - 총금액: {}, 확정금액: {}, 예정금액: {}",
-                    response.totalMonthlyAmount(), response.confirmedAmount(), response.pendingAmount());
+            log.info("이번달 정산현황 조회 성공 - 총금액: {}, 완료금액: {}, 처리중금액: {}",
+                    response.totalMonthlyAmount(), response.completedAmount(), response.inProgressAmount());
 
             return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
 
@@ -176,7 +176,7 @@ public class SettlementController {
     @GetMapping("/monthly-receipt/{targetMonth}")
     @Operation(
             summary = "월별 정산내역 영수증 조회",
-            description = "판매자의 특정 월 정산내역 영수증을 조회합니다. (CSV Export용)"
+            description = "판매자의 특정 월 정산내역 영수증을 조회합니다. (CSV Export용, Settlement 테이블 데이터만)"
     )
     public ResponseEntity<ApiResponse<MonthlySettlementReceiptDto>> getMonthlySettlementReceipt(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
