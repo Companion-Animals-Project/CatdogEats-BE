@@ -5,10 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 /**
  * 운송장 번호 등록 요청 DTO
@@ -16,57 +12,73 @@ import lombok.NoArgsConstructor;
  *
  * 판매자가 택배사에서 발급받은 운송장 번호를 등록하여 배송을 시작할 때 사용하는 요청 구조
  */
-@Getter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder(toBuilder = true)
-public class TrackingNumberRegisterRequest {
+public record TrackingNumberRegisterRequest(
+
+        /**
+         * 운송장 번호를 등록할 주문 번호
+         */
+        @NotBlank(message = "주문 번호는 필수입니다")
+        String orderNumber,
+
+        /**
+         * 택배사
+         * CourierCompany enum 값 중 하나여야 함
+         */
+        @NotNull(message = "택배사는 필수입니다")
+        CourierCompany courierCompany,
+
+        /**
+         * 운송장 번호
+         * 택배사에서 발급받은 실제 운송장 번호
+         * 영문, 숫자, 하이픈만 허용 (택배사별로 형식이 다를 수 있음)
+         */
+        @NotBlank(message = "운송장 번호는 필수입니다")
+        @Size(min = 8, max = 50, message = "운송장 번호는 8~50자 사이여야 합니다")
+        @Pattern(regexp = "^[A-Za-z0-9\\-]+$", message = "운송장 번호는 영문, 숫자, 하이픈만 입력 가능합니다")
+        String trackingNumber,
+
+        /**
+         * 배송 메모 (선택사항)
+         * 배송 시 특별히 주의할 사항이나 배송 관련 메모
+         */
+        @Size(max = 200, message = "배송 메모는 200자를 초과할 수 없습니다")
+        String shipmentMemo,
+
+        /**
+         * 즉시 배송 시작 여부
+         * true: 운송장 등록과 동시에 배송 중 상태로 변경
+         * false: 운송장만 등록하고 별도로 상태 변경 필요
+         */
+        Boolean startShipmentImmediately,
+
+        /**
+         * 스마트택배 API 연동 여부
+         * true: 운송장 번호 유효성을 스마트택배 API로 검증
+         * false: 유효성 검증 없이 등록 (API 장애 시 사용)
+         */
+        Boolean enableApiValidation
+) {
 
     /**
-     * 운송장 번호를 등록할 주문 번호
+     * Compact Constructor - 기본값 설정 및 유효성 검증
      */
-    @NotBlank(message = "주문 번호는 필수입니다")
-    private String orderNumber;
+    public TrackingNumberRegisterRequest {
+        // 기본값 설정
+        if (startShipmentImmediately == null) {
+            startShipmentImmediately = true;
+        }
+        if (enableApiValidation == null) {
+            enableApiValidation = true;
+        }
 
-    /**
-     * 택배사
-     * CourierCompany enum 값 중 하나여야 함
-     */
-    @NotNull(message = "택배사는 필수입니다")
-    private CourierCompany courierCompany;
-
-    /**
-     * 운송장 번호
-     * 택배사에서 발급받은 실제 운송장 번호
-     * 영문, 숫자, 하이픈만 허용 (택배사별로 형식이 다를 수 있음)
-     */
-    @NotBlank(message = "운송장 번호는 필수입니다")
-    @Size(min = 8, max = 50, message = "운송장 번호는 8~50자 사이여야 합니다")
-    @Pattern(regexp = "^[A-Za-z0-9\\-]+$", message = "운송장 번호는 영문, 숫자, 하이픈만 입력 가능합니다")
-    private String trackingNumber;
-
-    /**
-     * 배송 메모 (선택사항)
-     * 배송 시 특별히 주의할 사항이나 배송 관련 메모
-     */
-    @Size(max = 200, message = "배송 메모는 200자를 초과할 수 없습니다")
-    private String shipmentMemo;
-
-    /**
-     * 즉시 배송 시작 여부
-     * true: 운송장 등록과 동시에 배송 중 상태로 변경
-     * false: 운송장만 등록하고 별도로 상태 변경 필요
-     */
-    @Builder.Default
-    private Boolean startShipmentImmediately = true;
-
-    /**
-     * 스마트택배 API 연동 여부
-     * true: 운송장 번호 유효성을 스마트택배 API로 검증
-     * false: 유효성 검증 없이 등록 (API 장애 시 사용)
-     */
-    @Builder.Default
-    private Boolean enableApiValidation = true;
+        // 운송장 번호 기본 형식 검증
+        if (trackingNumber != null && courierCompany != null) {
+            if (!isValidTrackingNumberFormat()) {
+                throw new IllegalArgumentException(
+                        String.format("%s의 운송장 번호 형식이 올바르지 않습니다", courierCompany.getDisplayName()));
+            }
+        }
+    }
 
     /**
      * 택배사의 API 코드 반환
@@ -101,7 +113,7 @@ public class TrackingNumberRegisterRequest {
      * @return API 검증을 수행할지 여부
      */
     public boolean shouldValidateWithApi() {
-        return enableApiValidation != null && enableApiValidation;
+        return Boolean.TRUE.equals(enableApiValidation);
     }
 
     /**
@@ -109,7 +121,7 @@ public class TrackingNumberRegisterRequest {
      * @return 운송장 등록과 동시에 배송 시작할지 여부
      */
     public boolean shouldStartShipmentImmediately() {
-        return startShipmentImmediately != null && startShipmentImmediately;
+        return Boolean.TRUE.equals(startShipmentImmediately);
     }
 
     /**
@@ -118,26 +130,11 @@ public class TrackingNumberRegisterRequest {
      * @return 유효한 형식인지 여부
      */
     public boolean isValidTrackingNumberFormat() {
-        if (trackingNumber == null || trackingNumber.trim().isEmpty()) {
+        if (trackingNumber == null || trackingNumber.trim().isEmpty() || courierCompany == null) {
             return false;
         }
 
-        String normalized = getNormalizedTrackingNumber();
-
-        // 기본 길이 체크
-        if (normalized.length() < 8 || normalized.length() > 50) {
-            return false;
-        }
-
-        // 택배사별 형식 검증 (간단한 규칙만)
-        return switch (courierCompany) {
-            case POST_OFFICE -> normalized.matches("^[0-9]{13}$"); // 13자리 숫자
-            case CJ_LOGISTICS -> normalized.matches("^[0-9]{10,12}$"); // 10-12자리 숫자
-            case HANJIN -> normalized.matches("^[0-9]{10,12}$"); // 10-12자리 숫자
-            case LOGEN -> normalized.matches("^[0-9]{11,12}$"); // 11-12자리 숫자
-            case LOTTE -> normalized.matches("^[0-9]{12,13}$"); // 12-13자리 숫자
-            default -> true; // 기본적으로 허용
-        };
+        return courierCompany.isValidTrackingNumberFormat(getNormalizedTrackingNumber());
     }
 
     /**
@@ -146,6 +143,17 @@ public class TrackingNumberRegisterRequest {
      */
     public boolean hasShipmentMemo() {
         return shipmentMemo != null && !shipmentMemo.trim().isEmpty();
+    }
+
+    /**
+     * 배송 추적 URL 생성
+     * @return 택배사별 배송 추적 URL
+     */
+    public String generateTrackingUrl() {
+        if (courierCompany == null || trackingNumber == null) {
+            return null;
+        }
+        return courierCompany.generateTrackingUrl(getNormalizedTrackingNumber());
     }
 
     /**
@@ -178,5 +186,98 @@ public class TrackingNumberRegisterRequest {
                 maskedTracking,
                 shouldStartShipmentImmediately(),
                 shouldValidateWithApi());
+    }
+
+    /**
+     * 요청 유효성 전체 검증
+     * @return 유효한 요청인지 여부
+     */
+    public boolean isValidRequest() {
+        return orderNumber != null && !orderNumber.trim().isEmpty() &&
+                courierCompany != null &&
+                isValidTrackingNumberFormat();
+    }
+
+    /**
+     * 정적 팩토리 메서드 - 기본 운송장 등록
+     * @param orderNumber 주문 번호
+     * @param courierCompany 택배사
+     * @param trackingNumber 운송장 번호
+     * @return 운송장 등록 요청
+     */
+    public static TrackingNumberRegisterRequest of(
+            String orderNumber,
+            CourierCompany courierCompany,
+            String trackingNumber) {
+        return new TrackingNumberRegisterRequest(
+                orderNumber, courierCompany, trackingNumber, null, true, true);
+    }
+
+    /**
+     * 정적 팩토리 메서드 - 메모 포함 운송장 등록
+     * @param orderNumber 주문 번호
+     * @param courierCompany 택배사
+     * @param trackingNumber 운송장 번호
+     * @param shipmentMemo 배송 메모
+     * @return 운송장 등록 요청
+     */
+    public static TrackingNumberRegisterRequest withMemo(
+            String orderNumber,
+            CourierCompany courierCompany,
+            String trackingNumber,
+            String shipmentMemo) {
+        return new TrackingNumberRegisterRequest(
+                orderNumber, courierCompany, trackingNumber, shipmentMemo, true, true);
+    }
+
+    /**
+     * 정적 팩토리 메서드 - 상태 변경 없이 운송장만 등록
+     * @param orderNumber 주문 번호
+     * @param courierCompany 택배사
+     * @param trackingNumber 운송장 번호
+     * @return 운송장 등록 요청 (배송 시작 안함)
+     */
+    public static TrackingNumberRegisterRequest registerOnly(
+            String orderNumber,
+            CourierCompany courierCompany,
+            String trackingNumber) {
+        return new TrackingNumberRegisterRequest(
+                orderNumber, courierCompany, trackingNumber, null, false, true);
+    }
+
+    /**
+     * 정적 팩토리 메서드 - API 검증 없이 운송장 등록
+     * @param orderNumber 주문 번호
+     * @param courierCompany 택배사
+     * @param trackingNumber 운송장 번호
+     * @return 운송장 등록 요청 (API 검증 안함)
+     */
+    public static TrackingNumberRegisterRequest withoutValidation(
+            String orderNumber,
+            CourierCompany courierCompany,
+            String trackingNumber) {
+        return new TrackingNumberRegisterRequest(
+                orderNumber, courierCompany, trackingNumber, null, true, false);
+    }
+
+    /**
+     * 정적 팩토리 메서드 - 완전한 운송장 등록 요청
+     * @param orderNumber 주문 번호
+     * @param courierCompany 택배사
+     * @param trackingNumber 운송장 번호
+     * @param shipmentMemo 배송 메모
+     * @param startShipment 즉시 배송 시작 여부
+     * @param enableValidation API 검증 여부
+     * @return 운송장 등록 요청
+     */
+    public static TrackingNumberRegisterRequest complete(
+            String orderNumber,
+            CourierCompany courierCompany,
+            String trackingNumber,
+            String shipmentMemo,
+            boolean startShipment,
+            boolean enableValidation) {
+        return new TrackingNumberRegisterRequest(
+                orderNumber, courierCompany, trackingNumber, shipmentMemo, startShipment, enableValidation);
     }
 }
