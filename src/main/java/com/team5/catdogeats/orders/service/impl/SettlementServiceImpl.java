@@ -19,9 +19,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
- * 정산현황 관리 서비스 구현체 (수정된 버전)
- * Settlement 테이블 기반으로만 조회 (배송완료 후 7일 지난 데이터만)
- * pendingAmount 제거, inProgressAmount 추가
+ * 정산현황 관리 서비스 구현체
  */
 @Slf4j
 @Service
