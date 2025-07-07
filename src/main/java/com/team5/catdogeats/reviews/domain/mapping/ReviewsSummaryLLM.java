@@ -2,6 +2,7 @@ package com.team5.catdogeats.reviews.domain.mapping;
 
 import com.team5.catdogeats.baseEntity.BaseEntity;
 import com.team5.catdogeats.products.domain.Products;
+import com.team5.catdogeats.reviews.domain.Reviews;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,6 +23,10 @@ public class ReviewsSummaryLLM extends BaseEntity {
     @JoinColumn(name = "product_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_reviews_summary_llm_product_id"))
     private Products product;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "review_id")
+    private Reviews review;
 
     @Column(name = "positive_review", nullable = false, columnDefinition = "TEXT")
     private String positiveReview;
