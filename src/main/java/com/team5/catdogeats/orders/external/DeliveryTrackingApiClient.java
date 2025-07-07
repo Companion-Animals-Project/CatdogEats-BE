@@ -1,5 +1,8 @@
 package com.team5.catdogeats.orders.external;
 
+import com.team5.catdogeats.orders.external.dto.CourierCompanyListResponse;
+import com.team5.catdogeats.orders.external.dto.DeliveryTrackingResponse;
+import com.team5.catdogeats.orders.external.dto.TrackingValidationResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -11,6 +14,10 @@ import org.springframework.web.bind.annotation.RequestParam;
  * API 제한사항:
  * - 프리티어: 동일 운송장 일 최대 10건 조회 제한
  * - 일일 전체 호출 제한: 1000건
+ *
+ * 지원 택배사:
+ * - 우체국택배 (01), CJ대한통운 (04), 한진택배 (05)
+ * - 로젠택배 (06), 롯데택배 (08)
  */
 @FeignClient(
         name = "delivery-tracking-api",
@@ -49,106 +56,34 @@ public interface DeliveryTrackingApiClient {
 
     /**
      * 운송장 번호 유효성 검증 API
-     * 운송장 번호가 올바른 형식인지 검증합니다.
+     * 운송장 번호가 올바른 형식이고 실제 존재하는지 검증합니다.
+     *
+     * 주의: 이 API도 배송 조회와 동일한 엔드포인트를 사용하지만,
+     * 검증 목적으로 사용되므로 별도 메서드로 분리했습니다.
      *
      * @param t_key API 키
      * @param t_code 택배사 코드
-     * @param t_invoice 운송장 번호
-     * @return 유효성 검증 결과
+     * @param t_invoice 검증할 운송장 번호
+     * @return 운송장 검증 결과
      */
-    @GetMapping("/invoice")
-    DeliveryValidationResponse validateInvoice(
+    @GetMapping("/trackingInfo")
+    TrackingValidationResponse validateTrackingNumber(
             @RequestParam("t_key") String t_key,
             @RequestParam("t_code") String t_code,
             @RequestParam("t_invoice") String t_invoice
     );
 
     /**
-     * 스마트택배 배송 추적 응답 DTO
+     * 추천 배송업체 조회 API (선택 사용)
+     * 수취인 주소 기반으로 최적의 택배사를 추천받습니다.
+     *
+     * @param t_key API 키
+     * @param t_zipcode 우편번호
+     * @return 추천 택배사 정보
      */
-    record DeliveryTrackingResponse(
-            String level,           // 배송 상태 레벨 (1: 배송준비중, 2: 집화완료, 3: 배송중, 4: 배송완료)
-            String manName,         // 배송담당자
-            String manPic,          // 배송담당자 연락처
-            String receiverName,    // 수령인
-            String receiverAddr,    // 수령 주소
-            String itemName,        // 상품명
-            String invoiceNo,       // 운송장번호
-            String orderNumber,     // 주문번호
-            String adUrl,           // 광고 URL
-            String estimate,        // 배송 예정일
-            String productInfo,     // 상품 정보
-            String zipCode,         // 우편번호
-            String complete,        // 배송완료여부 ('Y': 완료, 'N': 미완료)
-            TrackingDetail[] trackingDetails  // 배송 상세 이력
-    ) {
-
-        /**
-         * 배송 완료 여부 확인
-         * @return 배송 완료 시 true
-         */
-        public boolean isDelivered() {
-            return "Y".equals(complete) || "4".equals(level);
-        }
-
-        /**
-         * 배송 상태 메시지 반환
-         * @return 현재 배송 상태 설명
-         */
-        public String getStatusMessage() {
-            return switch (level) {
-                case "1" -> "배송준비중";
-                case "2" -> "집화완료";
-                case "3" -> "배송중";
-                case "4" -> "배송완료";
-                default -> "상태불명";
-            };
-        }
-    }
-
-    /**
-     * 배송 상세 이력 정보
-     */
-    record TrackingDetail(
-            String timeString,      // 처리일시
-            String where,          // 처리장소
-            String kind,           // 처리상태
-            String telno,          // 연락처
-            String telno2,         // 연락처2
-            String remark          // 비고
-    ) {}
-
-    /**
-     * 택배사 목록 응답 DTO
-     */
-    record CourierCompanyListResponse(
-            CompanyInfo[] Company  // 택배사 정보 배열
-    ) {}
-
-    /**
-     * 택배사 정보
-     */
-    record CompanyInfo(
-            String Code,           // 택배사 코드
-            String Name,           // 택배사명
-            String International   // 국제배송 지원여부
-    ) {}
-
-    /**
-     * 운송장 유효성 검증 응답 DTO
-     */
-    record DeliveryValidationResponse(
-            String status,         // 상태 ('TRUE': 유효, 'FALSE': 무효)
-            String message,        // 메시지
-            String invoiceNo       // 운송장 번호
-    ) {
-
-        /**
-         * 유효한 운송장 번호인지 확인
-         * @return 유효한 경우 true
-         */
-        public boolean isValid() {
-            return "TRUE".equals(status);
-        }
-    }
+    @GetMapping("/recommend")
+    CourierCompanyListResponse getRecommendedCouriers(
+            @RequestParam("t_key") String t_key,
+            @RequestParam("t_zipcode") String t_zipcode
+    );
 }
