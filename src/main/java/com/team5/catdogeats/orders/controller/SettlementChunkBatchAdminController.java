@@ -20,8 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 정산 청크 배치 관리용 컨트롤러 (관리자 기능)
- * 기존 Tasklet 방식을 대체하는 청크 기반 배치 관리
+ * 정산 청크 배치 관리용 컨트롤러 (관리자 기능- 추후 프론트 구현 및 보완 예정)
  */
 @Slf4j
 @RestController
