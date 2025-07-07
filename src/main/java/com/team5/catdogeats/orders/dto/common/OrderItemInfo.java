@@ -75,5 +75,18 @@ public record OrderItemInfo(
     @JsonIgnore      // 직렬화 시 프록시 회피
     public Sellers seller() { return sellers; }
 
-    public String sellerId() { return sellers.getUserId(); } // DTO용
+    public String sellerId() { return sellers.getUserId(); }
+
+    public OrderItemInfo mergeQuantity(OrderItemInfo other) {
+        if (!this.productId.equals(other.productId())) {
+            throw new IllegalArgumentException("productId 가 다릅니다");
+        }
+        int mergedQty = this.quantity + other.quantity();
+        long mergedTotal = this.unitPrice * mergedQty;  // 단가 동일 가정
+        return new OrderItemInfo(
+                this.productId, this.productName,
+                mergedQty, this.unitPrice, mergedTotal,
+                this.sellers
+        );
+    }
 }

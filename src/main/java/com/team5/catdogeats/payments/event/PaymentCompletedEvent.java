@@ -36,6 +36,7 @@ public record PaymentCompletedEvent(
         boolean couponApplied,
         Long discountAmount,
         Long discountedTotalPrice,
+        List<String> couponIds,
 
         // 이벤트 발생 시각
         ZonedDateTime eventOccurredAt
@@ -51,7 +52,8 @@ public record PaymentCompletedEvent(
             Long originalTotalPrice,
             boolean couponApplied,
             Long discountAmount,
-            Long discountedTotalPrice) {
+            Long discountedTotalPrice,
+            List<String> couponIds) {
 
         return new PaymentCompletedEvent(
                 orderId,
@@ -65,6 +67,7 @@ public record PaymentCompletedEvent(
                 couponApplied,
                 discountAmount,
                 discountedTotalPrice,
+                couponIds,
                 ZonedDateTime.now());
     }
 

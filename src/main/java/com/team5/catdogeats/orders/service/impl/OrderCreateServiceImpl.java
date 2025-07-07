@@ -31,11 +31,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
@@ -133,6 +132,8 @@ public class OrderCreateServiceImpl implements OrderCreateService {
                     orderName
             );
 
+        } catch (NoSuchElementException | IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             log.error("주문 생성 실패: error={}", e.getMessage(), e);
             throw new RuntimeException(e);
@@ -157,19 +158,33 @@ public class OrderCreateServiceImpl implements OrderCreateService {
         if (paymentInfo == null || paymentInfo.getSellerCoupons().isEmpty()) {
             return null;
         }
-        List<GroupSellerAndCouponsDTO> result = buyerCouponRepository.findAllByBuyerAndCouponIds(buyers, paymentInfo.getSellerCoupons());
 
-        Map<Sellers, List<GroupSellerAndCouponsDTO>> groupedBySeller = result.stream()
-                .peek(dto -> {
-                    if (dto.sellers() == null) {
-                        throw new IllegalArgumentException("쿠폰이 어떤 판매자에도 연결되어 있지 않습니다.");
-                    }
-                })
-                .collect(Collectors.groupingBy(GroupSellerAndCouponsDTO::sellers));
+        List<String> ids = Optional.of(paymentInfo)
+                .map(OrderCreateRequest.PaymentInfoRequest::getSellerCoupons)
+                .orElse(List.of());
+        List<String> distinctIds = ids.stream().distinct().toList();
 
-        groupedBySeller.forEach((seller, coupons) -> {
-            if (coupons.size() > 1) {
-                throw new IllegalArgumentException("판매자당 쿠폰은 하나만 사용할 수 있습니다.");
+        List<GroupSellerAndCouponsDTO> result = buyerCouponRepository.findValidCoupons(buyers, paymentInfo.getSellerCoupons(), LocalDate.now());
+
+        if (result.size() != distinctIds.size()) {
+            Set<String> ok = result.stream()
+                    .map(dto -> dto.coupons().getId())
+                    .collect(Collectors.toSet());
+
+            String invalid = distinctIds.stream()
+                    .filter(id -> !ok.contains(id))
+                    .collect(Collectors.joining(", "));
+            throw new NoSuchElementException("사용할 수 없는 쿠폰: " + invalid);
+        }
+
+        Map<Sellers, List<GroupSellerAndCouponsDTO>> bySeller =
+                result.stream()
+                        .collect(Collectors.groupingBy(GroupSellerAndCouponsDTO::sellers));
+
+        bySeller.forEach((seller, list) -> {
+            if (list.size() > 1) {
+                throw new IllegalArgumentException(
+                        "판매자(" + seller.getUserId() + ")당 쿠폰은 하나만 사용할 수 있습니다.");
             }
         });
         return result;
@@ -206,14 +221,24 @@ public class OrderCreateServiceImpl implements OrderCreateService {
     private Map<Sellers, List<OrderItemInfo>> validateAndCollectOrderItems(
             List<OrderCreateRequest.OrderItemRequest> reqs){
 
-        return reqs.stream()
+        List<OrderItemInfo> rawItems =reqs.stream()
                 .map(r -> {
-                    if(r.getQuantity() <= 0)
+                    if (r.getQuantity() <= 0)
                         throw new IllegalArgumentException("수량은 1개 이상");
                     Products p = productRepository.findById(r.getProductId())
-                            .orElseThrow(() -> new NoSuchElementException("상품 없음: "+r.getProductId()));
+                            .orElseThrow(() -> new NoSuchElementException("상품 없음: " + r.getProductId()));
                     return OrderItemInfo.of(p, r.getQuantity());
                 })
+                .toList();
+        Map<String, OrderItemInfo> mergedByProduct = rawItems.stream()
+                .collect(Collectors.toMap(
+                        OrderItemInfo::productId,
+                        i -> i,
+                        OrderItemInfo::mergeQuantity         // 결합 함수를 사용해 합산
+                ));
+
+        // 판매자별로 그룹핑
+        return mergedByProduct.values().stream()
                 .collect(Collectors.groupingBy(OrderItemInfo::seller));
     }
 
@@ -229,38 +254,17 @@ public class OrderCreateServiceImpl implements OrderCreateService {
     /**
      * 정률 할인 적용
      */
-    private Long applyCouponDiscountPercent(Long originalTotalPrice, Integer couponDiscountRate) {
-        if (couponDiscountRate == null || couponDiscountRate <= 0) {
-            return originalTotalPrice;
+    private Long applyCouponDiscountPercent(Long subTotal, Integer couponDiscountRate) {
+        if (couponDiscountRate <= 0 || couponDiscountRate > 100) {
+            throw new IllegalArgumentException("할인율 0이하 또는 100을 초과할 수 없습니다.");
         }
-
-        if (couponDiscountRate > 100) {
-            throw new IllegalArgumentException("쿠폰 할인율은 100%를 초과할 수 없습니다.");
-        }
-
-        Long discountedAmount = Math.round(originalTotalPrice * (1 - couponDiscountRate / 100.0));
-        log.debug("정률 할인 적용: {}% → {}원 할인 ({}원 → {}원)",
-                couponDiscountRate, originalTotalPrice - discountedAmount, originalTotalPrice, discountedAmount);
-
-        return discountedAmount;
+        return Math.round(subTotal * (couponDiscountRate / 100.0));
     }
 
-    /**
-     * 정액 할인 적용
-     */
-    private Long applyCouponDiscountAmount(Long originalTotalPrice, Integer couponDiscountAmount) {
-        if (couponDiscountAmount == null || couponDiscountAmount <= 0) {
-            return originalTotalPrice;
-        }
-        if (couponDiscountAmount > originalTotalPrice) {
-            throw new IllegalArgumentException("쿠폰 할인 금액이 주문 총액을 초과할 수 없습니다.");
-        }
-
-        Long discountedAmount = originalTotalPrice - couponDiscountAmount;
-        log.debug("정액 할인 적용: {}원 할인 ({}원 → {}원)",
-                couponDiscountAmount, originalTotalPrice, discountedAmount);
-
-        return discountedAmount;
+    private long applyCouponDiscountAmount(long subTotal, int amount) {
+        if (amount <= 0 || amount > subTotal)
+            throw new IllegalArgumentException("할인 금액 오류");
+        return amount;
     }
 
     private Long calculateFinalPaymentAmount(Long discountedTotalPrice, Long totalDeliveryFee) {
@@ -302,23 +306,21 @@ public class OrderCreateServiceImpl implements OrderCreateService {
                             i.sellerId()        // ← String
                     ))
                     .toList();
-            String json = objectMapper.writeValueAsString(snap);
-            String couponsJson      = objectMapper.writeValueAsString(
-                    paymentInfo != null ? paymentInfo.getSellerCoupons() : Map.of());
+            String orderItemsJson = objectMapper.writeValueAsString(snap);
             String shippingAddressJson = objectMapper.writeValueAsString(shippingAddress);
-            String appliedCouponsJson = objectMapper.writeValueAsString(paymentInfo.getSellerCoupons());
+            String appliedCouponsJson = getAppliedCouponsJson(paymentInfo);
             OrderPendingDetails orderPendingDetails = OrderPendingDetails.builder()
                     .orders(order)
                     .buyers(buyer)
                     .originalTotalPrice(originalTotalPrice)
                     .totalDeliveryFee(totalDeliveryFee)
                     .finalPaymentAmount(finalPaymentAmount)
-                    .orderItemsJson(json)
-                    .appliedCouponsJson(couponsJson)
-                    .shippingAddressJson(shippingAddressJson)
-                    .appliedCouponsJson(appliedCouponsJson).build();
-
+                    .orderItemsJson(orderItemsJson)
+                    .appliedCouponsJson(appliedCouponsJson)
+                    .shippingAddressJson(shippingAddressJson).build();
             orderPendingDetailsRepository.save(orderPendingDetails);
+            log.debug("OrderPendingDetails 저장 완료: orderId={}, 쿠폰정보={}",
+                    order.getId(), appliedCouponsJson);
 
         } catch (JsonProcessingException e) {
             log.error("OrderPendingDetails JSON 직렬화 실패: orderId={}, error={}", order.getId(), e.getMessage());
@@ -326,6 +328,12 @@ public class OrderCreateServiceImpl implements OrderCreateService {
         }
     }
 
+    private String getAppliedCouponsJson(OrderCreateRequest.PaymentInfoRequest paymentInfo) throws JsonProcessingException {
+        if (paymentInfo != null && paymentInfo.getSellerCoupons() != null) {
+            return objectMapper.writeValueAsString(paymentInfo.getSellerCoupons());
+        }
+        return objectMapper.writeValueAsString(List.of());
+    }
 
 
     @Override
@@ -386,16 +394,6 @@ public class OrderCreateServiceImpl implements OrderCreateService {
             default -> "현재 상태에서는 주문을 삭제할 수 없습니다.";
         };
     }
-
-
-    private Long calculateDeliveryFee(Sellers seller, Long sellerTotalPrice) {
-        if (sellerTotalPrice >= seller.getFreeShippingThreshold()) {
-            return 0L;
-        }
-        return seller.getDeliveryFee();
-    }
-
-
 
 
     private String generateOrderNumber() {

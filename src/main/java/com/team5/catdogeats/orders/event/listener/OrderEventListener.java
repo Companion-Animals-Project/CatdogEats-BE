@@ -1,5 +1,6 @@
 package com.team5.catdogeats.orders.event.listener;
 
+import com.team5.catdogeats.coupons.repository.BuyerCouponRepository;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.Shipments;
@@ -33,6 +34,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
@@ -50,6 +52,7 @@ public class OrderEventListener {
     private final ProductRepository productRepository;
     private final StockReservationService stockReservationService;
     private final ProductStockManager productStockManager;
+    private final BuyerCouponRepository buyerCouponRepository;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
@@ -123,34 +126,6 @@ public class OrderEventListener {
         }
     }
 
-//    @Async
-//    @EventListener
-//    public void handleUserNotification(OrderCreatedEvent event) {
-//        String orderId = event.orderId();
-//        log.info("주문 생성 알림 처리 시작: orderId={}, orderNumber={}",
-//                orderId, event.orderNumber());
-//
-//        try {
-//            log.info("""
-//                    [Catdogeats] 주문이 완료되었습니다! 🐱🐶
-//                    주문번호: {}
-//                    상품: {}
-//                    총 금액: {}원
-//                    결제를 진행해 주세요.
-//                    """,
-//                    event.orderNumber(),
-//                    event.getOrderSummary(),
-//                    String.format("%,d", event.finalTotalPrice())
-//            );
-//
-//            log.info("주문 생성 알림 발송 완료: orderId={}, userId={}, itemCount={}",
-//                    orderId, event.buyerId(), event.getOrderItemCount());
-//
-//        } catch (Exception e) {
-//            log.error("주문 생성 알림 발송 실패: orderId={}, error={}", orderId, e.getMessage(), e);
-//        }
-//    }
-
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
     public void handleOrderItemsAndShipmentsCreation(PaymentCompletedEvent event) {
@@ -164,15 +139,23 @@ public class OrderEventListener {
 
             List<OrderItems> orderItems = createOrderItems(order, event.orderItems());
             orderItemRepository.saveAll(orderItems);
-            log.info("OrderItems 생성 완료: orderId={}, itemCount={}", orderId, orderItems.size());
+            log.debug("OrderItems 생성 완료: orderId={}, itemCount={}", orderId, orderItems.size());
 
             if (event.shippingAddress() != null) {
                 Sellers seller = getSellerFromOrderItems(orderItems);
                 Shipments shipment = createShipment(order, event.shippingAddress(), seller);
                 shipmentRepository.save(shipment);
-                log.info("Shipments 생성 완료: orderId={}, shipmentId={}, 수령인={}",
+                log.debug("Shipments 생성 완료: orderId={}, shipmentId={}, 수령인={}",
                         orderId, shipment.getId(), shipment.getRecipientName());
             }
+
+            if (event.couponApplied() && !event.couponIds().isEmpty()) {
+                int updated = buyerCouponRepository.markBuyerCouponUsed(order.getBuyers(), event.couponIds(), ZonedDateTime.now());
+                if (updated != event.couponIds().size()) {
+                    throw new IllegalStateException("쿠폰 소모 처리 불일치");
+                }
+            }
+
 
             order.setOrderStatus(OrderStatus.PAYMENT_COMPLETED);
             orderRepository.save(order);
