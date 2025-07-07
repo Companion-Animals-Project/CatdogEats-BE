@@ -1,0 +1,46 @@
+package com.team5.catdogeats.reviews.controller;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.enums.ResponseCode;
+import com.team5.catdogeats.reviews.domain.dto.ReviewSummaryResponseDto;
+import com.team5.catdogeats.reviews.domain.mapping.ReviewsSummaryLLM;
+import com.team5.catdogeats.reviews.service.ReviewSummaryService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.NoSuchElementException;
+
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/v1/buyers/reviews")
+public class ReviewSummaryController {
+    private final ReviewSummaryService reviewSummaryService;
+
+    @GetMapping("/{productNumber}")
+    public ResponseEntity<ApiResponse<ReviewSummaryResponseDto>> getReviewSummary(@PathVariable Long productNumber) {
+        try {
+            ReviewSummaryResponseDto summary = reviewSummaryService.summarizeReviewsByProductNumber(productNumber, false);
+
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS,
+                    summary));
+        } catch (JsonProcessingException e) {
+            return ResponseEntity
+                    .status(ResponseCode.JSON_PARSING_FAIL.getStatus())
+                    .body(ApiResponse.error(ResponseCode.JSON_PARSING_FAIL, e.getMessage()));
+        } catch (NoSuchElementException e) {
+            // 상품 없거나, 검증된 리뷰 및 리뷰 요약 없을 때
+            return ResponseEntity
+                    .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+        }
+    }
+}

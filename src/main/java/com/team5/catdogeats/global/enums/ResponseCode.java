@@ -66,6 +66,9 @@ public enum ResponseCode {
     NOTIFICATION_SUCCESS(HttpStatus.OK, "알림이 성공적으로 전송되었습니다."),
     NOTIFICATION_READ_SUCCESS(HttpStatus.OK, "알림을 읽음 처리했습니다."),
 
+    // === JSON 파싱 에러 ===
+    JSON_PARSING_FAIL(HttpStatus.BAD_REQUEST, "JSON 형식이 올바르지 않습니다."),
+
     // 추가적인 도메인별 에러 코드 정의 가능
     ;
 
