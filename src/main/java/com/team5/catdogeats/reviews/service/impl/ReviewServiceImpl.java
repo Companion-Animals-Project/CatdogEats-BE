@@ -9,6 +9,7 @@ import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.reviews.domain.Reviews;
 import com.team5.catdogeats.reviews.domain.dto.*;
 import com.team5.catdogeats.reviews.mapper.ReviewMapper;
+import com.team5.catdogeats.reviews.repository.ReviewClassificationLLMRepository;
 import com.team5.catdogeats.reviews.repository.ReviewRepository;
 import com.team5.catdogeats.reviews.service.ReviewService;
 import com.team5.catdogeats.storage.domain.dto.ReviewImageResponseDto;
@@ -39,6 +40,7 @@ public class ReviewServiceImpl implements ReviewService {
     private final ReviewImageRepository reviewImageRepository;
     private final ReviewImageService reviewImageService;
     private final ReviewMapper reviewMapper;
+    private final ReviewClassificationLLMRepository reviewClassificationLLMRepository;
 
     @Override
     public String registerReview(UserPrincipal userPrincipal, ReviewCreateRequestDto dto) {
@@ -156,7 +158,8 @@ public class ReviewServiceImpl implements ReviewService {
     public void deleteReview(ReviewDeleteRequestDto dto) {
         Reviews review = reviewRepository.findById(dto.reviewId())
                 .orElseThrow(() -> new NoSuchElementException("해당 리뷰를 찾을 수 없습니다."));
-
+        // 0. classification 결과 먼저 삭제
+        reviewClassificationLLMRepository.deleteAllByReview(review);
         // 1. 리뷰와 연결된 모든 이미지 매핑 조회
         List<ReviewsImages> mappings = reviewImageRepository.findAllByReviewsId(dto.reviewId());
         // 2. 이미지 삭제 서비스 호출

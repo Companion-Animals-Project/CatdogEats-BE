@@ -1,5 +1,6 @@
 package com.team5.catdogeats.reviews.repository;
 
+import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.reviews.domain.Reviews;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -66,4 +67,9 @@ public interface ReviewRepository extends JpaRepository<Reviews, String> {
         group by groupStar
     """)
     List<Object[]> findGroupStarCountBySellerId(@Param("sellerId") String sellerId);
+
+    // 해당 상품에 속하는 최신 리뷰 30개를 createdAt 내림차순(최신순)으로 조회
+    List<Reviews> findTop30ByProductOrderByCreatedAtDesc(Products product);
+
+    List<Reviews> findAllByProduct(Products product);
 }
