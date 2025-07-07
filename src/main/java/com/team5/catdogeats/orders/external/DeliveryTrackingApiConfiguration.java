@@ -1,229 +1,131 @@
 package com.team5.catdogeats.orders.external;
 
 import feign.Logger;
-import feign.Request;
-import feign.Retryer;
+import feign.RequestInterceptor;
 import feign.codec.ErrorDecoder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.retry.annotation.EnableRetry;
 
 import java.util.concurrent.TimeUnit;
 
 /**
- * 배송 추적 API OpenFeign 설정
- * API 호출 타임아웃, 재시도, 로깅 등을 설정
+ * 스마트택배 API Feign 클라이언트 설정
+ * API 호출 시 필요한 인증, 타임아웃, 로깅, 오류 처리 설정
  */
 @Slf4j
 @Configuration
-@EnableRetry
 public class DeliveryTrackingApiConfiguration {
 
+    @Value("${smart-courier.api.key}")
+    private String apiKey;
+
     @Value("${smart-courier.api.timeout.connect-timeout-ms:5000}")
-    private int connectTimeout;
+    private int connectTimeoutMs;
 
     @Value("${smart-courier.api.timeout.read-timeout-ms:10000}")
-    private int readTimeout;
-
-    @Value("${smart-courier.api.retry.max-attempts:3}")
-    private int maxAttempts;
-
-    @Value("${smart-courier.api.retry.backoff-delay-ms:1000}")
-    private long backoffDelay;
+    private int readTimeoutMs;
 
     /**
-     * Feign 요청 옵션 설정
-     * 스마트택배 API의 응답 시간을 고려한 타임아웃 설정
+     * API 키 자동 추가 인터셉터
+     * 모든 요청에 t_key 파라미터를 자동으로 추가
      */
     @Bean
-    public Request.Options deliveryTrackingRequestOptions() {
-        return new Request.Options(
-                connectTimeout, TimeUnit.MILLISECONDS,
-                readTimeout, TimeUnit.MILLISECONDS,
-                true // followRedirects
-        );
+    public RequestInterceptor apiKeyInterceptor() {
+        return requestTemplate -> {
+            // API 키를 쿼리 파라미터로 추가
+            requestTemplate.query("t_key", apiKey);
+
+            // 헤더 설정
+            requestTemplate.header("Accept", "application/json");
+            requestTemplate.header("Content-Type", "application/json; charset=UTF-8");
+
+            log.debug("스마트택배 API 요청 - URL: {}, Method: {}",
+                    requestTemplate.url(), requestTemplate.method());
+        };
     }
 
     /**
-     * Feign 재시도 설정
-     * API 호출 실패 시 재시도 정책 설정
+     * 스마트택배 API 전용 오류 디코더
+     * API 응답 코드에 따른 적절한 예외 처리
      */
     @Bean
-    public Retryer deliveryTrackingRetryer() {
-        return new Retryer.Default(
-                backoffDelay,           // 초기 지연 시간
-                backoffDelay * 2,       // 최대 지연 시간
-                maxAttempts             // 최대 재시도 횟수
-        );
+    public ErrorDecoder smartCourierErrorDecoder() {
+        return new SmartCourierErrorDecoder();
     }
 
     /**
-     * Feign 로거 레벨 설정
-     * 개발 환경에서는 FULL, 운영 환경에서는 BASIC 로깅
+     * Feign 로깅 레벨 설정
+     * 개발 환경에서 API 호출 디버깅용
      */
     @Bean
-    public Logger.Level deliveryTrackingFeignLoggerLevel() {
-        // 개발 환경에서만 상세 로깅
-        String activeProfile = System.getProperty("spring.profiles.active", "dev");
-        return activeProfile.contains("prod") ? Logger.Level.BASIC : Logger.Level.FULL;
+    public Logger.Level feignLoggerLevel() {
+        return Logger.Level.BASIC; // NONE, BASIC, HEADERS, FULL 중 선택
     }
 
     /**
-     * 배송 추적 API 전용 에러 디코더
-     * API 응답 오류를 적절한 예외로 변환
-     */
-    @Bean
-    public ErrorDecoder deliveryTrackingErrorDecoder() {
-        return new DeliveryTrackingErrorDecoder();
-    }
-
-    /**
-     * 배송 추적 API 에러 디코더 구현체
+     * 스마트택배 API 전용 오류 디코더 구현체
      */
     @Slf4j
-    public static class DeliveryTrackingErrorDecoder implements ErrorDecoder {
+    public static class SmartCourierErrorDecoder implements ErrorDecoder {
 
         private final ErrorDecoder defaultErrorDecoder = new Default();
 
         @Override
         public Exception decode(String methodKey, feign.Response response) {
-            int status = response.status();
-            String requestUrl = response.request().url();
+            String errorMessage = String.format("스마트택배 API 호출 실패 - 메서드: %s, 상태코드: %d",
+                    methodKey, response.status());
 
-            log.warn("배송 추적 API 호출 실패 - method: {}, status: {}, url: {}",
-                    methodKey, status, requestUrl);
+            log.warn(errorMessage);
 
-            return switch (status) {
-                case 400 -> new DeliveryTrackingApiException(
-                        "잘못된 요청입니다. 택배사 코드나 운송장 번호를 확인해주세요.");
-
-                case 401 -> new DeliveryTrackingApiException(
-                        "API 키가 유효하지 않습니다.");
-
-                case 403 -> new DeliveryTrackingApiException(
-                        "API 호출 권한이 없습니다. API 키 권한을 확인해주세요.");
-
-                case 429 -> new DeliveryTrackingApiException(
-                        "API 호출 제한을 초과했습니다. 잠시 후 다시 시도해주세요.");
-
-                case 500 -> new DeliveryTrackingApiException(
-                        "배송 추적 서버 오류입니다. 잠시 후 다시 시도해주세요.");
-
-                case 503 -> new DeliveryTrackingApiException(
-                        "배송 추적 서비스가 일시적으로 이용할 수 없습니다.");
-
-                default -> {
-                    log.error("예상치 못한 배송 추적 API 오류 - status: {}, method: {}",
-                            status, methodKey);
-                    yield defaultErrorDecoder.decode(methodKey, response);
-                }
+            return switch (response.status()) {
+                case 400 -> new SmartCourierApiException("잘못된 요청입니다. 파라미터를 확인해주세요", response.status());
+                case 401 -> new SmartCourierApiException("API 키가 유효하지 않습니다", response.status());
+                case 403 -> new SmartCourierApiException("API 사용 권한이 없습니다", response.status());
+                case 429 -> new SmartCourierApiException("API 호출 한도를 초과했습니다", response.status());
+                case 500 -> new SmartCourierApiException("스마트택배 서버 오류입니다", response.status());
+                case 503 -> new SmartCourierApiException("스마트택배 서비스가 일시적으로 사용할 수 없습니다", response.status());
+                default -> defaultErrorDecoder.decode(methodKey, response);
             };
         }
     }
 
     /**
-     * 배송 추적 API 전용 예외 클래스
+     * 스마트택배 API 전용 예외 클래스
      */
-    public static class DeliveryTrackingApiException extends RuntimeException {
+    public static class SmartCourierApiException extends RuntimeException {
+        private final int statusCode;
 
-        public DeliveryTrackingApiException(String message) {
+        public SmartCourierApiException(String message, int statusCode) {
             super(message);
+            this.statusCode = statusCode;
         }
 
-        public DeliveryTrackingApiException(String message, Throwable cause) {
+        public SmartCourierApiException(String message, int statusCode, Throwable cause) {
             super(message, cause);
+            this.statusCode = statusCode;
         }
-    }
 
-    /**
-     * Feign 클라이언트 로그 설정을 위한 Logger 빈
-     */
-    @Bean(name = "deliveryTrackingApiLogger")
-    public feign.Logger deliveryTrackingApiLogger() {
-        return new feign.Logger() {
-            @Override
-            protected void log(String configKey, String format, Object... args) {
-                // 민감한 API 키 정보는 마스킹 처리
-                String logMessage = String.format(format, args);
-                if (logMessage.contains("t_key=")) {
-                    logMessage = logMessage.replaceAll("t_key=[^&\\s]+", "t_key=***");
-                }
-
-                log.debug("[배송추적 API] {}: {}", configKey, logMessage);
-            }
-        };
-    }
-
-    /**
-     * API 호출 성능 모니터링을 위한 인터셉터
-     */
-    @Bean
-    public DeliveryTrackingApiInterceptor deliveryTrackingApiInterceptor() {
-        return new DeliveryTrackingApiInterceptor();
-    }
-
-    /**
-     * API 호출 인터셉터 구현체
-     */
-    @Slf4j
-    public static class DeliveryTrackingApiInterceptor implements feign.RequestInterceptor {
-
-        @Override
-        public void apply(feign.RequestTemplate template) {
-            // 요청 시작 시간 기록
-            template.header("X-Request-Start-Time", String.valueOf(System.currentTimeMillis()));
-
-            // User-Agent 설정
-            template.header("User-Agent", "Catdogeats-DeliveryTracking/1.0");
-
-            // 요청 로깅 (개발 환경에서만)
-            String activeProfile = System.getProperty("spring.profiles.active", "dev");
-            if (activeProfile.contains("dev")) {
-                log.debug("배송 추적 API 요청 - URL: {}, Method: {}",
-                        template.url(), template.method());
-            }
-        }
-    }
-
-    /**
-     * 배송 추적 API 응답 시간 모니터링
-     */
-    @Bean
-    public DeliveryTrackingApiResponseTimeMonitor responseTimeMonitor() {
-        return new DeliveryTrackingApiResponseTimeMonitor();
-    }
-
-    /**
-     * API 응답 시간 모니터링 구현체
-     */
-    @Slf4j
-    public static class DeliveryTrackingApiResponseTimeMonitor {
-
-        /**
-         * API 호출 응답 시간 기록
-         */
-        public void recordResponseTime(String methodKey, long responseTimeMs) {
-            if (responseTimeMs > 5000) { // 5초 이상인 경우 경고
-                log.warn("배송 추적 API 응답 시간 지연 - method: {}, time: {}ms",
-                        methodKey, responseTimeMs);
-            } else {
-                log.debug("배송 추적 API 응답 시간 - method: {}, time: {}ms",
-                        methodKey, responseTimeMs);
-            }
+        public int getStatusCode() {
+            return statusCode;
         }
 
         /**
-         * API 호출 성공률 모니터링
+         * 재시도 가능한 오류인지 확인
+         * @return 재시도 가능한 오류면 true
          */
-        public void recordApiCall(String methodKey, boolean success, Exception error) {
-            if (success) {
-                log.debug("배송 추적 API 호출 성공 - method: {}", methodKey);
-            } else {
-                log.warn("배송 추적 API 호출 실패 - method: {}, error: {}",
-                        methodKey, error != null ? error.getMessage() : "Unknown");
-            }
+        public boolean isRetryable() {
+            // 5xx 서버 오류는 재시도 가능
+            return statusCode >= 500;
+        }
+
+        /**
+         * API 제한 오류인지 확인
+         * @return API 제한 오류면 true
+         */
+        public boolean isRateLimitError() {
+            return statusCode == 429;
         }
     }
 }
