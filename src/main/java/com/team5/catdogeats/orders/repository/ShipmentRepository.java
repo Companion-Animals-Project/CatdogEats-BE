@@ -134,24 +134,7 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
             @Param("orderStatus") OrderStatus orderStatus
     );
 
-    /**
-     * 판매자별 최근 배송 정보 조회 (최대 N개)
-     */
-    @Query(value = """
-    SELECT DISTINCT s.* FROM shipments s
-    JOIN orders o ON s.order_id = o.id
-    JOIN order_items oi ON o.id = oi.order_id
-    JOIN products p ON oi.product_id = p.id
-    JOIN sellers ps ON p.seller_id = ps.user_id
-    WHERE ps.user_id = :sellerId
-    AND (s.is_hidden_by_seller = false OR s.is_hidden_by_seller IS NULL)
-    ORDER BY s.created_at DESC
-    LIMIT :limit
-    """, nativeQuery = true)
-    List<Shipments> findRecentSellerShipments(
-            @Param("sellerId") String sellerId,
-            @Param("limit") int limit
-    );
+
 
     // ===== 배치 작업용 메서드들 (DeliveryTrackingBatchService용) =====
 
@@ -172,22 +155,11 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
      * 오늘 배송 완료된 주문 개수 조회
      * @return 오늘 배송 완료된 주문 개수
      */
-    @Query("""
-    SELECT COUNT(s)
-    FROM Shipments s
-    WHERE DATE(s.deliveredAt) = CURRENT_DATE
-    """)
+    @SuppressWarnings("SqlDialectInspection")
+    @Query(value = """
+    SELECT COUNT(*)
+    FROM shipments s
+    WHERE s.delivered_at::date = CURRENT_DATE
+    """, nativeQuery = true)
     long countDeliveredToday();
-
-    /**
-     * 특정 날짜에 배송 완료된 주문 개수 조회
-     * @param date 조회할 날짜
-     * @return 해당 날짜에 배송 완료된 주문 개수
-     */
-    @Query("""
-    SELECT COUNT(s)
-    FROM Shipments s
-    WHERE DATE(s.deliveredAt) = DATE(:date)
-    """)
-    long countDeliveredByDate(@Param("date") ZonedDateTime date);
 }
