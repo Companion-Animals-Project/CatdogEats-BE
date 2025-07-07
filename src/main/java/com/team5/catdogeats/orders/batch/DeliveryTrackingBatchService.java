@@ -1,11 +1,11 @@
 package com.team5.catdogeats.orders.batch;
 
-import com.team5.catdogeats.global.external.SmartCourierApiService;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.Shipments;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.repository.OrderRepository;
 import com.team5.catdogeats.orders.repository.ShipmentRepository;
+import com.team5.catdogeats.orders.service.DeliveryTrackingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,7 +32,7 @@ public class DeliveryTrackingBatchService {
 
     private final ShipmentRepository shipmentRepository;
     private final OrderRepository orderRepository;
-    private final SmartCourierApiService smartCourierApiService;
+    private final DeliveryTrackingService deliveryTrackingService; // 수정: 올바른 의존성 주입
 
     @Value("${delivery.tracking.batch.batch-size:50}")
     private int batchSize;
@@ -49,6 +49,8 @@ public class DeliveryTrackingBatchService {
     @Transactional
     public void trackDeliveryStatus() {
         log.info("배송 추적 배치 작업 시작 - 실행 시간: {}", ZonedDateTime.now());
+
+        long startTime = System.currentTimeMillis();
 
         try {
             // 배송중인 주문 목록 조회
@@ -97,9 +99,11 @@ public class DeliveryTrackingBatchService {
                         inDeliveryShipments.size());
             }
 
+            long endTime = System.currentTimeMillis();
+            long executionTimeSeconds = (endTime - startTime) / 1000;
+
             log.info("배송 추적 배치 작업 완료 - 처리: {}건, 배송완료: {}건, 오류: {}건, 소요시간: {}초",
-                    processedCount, deliveredCount, errorCount,
-                    (System.currentTimeMillis() - System.currentTimeMillis()) / 1000);
+                    processedCount, deliveredCount, errorCount, executionTimeSeconds);
 
         } catch (Exception e) {
             log.error("배송 추적 배치 작업 중 예상치 못한 오류 발생", e);
@@ -113,8 +117,11 @@ public class DeliveryTrackingBatchService {
      */
     private boolean checkAndUpdateDeliveryStatus(Shipments shipment) {
         try {
-            // 스마트택배 API로 배송 상태 조회
-            boolean isDelivered = smartCourierApiService.checkDeliveryStatus(
+            log.debug("배송 상태 확인 - shipmentId: {}, trackingNumber: {}",
+                    shipment.getId(), shipment.getTrackingNumber());
+
+            // DeliveryTrackingService를 통해 배송 상태 조회
+            boolean isDelivered = deliveryTrackingService.checkDeliveryStatus(
                     shipment.getCourier(),
                     shipment.getTrackingNumber()
             );
@@ -133,13 +140,19 @@ public class DeliveryTrackingBatchService {
                         order.getOrderNumber(), shipment.getTrackingNumber());
 
                 return true;
+            } else {
+                log.debug("배송 진행 중 - trackingNumber: {}", shipment.getTrackingNumber());
+                return false;
             }
 
-            return false;
-
-        } catch (Exception e) {
-            log.warn("배송 상태 확인 실패 - shipmentId: {}, trackingNumber: {}, reason: {}",
+        } catch (DeliveryTrackingService.DeliveryTrackingApiException e) {
+            // API 제한이나 일시적 오류는 경고로 처리 (배치 중단하지 않음)
+            log.warn("배송 상태 확인 API 오류 - shipmentId: {}, trackingNumber: {}, reason: {}",
                     shipment.getId(), shipment.getTrackingNumber(), e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("배송 상태 확인 중 예상치 못한 오류 - shipmentId: {}, trackingNumber: {}",
+                    shipment.getId(), shipment.getTrackingNumber(), e);
             throw e;
         }
     }
@@ -161,6 +174,14 @@ public class DeliveryTrackingBatchService {
     }
 
     /**
+     * API 호출 현황 조회
+     * @return API 호출 현황
+     */
+    public DeliveryTrackingService.ApiCallStatus getApiCallStatus() {
+        return deliveryTrackingService.getApiCallStatus();
+    }
+
+    /**
      * 다음 실행 시간 계산
      */
     private ZonedDateTime getNextExecutionTime() {
@@ -169,68 +190,21 @@ public class DeliveryTrackingBatchService {
     }
 
     /**
-     * 마지막 실행 시간 조회
+     * 마지막 실행 시간 조회 (추정)
      */
     private ZonedDateTime getLastExecutionTime() {
-        // TODO: 실제 구현에서는 Redis나 DB에서 관리
+        // TODO: 실제 구현에서는 Redis나 DB에서 관리하거나 스케줄러 메타데이터 활용
         return ZonedDateTime.now().minusHours(8);
     }
 
     /**
      * 배치 작업 상태 정보
      */
-    public static class BatchStatusInfo {
-        private final long inDeliveryCount;
-        private final long deliveredTodayCount;
-        private final ZonedDateTime nextExecutionTime;
-        private final ZonedDateTime lastExecutionTime;
-
-        private BatchStatusInfo(BatchStatusInfoBuilder builder) {
-            this.inDeliveryCount = builder.inDeliveryCount;
-            this.deliveredTodayCount = builder.deliveredTodayCount;
-            this.nextExecutionTime = builder.nextExecutionTime;
-            this.lastExecutionTime = builder.lastExecutionTime;
-        }
-
-        public static BatchStatusInfoBuilder builder() {
-            return new BatchStatusInfoBuilder();
-        }
-
-        // Getters
-        public long getInDeliveryCount() { return inDeliveryCount; }
-        public long getDeliveredTodayCount() { return deliveredTodayCount; }
-        public ZonedDateTime getNextExecutionTime() { return nextExecutionTime; }
-        public ZonedDateTime getLastExecutionTime() { return lastExecutionTime; }
-
-        public static class BatchStatusInfoBuilder {
-            private long inDeliveryCount;
-            private long deliveredTodayCount;
-            private ZonedDateTime nextExecutionTime;
-            private ZonedDateTime lastExecutionTime;
-
-            public BatchStatusInfoBuilder inDeliveryCount(long inDeliveryCount) {
-                this.inDeliveryCount = inDeliveryCount;
-                return this;
-            }
-
-            public BatchStatusInfoBuilder deliveredTodayCount(long deliveredTodayCount) {
-                this.deliveredTodayCount = deliveredTodayCount;
-                return this;
-            }
-
-            public BatchStatusInfoBuilder nextExecutionTime(ZonedDateTime nextExecutionTime) {
-                this.nextExecutionTime = nextExecutionTime;
-                return this;
-            }
-
-            public BatchStatusInfoBuilder lastExecutionTime(ZonedDateTime lastExecutionTime) {
-                this.lastExecutionTime = lastExecutionTime;
-                return this;
-            }
-
-            public BatchStatusInfo build() {
-                return new BatchStatusInfo(this);
-            }
-        }
-    }
+    @lombok.Builder
+    public record BatchStatusInfo(
+            long inDeliveryCount,           // 배송 중인 주문 수
+            long deliveredTodayCount,       // 오늘 배송 완료된 주문 수
+            ZonedDateTime nextExecutionTime,    // 다음 실행 시간
+            ZonedDateTime lastExecutionTime     // 마지막 실행 시간 (추정)
+    ) {}
 }
