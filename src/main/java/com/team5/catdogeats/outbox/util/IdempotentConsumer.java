@@ -15,12 +15,6 @@ public class IdempotentConsumer {
 
     private final ProcessedMessageRepository processedMessageRepository;
 
-    /**
-     * 메시지 중복 처리를 방지하기 위한 메서드
-     * @param messageId 메시지 ID
-     * @param consumerGroup 컨슈머 그룹 (예: "payment-service")
-     * @return 이 메시지가 처리된 적이 없으면 true, 이미 처리된 적이 있으면 false
-     */
     public boolean processOnce(String messageId, String consumerGroup) {
         if (messageId == null || messageId.isEmpty()) {
             log.warn("메시지 ID가 없습니다. 중복 처리 방지를 위해 메시지를 처리합니다.");

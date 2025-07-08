@@ -29,8 +29,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 
@@ -130,12 +128,12 @@ public class OrderEventListener {
 
             order.setOrderStatus(OrderStatus.PAYMENT_COMPLETED);
             orderRepository.save(order);
-            log.info("주문 상태 변경 완료: orderId={}, status={}", orderId, OrderStatus.PAYMENT_COMPLETED);
+            log.debug("주문 상태 변경 완료: orderId={}, status={}", orderId, OrderStatus.PAYMENT_COMPLETED);
 
             stockReservationService.confirmReservations(orderId);
             productStockManager.decrementStockForConfirmedReservations(orderId);
-            log.info("재고 확정 완료: orderId={}", orderId);
-            log.info("결제 완료 처리 전체 완료: orderId={} ✅", orderId);
+            log.debug("재고 확정 완료: orderId={}", orderId);
+            log.debug("결제 완료 처리 전체 완료: orderId={} ✅", orderId);
 
         } catch (Exception e) {
             log.error("결제 완료 처리 실패: orderId={}, error={}", orderId, e.getMessage(), e);
@@ -186,43 +184,6 @@ public class OrderEventListener {
 
         } catch (Exception e) {
             log.error("결제 정보 생성 실패: orderId={}, error={}", orderId, e.getMessage(), e);
-        }
-    }
-
-    @Async
-    @EventListener
-    public void handlePaymentCompletedNotification(PaymentCompletedEvent event) {
-        String orderId = event.orderId();
-        log.info("결제 완료 알림 처리 시작: orderId={}, orderNumber={}",
-                orderId, event.orderNumber());
-
-        try {
-            String productInfo = event.getFirstProductName() +
-                    (event.getOrderItemCount() > 1 ?
-                            String.format(" 외 %d개", event.getOrderItemCount() - 1) : "");
-
-            // 할인 정보 개선 (쿠폰 타입 지원)
-
-
-            log.info("""
-                    [Catdogeats] 결제가 완료되었습니다! 🎉
-                    주문번호: {}
-                    상품: {}{}
-                    결제 금액: {}원
-                    상품 준비를 시작합니다.
-                    """,
-                    event.orderNumber(),
-                    productInfo,
-                    event.discountAmount(),
-                    String.format("%,d", event.discountedTotalPrice())
-            );
-
-
-            log.info("결제 완료 알림 발송 완료: orderId={}, paymentId={}, itemCount={}",
-                    orderId, event.paymentId(), event.getOrderItemCount());
-
-        } catch (Exception e) {
-            log.error("결제 완료 알림 발송 실패: orderId={}, error={}", orderId, e.getMessage(), e);
         }
     }
 

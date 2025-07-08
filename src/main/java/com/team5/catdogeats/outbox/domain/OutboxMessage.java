@@ -1,6 +1,7 @@
 package com.team5.catdogeats.outbox.domain;
 
 import com.team5.catdogeats.baseEntity.BaseEntity;
+import com.team5.catdogeats.outbox.domain.enums.OutboxStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -33,7 +34,6 @@ public class OutboxMessage extends BaseEntity {
     @Column(name = "event_type", nullable = false)
     private String eventType;
 
-    @Lob
     @Column(name = "payload", nullable = false, columnDefinition = "TEXT")
     private String payload;
 
@@ -60,11 +60,6 @@ public class OutboxMessage extends BaseEntity {
         this.errorMessage = error;
         this.retryCount = (this.retryCount != null) ? this.retryCount + 1 : 1;
     }
-
-    public enum OutboxStatus {
-        PENDING,
-        SENT,
-        FAILED
-    }
 }
+
 

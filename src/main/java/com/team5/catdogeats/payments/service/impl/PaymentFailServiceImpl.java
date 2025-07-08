@@ -3,11 +3,12 @@ package com.team5.catdogeats.payments.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
-import com.team5.catdogeats.outbox.domain.OutboxMessage;
-import com.team5.catdogeats.outbox.repository.OutboxMessageRepository;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.repository.OrderPendingDetailsRepository;
 import com.team5.catdogeats.orders.repository.OrderRepository;
+import com.team5.catdogeats.outbox.domain.OutboxMessage;
+import com.team5.catdogeats.outbox.domain.enums.OutboxStatus;
+import com.team5.catdogeats.outbox.repository.OutboxMessageRepository;
 import com.team5.catdogeats.payments.event.PaymentFailedEvent;
 import com.team5.catdogeats.payments.service.PaymentFailService;
 import lombok.RequiredArgsConstructor;
@@ -60,9 +61,9 @@ public class PaymentFailServiceImpl implements PaymentFailService {
             OutboxMessage outboxMessage = OutboxMessage.builder()
                     .aggregateId(order.getId())
                     .aggregateType("PAYMENT")
-                    .eventType("payment.failed.v1")
+                    .eventType("payment.failed")
                     .payload(objectMapper.writeValueAsString(event))
-                    .status(OutboxMessage.OutboxStatus.PENDING)
+                    .status(OutboxStatus.PENDING)
                     .retryCount(0)
                     .build();
 

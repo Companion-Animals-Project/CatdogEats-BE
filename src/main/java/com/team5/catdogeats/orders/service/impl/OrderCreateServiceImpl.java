@@ -19,6 +19,7 @@ import com.team5.catdogeats.orders.repository.OrderRepository;
 import com.team5.catdogeats.orders.service.OrderCreateService;
 import com.team5.catdogeats.orders.util.TossPaymentResponseBuilder;
 import com.team5.catdogeats.outbox.domain.OutboxMessage;
+import com.team5.catdogeats.outbox.domain.enums.OutboxStatus;
 import com.team5.catdogeats.outbox.repository.OutboxMessageRepository;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.repository.ProductRepository;
@@ -107,16 +108,15 @@ public class OrderCreateServiceImpl implements OrderCreateService {
                     flatItems
             );
 
-//            eventPublisher.publishEvent(event);
             log.debug("OrderCreatedEvent 발행 완료: orderId={} (shippingAddress는 OrderPendingDetails에 저장됨)",
                     savedOrder.getId());
 
             OutboxMessage outboxMessage = OutboxMessage.builder()
                     .aggregateId(savedOrder.getId())
                     .aggregateType("ORDER")
-                    .eventType("order.created.v1")
+                    .eventType("order.created")
                     .payload(objectMapper.writeValueAsString(event))
-                    .status(OutboxMessage.OutboxStatus.PENDING)
+                    .status(OutboxStatus.PENDING)
                     .retryCount(0)
                     .build();
 

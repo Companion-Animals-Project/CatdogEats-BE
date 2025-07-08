@@ -4,8 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
-import com.team5.catdogeats.outbox.domain.OutboxMessage;
-import com.team5.catdogeats.outbox.repository.OutboxMessageRepository;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.domain.mapping.OrderPendingDetails;
@@ -15,6 +13,9 @@ import com.team5.catdogeats.orders.dto.common.OrderItemSnapshot;
 import com.team5.catdogeats.orders.dto.request.OrderCreateRequest;
 import com.team5.catdogeats.orders.repository.OrderPendingDetailsRepository;
 import com.team5.catdogeats.orders.repository.OrderRepository;
+import com.team5.catdogeats.outbox.domain.OutboxMessage;
+import com.team5.catdogeats.outbox.domain.enums.OutboxStatus;
+import com.team5.catdogeats.outbox.repository.OutboxMessageRepository;
 import com.team5.catdogeats.payments.client.TossPaymentsClient;
 import com.team5.catdogeats.payments.domain.Payments;
 import com.team5.catdogeats.payments.domain.enums.PaymentStatus;
@@ -187,7 +188,7 @@ public class PaymentServiceImpl implements PaymentService {
                     .aggregateType("PAYMENT")
                     .eventType("payment.completed")
                     .payload(objectMapper.writeValueAsString(event))
-                    .status(OutboxMessage.OutboxStatus.PENDING)
+                    .status(OutboxStatus.PENDING)
                     .retryCount(0)
                     .build();
 
