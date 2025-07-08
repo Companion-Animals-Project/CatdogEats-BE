@@ -104,19 +104,21 @@ public class InquiryServiceImpl implements InquiryService {
 
     @Override
     @JpaTransactional
-    public InquiryResponseDTO createUserFollowup(String inquiryId, String providerId, InquiryRequestDTO request) {
-        if (request.content() == null || request.content().trim().isEmpty()) {
+    public InquiryResponseDTO createUserFollowup(String inquiryId, String providerId, String content) {
+        // ✅ 서비스에서 검증 및 DTO 생성 처리
+        if (content == null || content.trim().isEmpty()) {
             throw new IllegalArgumentException("내용은 필수입니다.");
         }
+
+        // ✅ DTO 생성을 서비스에서 처리
+        InquiryRequestDTO request = InquiryRequestDTO.forContent(content);
 
         Inquires targetInquiry = inquiryRepository.findById(inquiryId)
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
 
         Inquires rootInquiry = findRootInquiry(targetInquiry);
         validateUserAccess(rootInquiry, providerId);
-
         validateInquiryNotClosed(rootInquiry);
-
 
         Users user = getUserByProviderId(providerId);
 
@@ -159,7 +161,6 @@ public class InquiryServiceImpl implements InquiryService {
                 .build();
 
         rootInquiry.setInquiryStatus(rootNewStatus);
-
         Inquires savedFollowup = inquiryRepository.save(followup);
 
         return InquiryResponseDTO.followupAdded(savedFollowup);
@@ -238,16 +239,19 @@ public class InquiryServiceImpl implements InquiryService {
 
     @Override
     @JpaTransactional
-    public InquiryResponseDTO createAdminReply(String inquiryId, String adminId, InquiryRequestDTO request) {
-        if (request.content() == null || request.content().trim().isEmpty()) {
+    public InquiryResponseDTO createAdminReply(String inquiryId, String adminId, String content) {
+        // ✅ 서비스에서 검증 및 DTO 생성 처리
+        if (content == null || content.trim().isEmpty()) {
             throw new IllegalArgumentException("답변 내용은 필수입니다.");
         }
+
+        // ✅ DTO 생성을 서비스에서 처리
+        InquiryRequestDTO request = InquiryRequestDTO.forContent(content);
 
         Inquires targetInquiry = inquiryRepository.findById(inquiryId)
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
 
         Inquires rootInquiry = findRootInquiry(targetInquiry);
-
         validateInquiryNotClosed(rootInquiry);
 
         InquiryMessageType messageType;
@@ -273,7 +277,7 @@ public class InquiryServiceImpl implements InquiryService {
         Inquires reply = Inquires.builder()
                 .parent(rootInquiry)
                 .users(rootInquiry.getUsers())
-                .admins(null) // Todo: admin쪽 엔티티 연결 필요.. (어떤 관리자가 답변 한건지..)
+                .admins(null) // Todo: admin쪽 엔티티 연결 필요
                 .title("Re: " + rootInquiry.getTitle())
                 .content(request.content())
                 .inquiryType(rootInquiry.getInquiryType())
@@ -284,9 +288,7 @@ public class InquiryServiceImpl implements InquiryService {
                 .orders(rootInquiry.getOrders())
                 .build();
 
-
         rootInquiry.setInquiryStatus(rootNewStatus);
-
         Inquires savedReply = inquiryRepository.save(reply);
 
         return InquiryResponseDTO.replied(savedReply);
@@ -294,10 +296,14 @@ public class InquiryServiceImpl implements InquiryService {
 
     @Override
     @JpaTransactional
-    public InquiryResponseDTO closeInquiryByAdmin(String inquiryId, String adminId, InquiryRequestDTO request) {
-        if (request.reason() == null || request.reason().trim().isEmpty()) {
+    public InquiryResponseDTO closeInquiryByAdmin(String inquiryId, String adminId, String reason) {
+        // ✅ 서비스에서 검증 및 DTO 생성 처리
+        if (reason == null || reason.trim().isEmpty()) {
             throw new IllegalArgumentException("강제 종료 시 사유는 필수입니다.");
         }
+
+        // ✅ DTO 생성을 서비스에서 처리
+        InquiryRequestDTO request = InquiryRequestDTO.forClose(reason);
 
         Inquires targetInquiry = inquiryRepository.findById(inquiryId)
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
@@ -403,7 +409,7 @@ public class InquiryServiceImpl implements InquiryService {
                                                           String providerId) {
         try {
             InquiryRequestDTO request = InquiryRequestDTO.forContent(content);
-            InquiryResponseDTO response = createUserFollowup(inquiryId, providerId, request);
+            InquiryResponseDTO response = createUserFollowup(inquiryId, providerId, request.content());
 
             if (imageFiles != null && imageFiles.length > 0) {
                 inquiryFileService.uploadUserImages(response.inquiryId(), imageFiles);
@@ -428,7 +434,7 @@ public class InquiryServiceImpl implements InquiryService {
                                                         String adminId) {
         try {
             InquiryRequestDTO inquiryRequest = InquiryRequestDTO.forContent(content);
-            InquiryResponseDTO response = createAdminReply(inquiryId, adminId, inquiryRequest);
+            InquiryResponseDTO response = createAdminReply(inquiryId, adminId, inquiryRequest.content());
 
             // 파일 업로드 처리
             if ((imageFiles != null && imageFiles.length > 0) ||

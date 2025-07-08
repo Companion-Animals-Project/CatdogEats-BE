@@ -203,12 +203,13 @@ public class InquiryController {
             MultipartFile[] imageFiles) {
 
         try {
-            // ✅ 서비스에 처리 위임
+            // ✅ 파일 처리 포함된 새로운 서비스 메서드 호출
             InquiryResponseDTO response = inquiryService.createUserFollowupWithFiles(
                     inquiryId, content, imageFiles, userPrincipal.providerId());
 
-            log.info("답글 등록 완료 - inquiryId: {}, 파일 수: {}",
-                    inquiryId, imageFiles != null ? imageFiles.length : 0);
+            log.info("사용자 답글 등록 완료 - inquiryId: {}, providerId: {}, 파일 수: {}",
+                    inquiryId, userPrincipal.providerId(),
+                    imageFiles != null ? imageFiles.length : 0);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
                     ApiResponse.success(ResponseCode.CREATED, response)

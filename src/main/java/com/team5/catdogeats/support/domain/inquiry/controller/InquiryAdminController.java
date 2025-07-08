@@ -218,11 +218,9 @@ public class InquiryAdminController {
         try {
             String adminId = adminPrincipal != null ? adminPrincipal.toString() : "SYSTEM";
 
-            // InquiryRequestDTO 생성
-            InquiryRequestDTO inquiryRequest = InquiryRequestDTO.forClose(request.reason());
-
+            // ✅ 컨트롤러에서는 단순히 파라미터만 전달
             InquiryResponseDTO response = inquiryService.closeInquiryByAdmin(
-                    request.inquiryId(), adminId, inquiryRequest);
+                    request.inquiryId(), adminId, request.reason());
 
             log.info("관리자 문의 강제 종료 완료 - inquiryId: {}, adminId: {}, reason: {}",
                     request.inquiryId(), adminId, request.reason());
@@ -282,7 +280,7 @@ public class InquiryAdminController {
         }
     }
 
-    
+
     // 컨트롤러 전용 래퍼 클래스들
     public record ReplyRequestWrapper(
             @NotBlank(message = "문의 ID는 필수입니다")
