@@ -9,6 +9,7 @@ import com.team5.catdogeats.orders.dto.response.SellerOrderDetailResponse;
 import com.team5.catdogeats.orders.dto.response.SellerOrderListResponse;
 import com.team5.catdogeats.orders.repository.ShipmentRepository;
 import com.team5.catdogeats.orders.service.SellerOrderQueryService;
+import com.team5.catdogeats.orders.util.ShippingAddressUtils;
 import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
 import com.team5.catdogeats.users.repository.SellersRepository;
@@ -136,9 +137,6 @@ public class SellerOrderQueryServiceImpl implements SellerOrderQueryService {
             throw new RuntimeException("주문 목록 조회 중 오류가 발생했습니다", e);
         }
     }
-
-    // ===== Helper Methods =====
-
     /**
      * 판매자 조회 - 기존 메서드 활용
      */
@@ -231,13 +229,16 @@ public class SellerOrderQueryServiceImpl implements SellerOrderQueryService {
      */
     private SellerOrderDetailResponse.ShippingAddress buildShippingAddress(Shipments shipment) {
         String maskedPhone = maskPhoneNumber(shipment.getRecipientPhone());
-        String fullAddress = buildFullAddress(shipment);
+        String fullAddress = ShippingAddressUtils.buildFullAddress(
+                shipment.getStreetAddress(),
+                shipment.getDetailAddress()
+        );
 
         return SellerOrderDetailResponse.ShippingAddress.builder()
                 .recipientName(shipment.getRecipientName())
                 .recipientPhone(shipment.getRecipientPhone())
                 .maskedPhone(maskedPhone)
-                .zipCode(shipment.getPostalCode()) // 기존 메서드 활용
+                .zipCode(shipment.getPostalCode())
                 .address(shipment.getStreetAddress())
                 .addressDetail(shipment.getDetailAddress())
                 .fullAddress(fullAddress)
@@ -404,22 +405,5 @@ public class SellerOrderQueryServiceImpl implements SellerOrderQueryService {
             return "*";
         }
         return name.charAt(0) + "*".repeat(name.length() - 1);
-    }
-
-    /**
-     * 전체 주소 생성
-     */
-    private String buildFullAddress(Shipments shipment) {
-        StringBuilder fullAddress = new StringBuilder();
-        if (shipment.getStreetAddress() != null && !shipment.getStreetAddress().trim().isEmpty()) {
-            fullAddress.append(shipment.getStreetAddress());
-        }
-        if (shipment.getDetailAddress() != null && !shipment.getDetailAddress().trim().isEmpty()) {
-            if (!fullAddress.isEmpty()) {
-                fullAddress.append(" ");
-            }
-            fullAddress.append(shipment.getDetailAddress());
-        }
-        return fullAddress.toString();
     }
 }
