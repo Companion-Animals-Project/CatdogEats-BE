@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://js.tosspayments.com/v2/standard"></script>
+  </head>
+  <body>
+    <h1>Toss Payments 백엔드 테스트</h1>
+    <p>아래 '결제하기' 버튼을 눌러 테스트를 진행하세요.</p>
+
+    <button class="button" style="margin-top: 30px" onclick="requestPayment()">
+      결제하기
+    </button>
+
+    <script>
+      // ===================================================================================
+      // [1단계] Postman으로 /v1/buyers/orders API를 호출하고,
+      //         응답받은 ResponseBody의 값을 아래 변수에 붙여넣으세요.
+      // ===================================================================================
+      const tossPaymentInfo = {
+        clientKey: "test_ck_ex6BJGQOVDbLL0DAlK6k8W4w2zNb", // ResponseBody의 data.tossPaymentInfo.clientKey 값
+        orderId: "08cb1220-2307-4cdf-afe2-698c47791920", // ResponseBody의 data.tossPaymentInfo.tossOrderId 값
+        orderName: "강아지 간식 외 1건", // ResponseBody의 data.tossPaymentInfo.orderName 값
+        amount: 75000, // ResponseBody의 data.tossPaymentInfo.amount 값
+        customerName: "김멍멍", // ResponseBody의 data.tossPaymentInfo.customerName 값
+        customerEmail: "buyer@example.com", // ResponseBody의 data.tossPaymentInfo.customerEmail 값
+        successUrl: "http://localhost:8080/v1/buyers/payments/success", // ★ 백엔드 success URL
+        failUrl: "http://localhost:8080/v1/buyers/payments/fail",
+      };
+      // ===================================================================================
+      // [2단계] 위 정보 수정 후, 이 HTML 파일을 브라우저에서 열고 '결제하기' 버튼을 누르세요.
+      // ===================================================================================
+
+      const tossPayments = TossPayments(tossPaymentInfo.clientKey);
+
+      // 비회원 결제를 기준으로 수정했습니다.
+      // customerKey가 필수가 아니므로, ANONYMOUS(익명)으로 설정하여 테스트합니다.
+      const payment = tossPayments.payment({
+        customerKey: TossPayments.ANONYMOUS,
+      });
+
+      async function requestPayment() {
+        // 결제 요청
+        await payment.requestPayment({
+          method: "CARD",
+          amount: {
+            currency: "KRW",
+            value: tossPaymentInfo.amount,
+          },
+          orderId: tossPaymentInfo.orderId,
+          orderName: tossPaymentInfo.orderName,
+          successUrl: tossPaymentInfo.successUrl,
+          failUrl: tossPaymentInfo.failUrl,
+          customerEmail: tossPaymentInfo.customerEmail,
+          customerName: tossPaymentInfo.customerName,
+        });
+      }
+    </script>
+  </body>
+</html>

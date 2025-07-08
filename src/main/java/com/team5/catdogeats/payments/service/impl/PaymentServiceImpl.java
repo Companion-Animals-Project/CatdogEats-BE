@@ -4,9 +4,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
-import com.team5.catdogeats.orders.domain.mapping.OrderPendingDetails;
+import com.team5.catdogeats.outbox.domain.OutboxMessage;
+import com.team5.catdogeats.outbox.repository.OutboxMessageRepository;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
+import com.team5.catdogeats.orders.domain.mapping.OrderPendingDetails;
+import com.team5.catdogeats.orders.dto.common.GroupOrdersAndPayments;
 import com.team5.catdogeats.orders.dto.common.OrderItemInfo;
 import com.team5.catdogeats.orders.dto.common.OrderItemSnapshot;
 import com.team5.catdogeats.orders.dto.request.OrderCreateRequest;
@@ -20,13 +23,12 @@ import com.team5.catdogeats.payments.dto.response.PaymentConfirmResponse;
 import com.team5.catdogeats.payments.dto.response.TossPaymentConfirmResponse;
 import com.team5.catdogeats.payments.event.CouponInfo;
 import com.team5.catdogeats.payments.event.PaymentCompletedEvent;
-import com.team5.catdogeats.payments.event.PaymentFailedEvent;
 import com.team5.catdogeats.payments.repository.PaymentRepository;
+import com.team5.catdogeats.payments.service.PaymentFailService;
 import com.team5.catdogeats.payments.service.PaymentService;
 import com.team5.catdogeats.users.repository.SellersRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.ZonedDateTime;
@@ -52,38 +54,36 @@ public class PaymentServiceImpl implements PaymentService {
     private final OrderRepository orderRepository;
     private final OrderPendingDetailsRepository orderPendingDetailsRepository;
     private final TossPaymentsClient tossPaymentsClient;
-    private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final OutboxMessageRepository outboxMessageRepository;
+    private final PaymentFailService paymentFailService;
 
     @Override
     @JpaTransactional
     public PaymentConfirmResponse confirmPayment(String paymentKey, String orderId, Long amount) {
-        log.info("결제 승인 처리 시작: paymentKey={}, orderId={}, amount={}",
+        log.debug("결제 승인 처리 시작: paymentKey={}, orderId={}, amount={}",
                 paymentKey, orderId, amount);
 
         try {
             // 1. 주문 및 결제 정보 조회
-            Orders order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없습니다: " + orderId));
-            Payments payment = paymentRepository.findByOrdersId(orderId)
-                    .orElseThrow(() -> new NoSuchElementException("결제 정보를 찾을 수 없습니다: " + orderId));
+            GroupOrdersAndPayments groupOrdersAndPayments = orderRepository.findGroupByOrdersAndPaymentsOrderId(orderId)
+                    .orElseThrow(() -> new NoSuchElementException("주문과 일치하는 결제 정보가 없습니다."));
 
             // 2. 결제 상태 및 금액 검증
-            validatePaymentStatus(payment, order);
-            validatePaymentAmount(order, amount);
+            validatePaymentStatus(groupOrdersAndPayments.payments(), groupOrdersAndPayments.orders() );
+            validatePaymentAmount(groupOrdersAndPayments.orders(), amount);
 
             // 3. Toss Payments API 호출
             TossPaymentConfirmResponse tossResponse = callTossPaymentConfirm(paymentKey, orderId, amount);
-            validateTossResponse(tossResponse, order, amount);
+            validateTossResponse(tossResponse, groupOrdersAndPayments.orders(), amount);
 
             // 4. 결제 정보 업데이트 (PaymentStatus.SUCCESS로 변경)
-            updatePaymentStatus(payment, tossResponse);
+            updatePaymentStatus(groupOrdersAndPayments.payments(), tossResponse);
 
             log.info("결제 승인 완료: orderId={}, paymentId={}, tossPaymentKey={}",
-                    orderId, payment.getId(), tossResponse.getPaymentKey());
+                    orderId, groupOrdersAndPayments.payments().getId(), tossResponse.getPaymentKey());
 
-            // 5. PaymentCompletedEvent 발행
-            publishPaymentCompletedEvent(order, payment, tossResponse);
+            createPaymentCompletedOutbox(groupOrdersAndPayments.orders(), groupOrdersAndPayments.payments(), tossResponse);
 
             // 6. OrderPendingDetails 정리 (결제 완료 후 더 이상 필요 없음)
             orderPendingDetailsRepository.deleteByOrderId(orderId);
@@ -91,9 +91,9 @@ public class PaymentServiceImpl implements PaymentService {
 
             // 7. 응답 생성
             return PaymentConfirmResponse.builder()
-                    .paymentId(payment.getId())
+                    .paymentId(groupOrdersAndPayments.payments().getId())
                     .orderId(orderId)
-                    .orderNumber(order.getOrderNumber())
+                    .orderNumber(groupOrdersAndPayments.orders().getOrderNumber())
                     .amount(amount)
                     .status(PaymentStatus.SUCCESS)
                     .paidAt(ZonedDateTime.now())
@@ -102,37 +102,31 @@ public class PaymentServiceImpl implements PaymentService {
                     .build();
 
         } catch (Exception e) {
-            log.error("결제 승인 실패: orderId={}, error={}", orderId, e.getMessage(), e);
+            try {
+                paymentFailService.handlePaymentFailure(orderId, "PAYMENT_ERROR", e.getMessage());
 
-            // 결제 실패 이벤트 발행
-            publishPaymentFailedEvent(orderId, e.getMessage());
+                // 실패 응답 생성
+                return PaymentConfirmResponse.builder()
+                        .orderId(orderId)
+                        .status(PaymentStatus.FAILED)
+                        .message("결제 승인에 실패했습니다: " + e.getMessage())
+                        .build();
 
-            throw new RuntimeException("결제 승인에 실패했습니다: " + e.getMessage(), e);
+            } catch (Exception ex) {
+                log.error("결제 실패 처리 중 추가 오류 발생: orderId={}, error={}", orderId, ex.getMessage(), ex);
+
+                return PaymentConfirmResponse.builder()
+                        .orderId(orderId)
+                        .status(PaymentStatus.FAILED)
+                        .message("결제 승인에 실패했습니다: " + e.getMessage())
+                        .build();
+            }
         }
     }
 
-    @Override
-    @JpaTransactional
-    public void handlePaymentFailure(String orderId, String code, String message) {
-        log.info("결제 실패 처리 시작: orderId={}, code={}, message={}", orderId, code, message);
 
-        try {
-            // PaymentFailedEvent 발행 (실제 처리는 이벤트 리스너에서)
-            publishPaymentFailedEvent(orderId, code + ": " + message);
-
-            // OrderPendingDetails 정리
-            orderPendingDetailsRepository.deleteByOrderId(orderId);
-            log.debug("OrderPendingDetails 정리 완료: orderId={}", orderId);
-
-            log.info("결제 실패 처리 완료: orderId={}", orderId);
-
-        } catch (Exception e) {
-            log.error("결제 실패 처리 중 오류: orderId={}, error={}", orderId, e.getMessage(), e);
-        }
-    }
-
-    // === PaymentCompletedEvent 발행 ===
-    private void publishPaymentCompletedEvent(Orders order, Payments payment, TossPaymentConfirmResponse tossResponse) {
+    // === createPaymentCompletedOutbox 발행 ===
+    private void createPaymentCompletedOutbox(Orders order, Payments payment, TossPaymentConfirmResponse tossResponse) {
         try {
             // OrderPendingDetails에서 임시 저장된 정보 조회
             OrderPendingDetails pendingDetails = orderPendingDetailsRepository.findByOrderId(order.getId())
@@ -172,10 +166,8 @@ public class PaymentServiceImpl implements PaymentService {
                     })
                     .orElse(null);
 
-            // 🎯 쿠폰 정보 파싱 개선
             CouponInfo couponInfo = parseCouponInfo(pendingDetails.getAppliedCouponsJson(), order);
 
-            // 🎯 개선: 단일 팩토리 메서드로 통합
             PaymentCompletedEvent event = PaymentCompletedEvent.of(
                     order.getId(),
                     order.getOrderNumber(),
@@ -191,9 +183,20 @@ public class PaymentServiceImpl implements PaymentService {
                     couponIds
             );
 
-            eventPublisher.publishEvent(event);
-            log.info("PaymentCompletedEvent 발행 완료: orderId={}, 쿠폰적용={}, 할인금액={}원",
-                    order.getId(), couponInfo.applied(), couponInfo.discountAmount());
+            OutboxMessage outboxMessage = OutboxMessage.builder()
+                    .aggregateId(payment.getId())
+                    .aggregateType("PAYMENT")
+                    .eventType("payment.completed.v1")
+                    .payload(objectMapper.writeValueAsString(event))
+                    .status(OutboxMessage.OutboxStatus.PENDING)
+                    .retryCount(0)
+                    .build();
+
+            outboxMessageRepository.save(outboxMessage);
+            log.debug("결제 완료 Outbox 메시지 생성 완료: paymentId={}, outboxId={}",
+                    payment.getId(), outboxMessage.getId());
+
+
 
         } catch (JsonProcessingException e) {
             log.error("PaymentCompletedEvent 발행 실패 (JSON 역직렬화 오류): orderId={}, error={}",
@@ -232,29 +235,6 @@ public class PaymentServiceImpl implements PaymentService {
             }
     }
 
-
-    // === PaymentFailedEvent 발행 ===
-    private void publishPaymentFailedEvent(String orderId, String errorMessage) {
-        try {
-            Orders order = orderRepository.findById(orderId)
-                    .orElse(null);
-
-            String orderNumber = order != null ? order.getOrderNumber() : null;
-
-            PaymentFailedEvent event = PaymentFailedEvent.of(
-                    orderId,
-                    orderNumber,
-                    "PAYMENT_FAILED",
-                    errorMessage
-            );
-
-            eventPublisher.publishEvent(event);
-            log.debug("PaymentFailedEvent 발행 완료: orderId={}", orderId);
-
-        } catch (Exception e) {
-            log.error("PaymentFailedEvent 발행 실패: orderId={}, error={}", orderId, e.getMessage());
-        }
-    }
 
     // === 검증 메서드들 ===
 
@@ -302,9 +282,7 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private void updatePaymentStatus(Payments payment, TossPaymentConfirmResponse response) {
-        payment.setStatus(PaymentStatus.SUCCESS);
-        payment.setTossPaymentKey(response.getPaymentKey());
-        payment.setPaidAt(ZonedDateTime.now());
+        payment.updatePaymentStatus(response);
         paymentRepository.save(payment);
 
         log.debug("결제 정보 업데이트 완료: paymentId={}, status={}, tossPaymentKey={}",

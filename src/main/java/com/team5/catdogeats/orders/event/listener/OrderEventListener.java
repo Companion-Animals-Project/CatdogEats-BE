@@ -2,6 +2,7 @@ package com.team5.catdogeats.orders.event.listener;
 
 import com.team5.catdogeats.coupons.repository.BuyerCouponRepository;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
+import com.team5.catdogeats.outbox.util.IdempotentConsumer;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.Shipments;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
@@ -12,8 +13,6 @@ import com.team5.catdogeats.orders.event.OrderCreatedEvent;
 import com.team5.catdogeats.orders.repository.OrderItemRepository;
 import com.team5.catdogeats.orders.repository.OrderRepository;
 import com.team5.catdogeats.orders.repository.ShipmentRepository;
-import com.team5.catdogeats.payments.domain.Payments;
-import com.team5.catdogeats.payments.domain.enums.PaymentMethod;
 import com.team5.catdogeats.payments.domain.enums.PaymentStatus;
 import com.team5.catdogeats.payments.event.PaymentCompletedEvent;
 import com.team5.catdogeats.payments.event.PaymentFailedEvent;
@@ -22,11 +21,11 @@ import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.products.service.ProductStockManager;
 import com.team5.catdogeats.products.service.StockReservationService;
-import com.team5.catdogeats.users.domain.mapping.Buyers;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
-import com.team5.catdogeats.users.repository.BuyerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -48,13 +47,16 @@ public class OrderEventListener {
     private final OrderItemRepository orderItemRepository;
     private final ShipmentRepository shipmentRepository;
     private final PaymentRepository paymentRepository;
-    private final BuyerRepository buyerRepository;
     private final ProductRepository productRepository;
     private final StockReservationService stockReservationService;
     private final ProductStockManager productStockManager;
     private final BuyerCouponRepository buyerCouponRepository;
+    private final IdempotentConsumer idempotentConsumer;
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @RabbitListener(
+            queues = "#{@orderCreatedQueue.name}",
+            containerFactory = "listenerContainerFactory"
+    )
     @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
     public void handleStockReservation(OrderCreatedEvent event) {
         String orderId = event.orderId();
@@ -80,49 +82,6 @@ public class OrderEventListener {
         } catch (Exception e) {
             log.error("재고 예약 실패: orderId={}, error={}", orderId, e.getMessage(), e);
             performStockReservationCompensation(orderId, "재고 예약 실패: " + e.getMessage());
-        }
-    }
-
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
-    public void handlePaymentInfoCreation(OrderCreatedEvent event) {
-        String orderId = event.orderId();
-        log.info("결제 정보 생성 시작: orderId={}, orderNumber={}, 최종금액={}원",
-                orderId, event.orderNumber(), event.finalTotalPrice());
-
-        try {
-            Orders order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없습니다: " + orderId));
-
-            if (order.getOrderStatus() == OrderStatus.CANCELLED) {
-                log.info("취소된 주문 - 결제 정보 생성 건너뜀: orderId={}", orderId);
-                return;
-            }
-
-            if (paymentRepository.findByOrdersId(orderId).isPresent()) {
-                log.warn("이미 결제 정보가 존재하여 생성 건너뜀: orderId={}", orderId);
-                return;
-            }
-
-            Buyers buyer = buyerRepository.findById(event.buyerId())
-                    .orElseThrow(() -> new NoSuchElementException("구매자 정보를 찾을 수 없습니다: " + event.buyerId()));
-
-
-            Payments payment = Payments.builder()
-                    .orders(order)
-                    .buyers(buyer)
-                    .amount(event.finalTotalPrice())
-                    .method(PaymentMethod.TOSS)
-                    .status(PaymentStatus.PENDING)
-                    .build();
-
-            paymentRepository.save(payment);
-
-            log.info("결제 정보 생성 완료: orderId={}, paymentId={}, amount={}원",
-                    orderId, payment.getId(), payment.getAmount());
-
-        } catch (Exception e) {
-            log.error("결제 정보 생성 실패: orderId={}, error={}", orderId, e.getMessage(), e);
         }
     }
 
@@ -208,10 +167,20 @@ public class OrderEventListener {
         }
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @RabbitListener(
+            queues = "#{@paymentFailedQueue.name}",
+            containerFactory = "listenerContainerFactory"
+    )
     @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
-    public void handlePaymentFailure(PaymentFailedEvent event) {
+    public void handlePaymentFailure(PaymentFailedEvent event, Message message) {
+        String messageId = message.getMessageProperties().getMessageId();
         String orderId = event.orderId();
+
+        if (!idempotentConsumer.processOnce(messageId, "payment-failure-listener")) {
+            log.info("이미 처리된 결제 실패 메시지입니다: messageId={}, orderId={}", messageId, orderId);
+            return;
+        }
+
         log.info("결제 실패 처리 시작: orderId={}, orderNumber={}, error={}",
                 orderId, event.orderNumber(), event.errorMessage());
 
@@ -244,7 +213,7 @@ public class OrderEventListener {
                             .orElseThrow(() -> new NoSuchElementException("상품을 찾을 수 없습니다: " + orderItem.productId()));
                     return new StockReservationService.ReservationRequest(product, orderItem.quantity());
                 })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private List<OrderItems> createOrderItems(Orders order, List<OrderItemInfo> orderItemInfos) {

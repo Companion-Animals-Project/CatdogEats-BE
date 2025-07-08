@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.coupons.repository.BuyerCouponRepository;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
-import com.team5.catdogeats.orders.domain.mapping.OrderPendingDetails;
+import com.team5.catdogeats.outbox.domain.OutboxMessage;
+import com.team5.catdogeats.outbox.repository.OutboxMessageRepository;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
+import com.team5.catdogeats.orders.domain.mapping.OrderPendingDetails;
 import com.team5.catdogeats.orders.dto.GroupSellerAndCouponsDTO;
 import com.team5.catdogeats.orders.dto.common.OrderItemInfo;
 import com.team5.catdogeats.orders.dto.common.OrderItemSnapshot;
@@ -49,6 +51,7 @@ public class OrderCreateServiceImpl implements OrderCreateService {
     private final TossPaymentResponseBuilder tossPaymentResponseBuilder;
     private final ObjectMapper objectMapper;
     private final BuyerCouponRepository buyerCouponRepository;
+    private final OutboxMessageRepository outboxMessageRepository;
 
     @Override
     @JpaTransactional
@@ -104,9 +107,21 @@ public class OrderCreateServiceImpl implements OrderCreateService {
                     flatItems
             );
 
-            eventPublisher.publishEvent(event);
+//            eventPublisher.publishEvent(event);
             log.debug("OrderCreatedEvent 발행 완료: orderId={} (shippingAddress는 OrderPendingDetails에 저장됨)",
                     savedOrder.getId());
+
+            OutboxMessage outboxMessage = OutboxMessage.builder()
+                    .aggregateId(savedOrder.getId())
+                    .aggregateType("ORDER")
+                    .eventType("order.created.v1")
+                    .payload(objectMapper.writeValueAsString(event))
+                    .status(OutboxMessage.OutboxStatus.PENDING)
+                    .retryCount(0)
+                    .build();
+
+            outboxMessageRepository.save(outboxMessage);
+
 
             // 7. Toss Payments 응답 생성
             String orderName = validatedOrderItems.values().stream()

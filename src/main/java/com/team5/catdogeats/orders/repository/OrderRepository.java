@@ -1,6 +1,7 @@
 package com.team5.catdogeats.orders.repository;
 
 import com.team5.catdogeats.orders.domain.Orders;
+import com.team5.catdogeats.orders.dto.common.GroupOrdersAndPayments;
 import com.team5.catdogeats.users.domain.mapping.Buyers;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -30,4 +31,15 @@ public interface OrderRepository extends JpaRepository<Orders, String> {
     """)
     Optional<Orders> findOrderDetailByUserAndOrderNumber(@Param("buyer")Buyers buyer,
                                                          @Param("orderNumber") String orderNumber);
+
+    @Query("""
+    SELECT new com.team5.catdogeats.orders.dto.common.GroupOrdersAndPayments(o, p)
+    FROM Payments p
+    JOIN p.orders o
+    WHERE o.id = :orderId
+    """)
+    Optional<GroupOrdersAndPayments> findGroupByOrdersAndPaymentsOrderId(@Param("orderId") String orderId);
+
+
+
 }
