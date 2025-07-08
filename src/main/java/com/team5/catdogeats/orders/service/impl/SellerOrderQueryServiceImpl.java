@@ -18,10 +18,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 
 /**
  * 판매자용 주문 읽기 전용 서비스 구현체 (CQRS Query)
@@ -188,8 +190,31 @@ public class SellerOrderQueryServiceImpl implements SellerOrderQueryService {
         if (pageable.getPageNumber() < 0) {
             throw new IllegalArgumentException("페이지 번호는 0 이상이어야 합니다");
         }
-    }
 
+        // 정렬 속성 검증 추가
+        validateSortProperties(pageable.getSort());
+    }
+    /**
+     * 정렬 속성 검증
+     * Shipments 엔티티에서 사용 가능한 속성만 허용
+     */
+    private void validateSortProperties(Sort sort) {
+        // 허용되는 정렬 속성들
+        Set<String> allowedProperties = Set.of(
+                "createdAt", "updatedAt", "shippingStatus",
+                "shippingCompany", "trackingNumber"
+        );
+
+        for (Sort.Order order : sort) {
+            String property = order.getProperty();
+            if (!allowedProperties.contains(property)) {
+                throw new IllegalArgumentException(
+                        String.format("정렬 속성 '%s'는 지원되지 않습니다. 사용 가능한 속성: %s",
+                                property, allowedProperties)
+                );
+            }
+        }
+    }
     /**
      * 주문 상세 응답 DTO 생성
      */

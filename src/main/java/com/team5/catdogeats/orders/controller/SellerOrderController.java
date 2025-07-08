@@ -78,40 +78,20 @@ public class SellerOrderController {
     }
 
     /**
-     * 배송 관리 - 판매자 주문 목록 조회 (판매자)
+     * 배송 관리 - 판매자 주문 목록 조회 (단순화된 버전)
      * API: GET /v1/sellers/orders/list?page={}&sort={}
      */
     @GetMapping("/list")
     public ResponseEntity<ApiResponse<SellerOrderListResponse>> getSellerOrderList(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
-            @RequestParam(required = false) OrderStatus status,
-            @RequestParam(required = false) String searchType,
-            @RequestParam(required = false) String searchKeyword) {
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        log.info("판매자 주문 목록 조회 요청 - provider: {}, providerId: {}, page: {}, status: {}",
-                userPrincipal.provider(), userPrincipal.providerId(), pageable.getPageNumber(), status);
+        log.info("판매자 주문 목록 조회 요청 - provider: {}, providerId: {}, page: {}",
+                userPrincipal.provider(), userPrincipal.providerId(), pageable.getPageNumber());
 
         try {
-            SellerOrderListResponse response;
-
-            // 검색 요청 처리
-            if (searchType != null && searchKeyword != null && !searchKeyword.trim().isEmpty()) {
-                response = sellerOrderService.searchSellerOrders(userPrincipal, searchType, searchKeyword, pageable);
-                log.info("판매자 주문 검색 완료 - searchType: {}, keyword: {}, 결과수: {}",
-                        searchType, searchKeyword, response.orders().size());
-            }
-            // 상태 필터링 요청 처리
-            else if (status != null) {
-                response = sellerOrderService.getSellerOrdersByStatus(userPrincipal, status, pageable);
-                log.info("판매자 주문 상태 필터링 완료 - status: {}, 결과수: {}",
-                        status, response.orders().size());
-            }
-            // 전체 목록 조회
-            else {
-                response = sellerOrderService.getSellerOrders(userPrincipal, pageable);
-                log.info("판매자 주문 목록 조회 완료 - 결과수: {}", response.orders().size());
-            }
+            SellerOrderListResponse response = sellerOrderService.getSellerOrders(userPrincipal, pageable);
+            log.info("판매자 주문 목록 조회 완료 - 결과수: {}", response.orders().size());
 
             return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
 

@@ -25,12 +25,15 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequest
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession;
 
+/*
+
+        - Redis HttpSession 임시 비활성화 + 세션 고정 보호 none() 적용 버전
+- Toss Payments 콜백 URL(`/v1/buyers/payments/success|fail`)은 인증 없이 접근해야 하므로 permitAll() 추가.
+  \*/
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-@EnableRedisHttpSession(maxInactiveIntervalInSeconds = 1800)
 @Slf4j
 @RequiredArgsConstructor
 public class SecurityConfig {
@@ -42,128 +45,96 @@ public class SecurityConfig {
     private final CustomLogoutSuccessHandler customLogoutSuccessHandler;
     private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
 
+    // ---------------------------------------------------------------------
+    // 관리자 체인
+    // ---------------------------------------------------------------------
     @Bean
-    @Order(value = 1)
+    @Order(1)
     public SecurityFilterChain securityFilterChainAdmin(HttpSecurity http) {
         try {
-            http
-                    .securityMatcher("/v1/admin/**") // 관리자 체인 설정 지정
-                    .csrf(AbstractHttpConfigurer::disable) // 개발이 끝나면 반드시 활성화 시킬것!
-                    .sessionManagement(session ->
-                            session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                                    .sessionFixation().migrateSession()
-                                    .maximumSessions(1)
-                                    .maxSessionsPreventsLogin(false))
-                    .authorizeHttpRequests(authorize -> authorize
-                            .requestMatchers("/v1/admin/login").permitAll()                           // 로그인 페이지
-                            .requestMatchers("/v1/admin/verify").permitAll()                          // 계정 인증 페이지
-                            .requestMatchers("/v1/admin/resend-code").permitAll()                     // 인증코드 재발송
-                            .requestMatchers("/v1/admin/invite").hasAuthority("ADMIN")                // 초대 기능은 ADMIN 부서만
-                            .requestMatchers("/v1/admin/account-management").hasAuthority("ADMIN")    // 계정 관리는 ADMIN 부서만
-                            .requestMatchers("/v1/admin/accounts/**").hasAuthority("ADMIN")           // 계정 관리 API는 ADMIN 부서만
-                            .requestMatchers("/v1/admin/**").authenticated()                          // 나머지는 세션 인증 필요
-                            .anyRequest().authenticated())
+            http.securityMatcher("/v1/admin/**")
+                    .csrf(AbstractHttpConfigurer::disable)
+                    .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                            .sessionFixation().none()
+                            .maximumSessions(1)
+                            .maxSessionsPreventsLogin(false))
+                    .authorizeHttpRequests(auth -> auth
+                            .requestMatchers("/v1/admin/login", "/v1/admin/verify", "/v1/admin/resend-code").permitAll()
+                            .requestMatchers("/v1/admin/invite", "/v1/admin/account-management", "/v1/admin/accounts/**").hasAuthority("ADMIN")
+                            .requestMatchers("/v1/admin/**").authenticated())
                     .httpBasic(AbstractHttpConfigurer::disable)
-                    .formLogin(AbstractHttpConfigurer::disable)                         // Spring Security 기본 로그인 비활성화
-                    .logout(logout -> logout
-                            .logoutUrl("/v1/admin/logout")
+                    .formLogin(AbstractHttpConfigurer::disable)
+                    .logout(l -> l.logoutUrl("/v1/admin/logout")
                             .logoutSuccessUrl("/v1/admin/login?logout=true")
                             .invalidateHttpSession(true)
-                            .deleteCookies("JSESSIONID")
-                            .permitAll())
-                    .securityContext(securityContext ->
-                            securityContext.requireExplicitSave(false))                // SecurityContext 자동 저장 활성화
-                    .exceptionHandling(exceptions -> exceptions
-                            .authenticationEntryPoint((request, response, authException) -> {
-                                // 인증되지 않은 사용자를 로그인 페이지로 리다이렉트
-                                if (request.getRequestURI().startsWith("/v1/admin/")) {
-                                    response.sendRedirect("/v1/admin/login");
-                                }
-                            })
-                            .accessDeniedHandler((request, response, accessDeniedException) -> {
-                                // 권한이 없는 사용자를 대시보드로 리다이렉트
-                                if (request.getRequestURI().startsWith("/v1/admin/")) {
-                                    response.sendRedirect("/v1/admin/dashboard?error=access_denied");
-                                }
-                            }));
+                            .deleteCookies("JSESSIONID"))
+                    .securityContext(ctx -> ctx.requireExplicitSave(false))
+                    .exceptionHandling(eh -> eh.authenticationEntryPoint((req,res,e)->{
+                        if(req.getRequestURI().startsWith("/v1/admin/")) res.sendRedirect("/v1/admin/login");
+                    }).accessDeniedHandler((req,res,e)->{
+                        if(req.getRequestURI().startsWith("/v1/admin/")) res.sendRedirect("/v1/admin/dashboard?error=access_denied");
+                    }));
             return http.build();
         } catch (Exception e) {
-            log.error("Admin SecurityFilterChain 설정 중 예외 발생: ", e);
+            log.error("Admin SecurityFilterChain 오류", e);
             throw new RuntimeException(e);
         }
     }
 
+    // ---------------------------------------------------------------------
+    // 사용자 + Swagger + 결제 콜백 체인
+    // ---------------------------------------------------------------------
     @Bean
-    @Order(value = 2)
+    @Order(2)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) {
         try {
             http
                     .csrf(AbstractHttpConfigurer::disable)
-                    .sessionManagement(session
-                            -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                    .authorizeHttpRequests(authorize
-                            -> authorize
-                            .requestMatchers("/").permitAll()
-                            .requestMatchers("/index.html").permitAll() // 개발할때만 사용 로그인 페이지
-                            .requestMatchers("WebSocket.html").permitAll() // 개발할때만 소켓 페이지
-                            .requestMatchers("/withdraw").permitAll()
-                            .requestMatchers("/error").permitAll()
-                            .requestMatchers("/.well-known/**").permitAll()
+                    .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                            .sessionFixation().none())
+                    .authorizeHttpRequests(auth -> auth
+                            // Swagger
                             .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                            .requestMatchers("/ws/**").permitAll()
-                            .requestMatchers("/oauth2/authorization/google/**").permitAll()
-                            .requestMatchers("/oauth2/authorization/kakao/**").permitAll()
-                            .requestMatchers("/oauth2/authorization/naver/**").permitAll()
-                            .requestMatchers("/login/oauth2/code/google/**").permitAll()
-                            .requestMatchers("/login/oauth2/code/naver/**").permitAll()
-                            .requestMatchers("/login/oauth2/code/kakao/**").permitAll()
-                            .requestMatchers("/v1/auth/refresh").permitAll()
-                            .requestMatchers("/v1/notices").permitAll()
-                            .requestMatchers("/v1/faqs").permitAll()
-                            .requestMatchers("/v1/buyers/products/list").permitAll()
-                            .requestMatchers("/v1/buyers/products/{product-number}").permitAll()
-                            .requestMatchers("/v1/buyers/reviews/{product-id}/list").permitAll()
-                            .requestMatchers("/v1/buyers/reviews/{product-number}").permitAll()
-                            .requestMatchers("/v1/users/page/{vendor-name}").permitAll()
-                            .requestMatchers("/v1/sellers/coupons/{vendor-name}").permitAll()
-                            .requestMatchers("/withdraw").permitAll()
+                            // 공개 엔드포인트
+                            .requestMatchers("/", "/index.html", "WebSocket.html", "/withdraw", "/error", "/.well-known/**", "/ws/**").permitAll()
+                            // OAuth2 redirect
+                            .requestMatchers("/oauth2/**", "/login/oauth2/code/**").permitAll()
+                            // 결제 콜백 (Toss)
+                            .requestMatchers("/v1/buyers/payments/success", "/v1/buyers/payments/fail").permitAll()
+                            // 공개 API
+                            .requestMatchers("/v1/auth/refresh", "/v1/notices", "/v1/faqs").permitAll()
+                            .requestMatchers("/v1/buyers/products/**", "/v1/buyers/reviews/**", "/v1/users/page/**").permitAll()
+                            // 권한 API
                             .requestMatchers("/v1/users/**").hasAnyRole("BUYER", "SELLER")
                             .requestMatchers("/v1/sellers/**").hasRole("SELLER")
                             .requestMatchers("/v1/buyers/**").hasRole("BUYER")
                             .requestMatchers("/v1/auth/role").hasRole("TEMP")
                             .anyRequest().authenticated())
-
                     .oauth2Login(oauth2 -> oauth2
                             .successHandler(oAuth2AuthenticationSuccessHandler)
                             .failureHandler(oAuth2AuthenticationFailureHandler)
-                            .userInfoEndpoint(userInfo -> userInfo
-                                    .userService(customOAuth2UserService) // 여기에 커스텀 서비스 주입
-                            )
-                    )
+                            .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService)))
                     .httpBasic(AbstractHttpConfigurer::disable)
                     .formLogin(AbstractHttpConfigurer::disable)
-
-// .exceptionHandling(exception ->
-// exception.authenticationEntryPoint(new OAuth2AuthenticationEntryPointHandler()))
-                    .logout(logout -> logout
-                            .logoutUrl("/v1/auth/logout")
+                    .logout(l -> l.logoutUrl("/v1/auth/logout")
                             .logoutSuccessHandler(customLogoutSuccessHandler)
                             .invalidateHttpSession(true)
-                            .deleteCookies("token")
-                            .permitAll()
-                    )
+                            .deleteCookies("token"))
                     .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                     .addFilterBefore(preventDuplicateLoginFilter, OAuth2AuthorizationRequestRedirectFilter.class);
             return http.build();
         } catch (Exception e) {
-            log.error("User SecurityFilterChain 설정 중 예외 발생: ", e);
+            log.error("User SecurityFilterChain 오류", e);
             throw new RuntimeException(e);
         }
     }
 
+    // ---------------------------------------------------------------------
+    // 지원 Bean
+    // ---------------------------------------------------------------------
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
-        return authenticationConfiguration.getAuthenticationManager();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
     }
 
     @Bean
