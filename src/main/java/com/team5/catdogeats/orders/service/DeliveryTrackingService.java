@@ -56,18 +56,6 @@ public interface DeliveryTrackingService {
             return new ValidationResult(false, false, message, "SKIPPED");
         }
     }
-
-    /**
-     * API 호출 현황
-     */
-    record ApiCallStatus(
-            int dailyCallCount,         // 오늘 총 호출 수
-            int dailyTotalLimit,        // 일일 전체 호출 제한
-            int trackingNumbersCount,   // 오늘 조회한 운송장 개수
-            String lastResetDate        // 마지막 초기화 날짜
-    ) {
-    }
-
     /**
      * 배송 추적 API 예외
      */

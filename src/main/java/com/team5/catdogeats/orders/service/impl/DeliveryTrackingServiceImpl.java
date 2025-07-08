@@ -156,18 +156,6 @@ public class DeliveryTrackingServiceImpl implements DeliveryTrackingService {
         }
     }
 
-    @Override
-    public ApiCallStatus getApiCallStatus() {
-        resetCountsIfNewDay();
-
-        return new ApiCallStatus(
-                dailyCallCount.get(),
-                dailyTotalLimit,
-                trackingCallCounts.size(),
-                lastResetDate
-        );
-    }
-
     /**
      * API 호출 제한 검증
      */
