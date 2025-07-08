@@ -64,7 +64,7 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
             validateSellerOwnership(seller, order);
 
             // 4. 상태 전환 유효성 검증
-            validateStatusTransition(order.getOrderStatus(), request.newStatus(), request);
+            validateStatusTransitionForStatusUpdate(order.getOrderStatus(), request.newStatus(), request);
 
             // 5. 상태 업데이트 및 추가 처리
             OrderStatus oldStatus = order.getOrderStatus();
@@ -246,25 +246,42 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
         }
     }
 
-    /**
-     * 상태 전환 유효성 검증 - DELIVERY_DELAYED 제거
-     */
-    private void validateStatusTransition(OrderStatus currentStatus, OrderStatus newStatus, OrderStatusUpdateRequest request) {
-        // 허용되는 상태 전환 규칙 정의
+    private void validateStatusTransitionForStatusUpdate(OrderStatus currentStatus, OrderStatus newStatus, OrderStatusUpdateRequest request) {
+        // 허용되는 상태 전환 규칙 정의 (상태 변경 API 전용)
         Set<OrderStatus> allowedTransitions = switch (currentStatus) {
             case PAYMENT_COMPLETED -> Set.of(OrderStatus.PREPARING, OrderStatus.CANCELLED);
             case PREPARING -> Set.of(OrderStatus.READY_FOR_SHIPMENT, OrderStatus.CANCELLED);
-            case READY_FOR_SHIPMENT -> Set.of(OrderStatus.IN_DELIVERY);
-            case IN_DELIVERY -> Set.of(OrderStatus.DELIVERED);
+            case READY_FOR_SHIPMENT -> Set.of(OrderStatus.CANCELLED); // IN_DELIVERY는 운송장 등록 API 전용
+            case IN_DELIVERY -> Set.of(); // DELIVERED는 자동 업데이트
             case DELIVERED -> Set.of(); // 배송 완료 후에는 상태 변경 불가
             case CANCELLED -> Set.of(); // 취소된 주문은 상태 변경 불가
             default -> Set.of();
         };
 
         if (!allowedTransitions.contains(newStatus)) {
-            throw new IllegalStateException(
-                    String.format("상태 전환이 불가능합니다: %s -> %s", currentStatus, newStatus));
+            // 구체적인 오류 메시지 제공
+            String errorMessage = generateStatusUpdateErrorMessage(currentStatus, newStatus);
+            throw new IllegalStateException(errorMessage);
         }
+    }
+
+    /**
+     * 상태 변경 API 전용 오류 메시지 생성
+     */
+    private String generateStatusUpdateErrorMessage(OrderStatus currentStatus, OrderStatus newStatus) {
+        return switch (newStatus) {
+            case IN_DELIVERY -> "배송 중 상태로 변경하려면 운송장 등록 API(POST /v1/sellers/orders/tracking-number)를 이용해주세요.";
+            case DELIVERED -> "배송 완료 상태는 시스템에서 자동으로 업데이트됩니다.";
+            default -> {
+                if (currentStatus == OrderStatus.DELIVERED) {
+                    yield "배송 완료된 주문의 상태는 변경할 수 없습니다.";
+                } else if (currentStatus == OrderStatus.CANCELLED) {
+                    yield "취소된 주문의 상태는 변경할 수 없습니다.";
+                } else {
+                    yield String.format("허용되지 않는 상태 전환입니다: %s -> %s", currentStatus, newStatus);
+                }
+            }
+        };
     }
 
     /**

@@ -66,7 +66,6 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
     JOIN oi.products p
     WHERE p.seller.userId = :sellerId
     AND (s.isHiddenBySeller = false OR s.isHiddenBySeller IS NULL)
-    ORDER BY s.createdAt DESC
     """)
     Page<Shipments> findSellerOrdersWithPaging(
             @Param("sellerId") String sellerId,
