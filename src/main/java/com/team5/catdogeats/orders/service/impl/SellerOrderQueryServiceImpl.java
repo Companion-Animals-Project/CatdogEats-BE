@@ -237,9 +237,9 @@ public class SellerOrderQueryServiceImpl implements SellerOrderQueryService {
                 .recipientName(shipment.getRecipientName())
                 .recipientPhone(shipment.getRecipientPhone())
                 .maskedPhone(maskedPhone)
-                .zipCode(shipment.getZipCode()) // 기존 메서드 활용
-                .address(shipment.getAddress())
-                .addressDetail(shipment.getAddressDetail())
+                .zipCode(shipment.getPostalCode()) // 기존 메서드 활용
+                .address(shipment.getStreetAddress())
+                .addressDetail(shipment.getDetailAddress())
                 .fullAddress(fullAddress)
                 .deliveryRequest(shipment.getDeliveryRequest())
                 .build();
@@ -411,14 +411,14 @@ public class SellerOrderQueryServiceImpl implements SellerOrderQueryService {
      */
     private String buildFullAddress(Shipments shipment) {
         StringBuilder fullAddress = new StringBuilder();
-        if (shipment.getAddress() != null && !shipment.getAddress().trim().isEmpty()) {
-            fullAddress.append(shipment.getAddress());
+        if (shipment.getStreetAddress() != null && !shipment.getStreetAddress().trim().isEmpty()) {
+            fullAddress.append(shipment.getStreetAddress());
         }
-        if (shipment.getAddressDetail() != null && !shipment.getAddressDetail().trim().isEmpty()) {
+        if (shipment.getDetailAddress() != null && !shipment.getDetailAddress().trim().isEmpty()) {
             if (!fullAddress.isEmpty()) {
                 fullAddress.append(" ");
             }
-            fullAddress.append(shipment.getAddressDetail());
+            fullAddress.append(shipment.getDetailAddress());
         }
         return fullAddress.toString();
     }

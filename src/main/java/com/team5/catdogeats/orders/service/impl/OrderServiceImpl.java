@@ -423,8 +423,8 @@ public class OrderServiceImpl implements OrderService {
             return new OrderDetailResponse.RecipientInfo(
                     shipment.getRecipientName(),
                     shipment.getRecipientPhone(),
-                    shipment.getFullShippingAddress(),
-                    shipment.getDeliveryNote() != null ? shipment.getDeliveryNote() : "배송 요청사항 없음"
+                    shipment.getFullAddress(),
+                    shipment.getDeliveryRequest() != null ? shipment.getDeliveryRequest() : "배송 요청사항 없음"
             );
         }
         return new OrderDetailResponse.RecipientInfo("수령인 미등록", "연락처 미등록", "주소 미등록", "배송 요청사항 없음");

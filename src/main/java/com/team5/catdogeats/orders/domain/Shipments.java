@@ -52,9 +52,9 @@ public class Shipments extends BaseEntity {
     @Column(name = "tracking_updated_at")
     private ZonedDateTime trackingUpdatedAt;
 
-    // ===== 판매자 배송 관리 추가 필드들 =====
+    // ===== 판매자 배송 관리 필드들 =====
     /**
-     * 예상 배송일 (출고 지연 시 사용)
+     * 예상 배송일
      */
     @Column(name = "expected_ship_date")
     private ZonedDateTime expectedShipDate;
@@ -65,7 +65,7 @@ public class Shipments extends BaseEntity {
     @Column(name = "delay_reason", length = 500)
     private String delayReason;
 
-    // ===== 배송지 정보 필드들 (DB 스키마와 일치) =====
+    // ===== 배송지 정보 필드들 (Address 도메인과 동일한 필드명) =====
     /**
      * 받는 사람 이름
      */
@@ -79,22 +79,22 @@ public class Shipments extends BaseEntity {
     private String recipientPhone;
 
     /**
-     * 우편번호
+     * 우편번호 (Address와 동일: postalCode)
      */
-    @Column(name = "zip_code", length = 10, nullable = false)
-    private String zipCode;
+    @Column(name = "postal_code", length = 20, nullable = false)
+    private String postalCode;
 
     /**
-     * 기본 주소
+     * 도로명 주소 (Address와 동일: streetAddress)
      */
-    @Column(name = "address", length = 500, nullable = false)
-    private String address;
+    @Column(name = "street_address", length = 200, nullable = false)
+    private String streetAddress;
 
     /**
-     * 상세 주소
+     * 상세 주소 (Address와 동일: detailAddress)
      */
-    @Column(name = "address_detail", length = 200)
-    private String addressDetail;
+    @Column(name = "detail_address", length = 200)
+    private String detailAddress;
 
     /**
      * 배송 요청사항
@@ -121,80 +121,25 @@ public class Shipments extends BaseEntity {
     @Column(name = "shipment_memo", length = 500)
     private String shipmentMemo;
 
-    // ===== 기존 코드 호환성을 위한 메서드들 =====
+    // ===== 비즈니스 메서드 (Address 유틸 기능과 동일) =====
 
     /**
-     * postalCode getter (zipCode와 매핑) - 기존 코드 호환성
-     */
-    public String getPostalCode() {
-        return this.zipCode;
-    }
-
-    /**
-     * 전체 주소 반환 - 기존 코드 호환성
-     */
-    public String getFullShippingAddress() {
-        return getFullAddress();
-    }
-
-    /**
-     * 배송 요청사항 반환 - 기존 코드 호환성
-     */
-    public String getDeliveryNote() {
-        return this.deliveryRequest;
-    }
-
-    /**
-     * 전체 주소 반환 (새 버전)
+     * 전체 주소 반환 (Address와 동일한 로직)
      */
     public String getFullAddress() {
-        StringBuilder fullAddress = new StringBuilder();
-        if (address != null && !address.trim().isEmpty()) {
-            fullAddress.append(address);
-        }
-        if (addressDetail != null && !addressDetail.trim().isEmpty()) {
-            if (!fullAddress.isEmpty()) {
-                fullAddress.append(" ");
-            }
-            fullAddress.append(addressDetail);
-        }
-        return fullAddress.toString();
+        return String.format("%s %s",
+                streetAddress != null ? streetAddress : "",
+                detailAddress != null ? detailAddress : "").trim();
     }
 
     /**
-     * 도시 정보 추출 (주소에서 첫 번째 공백 전까지)
+     * 우편번호 포함 전체 주소 반환 (Address와 동일한 로직)
      */
-    public String getCity() {
-        if (address == null || address.trim().isEmpty()) {
-            return "";
-        }
-        String[] parts = address.trim().split("\\s+");
-        return parts.length > 0 ? parts[0] : "";
+    public String getFullAddressWithPostalCode() {
+        return String.format("(%s) %s", postalCode, getFullAddress());
     }
 
-    /**
-     * 구/군 정보 추출 (주소에서 두 번째 부분)
-     */
-    public String getDistrict() {
-        if (address == null || address.trim().isEmpty()) {
-            return "";
-        }
-        String[] parts = address.trim().split("\\s+");
-        return parts.length > 1 ? parts[1] : "";
-    }
-
-    /**
-     * 동/면 정보 추출 (주소에서 세 번째 부분)
-     */
-    public String getNeighborhood() {
-        if (address == null || address.trim().isEmpty()) {
-            return "";
-        }
-        String[] parts = address.trim().split("\\s+");
-        return parts.length > 2 ? parts[2] : "";
-    }
-
-    // ===== 커스텀 Builder 클래스 (기존 코드 호환성) =====
+    // ===== Builder 패턴 (Address와 동일한 필드명) =====
 
     /**
      * Builder 생성 메서드
@@ -217,9 +162,9 @@ public class Shipments extends BaseEntity {
         private String delayReason;
         private String recipientName;
         private String recipientPhone;
-        private String zipCode;
-        private String address;
-        private String addressDetail;
+        private String postalCode;           // Address와 동일
+        private String streetAddress;        // Address와 동일
+        private String detailAddress;        // Address와 동일
         private String deliveryRequest;
         private Boolean isHiddenBySeller = Boolean.FALSE;
         private ZonedDateTime hiddenAt;
@@ -292,18 +237,20 @@ public class Shipments extends BaseEntity {
             return this;
         }
 
-        public ShipmentsBuilder zipCode(String zipCode) {
-            this.zipCode = zipCode;
+        // ===== Address와 동일한 필드명 Builder 메서드들 =====
+
+        public ShipmentsBuilder postalCode(String postalCode) {
+            this.postalCode = postalCode;
             return this;
         }
 
-        public ShipmentsBuilder address(String address) {
-            this.address = address;
+        public ShipmentsBuilder streetAddress(String streetAddress) {
+            this.streetAddress = streetAddress;
             return this;
         }
 
-        public ShipmentsBuilder addressDetail(String addressDetail) {
-            this.addressDetail = addressDetail;
+        public ShipmentsBuilder detailAddress(String detailAddress) {
+            this.detailAddress = detailAddress;
             return this;
         }
 
@@ -327,40 +274,6 @@ public class Shipments extends BaseEntity {
             return this;
         }
 
-        // ===== 기존 코드 호환성을 위한 별칭 메서드들 =====
-
-        /**
-         * postalCode 설정 - zipCode로 매핑 (기존 코드 호환성)
-         */
-        public ShipmentsBuilder postalCode(String postalCode) {
-            this.zipCode = postalCode;
-            return this;
-        }
-
-        /**
-         * shippingAddress 설정 - address로 매핑 (기존 코드 호환성)
-         */
-        public ShipmentsBuilder shippingAddress(String shippingAddress) {
-            this.address = shippingAddress;
-            return this;
-        }
-
-        /**
-         * detailAddress 설정 - addressDetail로 매핑 (기존 코드 호환성)
-         */
-        public ShipmentsBuilder detailAddress(String detailAddress) {
-            this.addressDetail = detailAddress;
-            return this;
-        }
-
-        /**
-         * deliveryNote 설정 - deliveryRequest로 매핑 (기존 코드 호환성)
-         */
-        public ShipmentsBuilder deliveryNote(String deliveryNote) {
-            this.deliveryRequest = deliveryNote;
-            return this;
-        }
-
         /**
          * Shipments 객체 생성
          */
@@ -379,9 +292,9 @@ public class Shipments extends BaseEntity {
             shipments.delayReason = this.delayReason;
             shipments.recipientName = this.recipientName;
             shipments.recipientPhone = this.recipientPhone;
-            shipments.zipCode = this.zipCode;
-            shipments.address = this.address;
-            shipments.addressDetail = this.addressDetail;
+            shipments.postalCode = this.postalCode;
+            shipments.streetAddress = this.streetAddress;
+            shipments.detailAddress = this.detailAddress;
             shipments.deliveryRequest = this.deliveryRequest;
             shipments.isHiddenBySeller = this.isHiddenBySeller != null ? this.isHiddenBySeller : Boolean.FALSE;
             shipments.hiddenAt = this.hiddenAt;

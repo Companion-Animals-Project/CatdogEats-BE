@@ -401,9 +401,9 @@ CREATE TABLE shipments (
     -- 배송지 정보 (필드명을 엔티티와 일치시킴)
                            recipient_name VARCHAR(100) NOT NULL,                   -- 받는 사람 이름
                            recipient_phone VARCHAR(20) NOT NULL,                   -- 받는 사람 연락처
-                           zip_code VARCHAR(10) NOT NULL,                          -- 우편번호 (postal_code → zip_code)
-                           address VARCHAR(500) NOT NULL,                          -- 배송 주소 (shipping_address → address)
-                           address_detail VARCHAR(200),                            -- 상세 주소 (detail_address → address_detail)
+                           postal_code VARCHAR(10) NOT NULL,                          -- 우편번호 (postal_code → zip_code)
+                           street_address VARCHAR(500) NOT NULL,                          -- 배송 주소 (shipping_address → address)
+                           detail_address VARCHAR(200),                            -- 상세 주소 (detail_address → address_detail)
                            delivery_request VARCHAR(500),                          -- 배송 요청사항 (delivery_note → delivery_request)
 
     -- 배송 추적 정보
