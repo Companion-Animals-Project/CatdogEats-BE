@@ -15,6 +15,7 @@ import java.util.List;
 /**
  * 정산 생성용 ItemReader
  * 동적 데이터 변화에 대응하는 offset 관리 방식 적용
+ * Step 스코프로 각 실행마다 새로운 인스턴스 생성
  */
 @Slf4j
 public class SettlementCreateItemReader implements ItemReader<SettlementBatchItem> {
@@ -36,6 +37,18 @@ public class SettlementCreateItemReader implements ItemReader<SettlementBatchIte
 
         log.info("SettlementCreateItemReader 초기화 - chunkSize: {}, commissionRate: {}",
                 chunkSize, commissionRate);
+    }
+
+    /**
+     * Job/Step 시작 시 상태 초기화
+     * StepExecutionListener에서 호출됨
+     */
+    public void reset() {
+        log.info("🔄 [RESET] 배치 시작 - hasMoreData 리셋: {} → true", hasMoreData);
+        this.hasMoreData = true;
+        this.totalProcessedCount = 0;
+        this.currentChunkIterator = null;
+        log.info("🔄 [RESET] 완료 - totalProcessedCount: 0, currentChunkIterator: null");
     }
 
     @Override

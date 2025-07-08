@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
@@ -17,6 +18,7 @@ import org.springframework.batch.core.step.skip.SkipLimitExceededException;
 import org.springframework.batch.core.step.skip.SkipPolicy;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.DataAccessException;
@@ -27,6 +29,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 
 /**
  * 정산 청크 기반 배치 설정
+ * ItemReader Step 스코프 적용으로 상태 초기화 문제 해결
  */
 @Slf4j
 @Configuration
@@ -36,6 +39,7 @@ public class SettlementChunkBatchConfig {
     private final JobRepository jobRepository;
     private final SettlementChunkMapper settlementChunkMapper;
     private final SettlementBatchProperties batchProperties;
+    private final ApplicationContext applicationContext;
 
     @Qualifier("batchTransactionManager")
     private final PlatformTransactionManager batchTransactionManager;
@@ -103,22 +107,25 @@ public class SettlementChunkBatchConfig {
     }
 
     /**
-     * ItemReader 빈들
+     * ItemReader 빈들 - @StepScope로 각 Step 실행마다 새로운 인스턴스 생성
      */
     @Bean
+    @StepScope
     public SettlementCreateItemReader settlementCreateItemReader() {
+        log.info("🆕 SettlementCreateItemReader 새 인스턴스 생성 - Step 스코프");
         return new SettlementCreateItemReader(settlementChunkMapper,
                 batchProperties.getCommissionRate(), batchProperties.getChunkSize());
     }
 
-
     @Bean
+    @StepScope
     public SettlementCompleteItemReader settlementCompleteItemReader() {
+        log.info("🆕 SettlementCompleteItemReader 새 인스턴스 생성 - Step 스코프");
         return new SettlementCompleteItemReader(settlementChunkMapper, batchProperties.getChunkSize());
     }
 
     /**
-     * ItemWriter 빈들
+     * ItemWriter 빈들 - 싱글톤으로 유지 (상태를 가지지 않음)
      */
     @Bean
     public SettlementCreateItemWriter settlementCreateItemWriter() {
@@ -131,7 +138,7 @@ public class SettlementChunkBatchConfig {
     }
 
     /**
-     * ItemProcessor 빈들 (검증 및 로깅용)
+     * ItemProcessor 빈들 (검증 및 로깅용) - 싱글톤으로 유지
      */
     @Bean
     public ItemProcessor<SettlementBatchItem, SettlementBatchItem> settlementCreateItemProcessor() {
@@ -213,15 +220,15 @@ public class SettlementChunkBatchConfig {
     }
 
     /**
-     * Step 실행 리스너들 (진행 상황 모니터링)
+     * Step 실행 리스너들 (진행 상황 모니터링 및 ItemReader 초기화)
      */
     @Bean
     public SettlementStepExecutionListener createStepExecutionListener() {
-        return new SettlementStepExecutionListener("정산생성");
+        return new SettlementStepExecutionListener("정산생성", applicationContext);
     }
 
     @Bean
     public SettlementStepExecutionListener completeStepExecutionListener() {
-        return new SettlementStepExecutionListener("정산완료");
+        return new SettlementStepExecutionListener("정산완료", applicationContext);
     }
 }
