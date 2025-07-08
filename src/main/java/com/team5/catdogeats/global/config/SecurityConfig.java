@@ -25,12 +25,12 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequest
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession;
+//import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-@EnableRedisHttpSession(maxInactiveIntervalInSeconds = 1800)
+//@EnableRedisHttpSession(maxInactiveIntervalInSeconds = 1800)
 @Slf4j
 @RequiredArgsConstructor
 public class SecurityConfig {

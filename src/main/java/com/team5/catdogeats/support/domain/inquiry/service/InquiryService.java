@@ -4,6 +4,7 @@ import com.team5.catdogeats.support.domain.enums.InquiryUrgentLevel;
 import com.team5.catdogeats.support.domain.inquiry.dto.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
 // 1:1 문의 서비스 인터페이스
 public interface InquiryService {
@@ -43,5 +44,21 @@ public interface InquiryService {
 
     // 긴급도 수정
     InquiryResponseDTO updateUrgentLevel(String inquiryId, InquiryUrgentLevel urgentLevel);
+
+    // 🆕 추가 메서드 (3개)
+    InquiryResponseDTO createInquiryWithFiles(InquiryCreateRequestDTO request,
+                                              MultipartFile[] imageFiles,
+                                              String providerId);
+
+    InquiryResponseDTO createUserFollowupWithFiles(String inquiryId,
+                                                   String content,
+                                                   MultipartFile[] imageFiles,
+                                                   String providerId);
+
+    InquiryResponseDTO createAdminReplyWithFiles(String inquiryId,
+                                                 String content,
+                                                 MultipartFile[] imageFiles,
+                                                 MultipartFile[] documentFiles,
+                                                 String adminId);
 
 }

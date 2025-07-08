@@ -56,4 +56,22 @@ public interface InquiryRepository extends JpaRepository<Inquires, String> {
     // 특정 문의의 모든 답글들을 시간순으로 조회
     @Query("SELECT i FROM Inquires i WHERE i.parent.id = :parentId ORDER BY i.createdAt ASC")
     List<Inquires> findByParentIdOrderByCreatedAtAsc(@Param("parentId") String parentId);
+
+    // ✅ 문의 조회 + 사용자 권한 검증을 한 번에
+    @Query("SELECT i FROM Inquires i " +
+            "JOIN FETCH i.users u " +
+            "WHERE i.id = :inquiryId AND u.providerId = :providerId " +
+            "AND u.provider IN ('google', 'kakao', 'naver')")
+    Optional<Inquires> findByIdAndUserProviderId(@Param("inquiryId") String inquiryId,
+                                                 @Param("providerId") String providerId);
+
+    // ✅ 사용자의 문의 목록 조회도 개선
+    @Query("SELECT i FROM Inquires i " +
+            "JOIN FETCH i.users u " +
+            "WHERE u.providerId = :providerId " +
+            "AND u.provider IN ('google', 'kakao', 'naver') " +
+            "AND i.parent IS NULL " +  // 루트 문의만
+            "ORDER BY i.createdAt DESC")
+    Page<Inquires> findByUserProviderIdOrderByCreatedAtDesc(@Param("providerId") String providerId,
+                                                            Pageable pageable);
 }

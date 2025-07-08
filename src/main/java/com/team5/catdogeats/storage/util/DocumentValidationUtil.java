@@ -176,45 +176,59 @@ public class DocumentValidationUtil {
     }
 
     /**
-     * 파일 시그니처 검증 (Magic Number)
+     * 파일 시그니처 검증 (Magic Number) - 수정된 버전
      * PDF, DOC, DOCX, XLS, XLSX, HWP 실제 파일 형식 확인
      */
     private void validateFileSignature(MultipartFile file) {
         try (InputStream is = file.getInputStream()) {
-            byte[] header = new byte[20]; // 충분한 바이트 수 확보
+            byte[] header = new byte[20];
             int bytesRead = is.read(header);
 
             if (bytesRead < 4) {
                 throw new IllegalArgumentException("파일 형식을 확인할 수 없습니다.");
             }
 
-            // PDF: %PDF (25 50 44 46)
-            if (header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46) {
+            // 지원하는 파일 형식들의 시그니처 검증
+            if (isValidDocumentSignature(header)) {
                 return;
             }
 
-            // DOC: D0 CF 11 E0 (Microsoft Office 구 버전)
-            // HWP: HWP Document File (D0 CF 11 E0 또는 특별한 시그니처)
-            // HWP 3.0+: D0 CF 11 E0 (복합문서 형태)
-            if (header[0] == (byte) 0xD0 && header[1] == (byte) 0xCF &&
-                    header[2] == 0x11 && header[3] == (byte) 0xE0) {
-                return;
-            }
+            // 시그니처 검증 실패 시 무조건 차단
+            String fileName = file.getOriginalFilename();
+            log.warn("파일 시그니처 검증 실패로 업로드 차단 - fileName: {}, contentType: {}",
+                    fileName, file.getContentType());
 
-            // DOCX, XLSX: PK (50 4B) - ZIP 기반 파일
-            if (header[0] == 0x50 && header[1] == 0x4B) {
-                return;
-            }
-
-
-            // HWP 5.0+: 특별한 시그니처 확인 (추가 검증 필요시)
-            // 일반적으로 ZIP 형태이므로 PK로 시작할 수 있음
-
-            throw new IllegalArgumentException("지원하지 않는 문서 파일 형식입니다.");
+            throw new IllegalArgumentException(
+                    String.format("지원하지 않는 문서 형식이거나 파일이 손상되었습니다. (파일명: %s)", fileName)
+            );
 
         } catch (IOException e) {
+            log.error("파일 시그니처 검증 중 I/O 오류 발생", e);
             throw new IllegalArgumentException("파일 형식 검증 중 오류가 발생했습니다.", e);
         }
+    }
+
+    private boolean isValidDocumentSignature(byte[] header) {
+        // PDF: %PDF
+        if (header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46) {
+            log.debug("PDF 파일 형식 확인됨");
+            return true;
+        }
+
+        // DOC, XLS, HWP 3.0+: D0 CF 11 E0
+        if (header[0] == (byte) 0xD0 && header[1] == (byte) 0xCF &&
+                header[2] == 0x11 && header[3] == (byte) 0xE0) {
+            log.debug("복합문서 형식 확인됨");
+            return true;
+        }
+
+        // DOCX, XLSX, HWP 5.0+: PK
+        if (header[0] == 0x50 && header[1] == 0x4B) {
+            log.debug("ZIP 기반 문서 형식 확인됨");
+            return true;
+        }
+
+        return false;
     }
 
     /**

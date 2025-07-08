@@ -24,10 +24,10 @@ public class InquiryFiles extends BaseEntity {
     private Inquires inquires;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "image_id", nullable = false)
+    @JoinColumn(name = "image_id", nullable = true)
     private Images images;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "file_id", nullable = false)
+    @JoinColumn(name = "file_id", nullable = true)
     private Files files;
 }

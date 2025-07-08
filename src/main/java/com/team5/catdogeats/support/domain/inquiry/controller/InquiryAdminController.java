@@ -4,7 +4,10 @@ import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.storage.service.InquiryFileService;
 import com.team5.catdogeats.support.domain.enums.InquiryUrgentLevel;
-import com.team5.catdogeats.support.domain.inquiry.dto.*;
+import com.team5.catdogeats.support.domain.inquiry.dto.InquiryDetailResponseDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.InquiryListResponseDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.InquiryRequestDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.InquiryResponseDTO;
 import com.team5.catdogeats.support.domain.inquiry.service.InquiryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -21,13 +24,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.util.List;
 
 @Slf4j
 @RestController
@@ -144,60 +146,57 @@ public class InquiryAdminController {
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> createReply(
             @Parameter(hidden = true) @AuthenticationPrincipal Object adminPrincipal,
+
+            @Parameter(description = "문의 ID")
+            @RequestParam("inquiryId")
+            @NotBlank(message = "문의 ID는 필수입니다") String inquiryId,
+
             @Parameter(description = "답변 내용")
-            @Valid @RequestPart("request") ReplyRequestWrapper request,
+            @RequestParam("content")
+            @NotBlank(message = "답변 내용은 필수입니다")
+            @Size(max = 2000, message = "답변 내용은 2,000자를 초과할 수 없습니다") String content,
+
             @RequestParam(value = "images", required = false)
             @Parameter(description = "첨부 이미지 파일들 (선택사항)")
             MultipartFile[] imageFiles,
+
             @RequestParam(value = "documents", required = false)
             @Parameter(description = "첨부 문서 파일들 (선택사항)")
             MultipartFile[] documentFiles) {
 
         try {
+            // ✅ 서비스에 모든 처리 위임
             String adminId = adminPrincipal != null ? adminPrincipal.toString() : "SYSTEM";
 
-            // InquiryRequestDTO 생성
-            InquiryRequestDTO inquiryRequest = InquiryRequestDTO.forContent(request.content());
+            // ✅ 매개변수 순서가 바뀐 메서드 호출
+            InquiryResponseDTO response = inquiryService.createAdminReplyWithFiles(
+                    inquiryId, content, imageFiles, documentFiles, adminId);
 
-            InquiryResponseDTO response = inquiryService.createAdminReply(request.inquiryId(), adminId, inquiryRequest);
-
-            // 파일 업로드 (있는 경우)
-            if ((imageFiles != null && imageFiles.length > 0) ||
-                    (documentFiles != null && documentFiles.length > 0)) {
-                try {
-                    List<InquiryAttachmentDTO> attachments = inquiryFileService.uploadAdminFiles(
-                            response.inquiryId(), imageFiles, documentFiles);
-                    log.info("관리자 답변 파일 업로드 완료 - inquiryId: {}, 파일 수: {}",
-                            response.inquiryId(), attachments.size());
-                } catch (Exception e) {
-                    log.error("파일 업로드 실패하였으나 답변은 등록됨 - inquiryId: {}", response.inquiryId(), e);
-                }
-            }
-
-            log.info("관리자 답변 등록 완료 - inquiryId: {}, adminId: {}, replyId: {}",
-                    request.inquiryId(), adminId, response.inquiryId());
+            log.info("관리자 답변 등록 완료 - inquiryId: {}, 이미지: {}, 문서: {}",
+                    inquiryId,
+                    imageFiles != null ? imageFiles.length : 0,
+                    documentFiles != null ? documentFiles.length : 0);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
                     ApiResponse.success(ResponseCode.CREATED, response)
             );
         } catch (EntityNotFoundException e) {
-            log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
+            log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                     ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
             );
         } catch (IllegalStateException e) {
-            log.warn("종료된 문의에 답변 시도 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
+            log.warn("종료된 문의에 답변 시도 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
             return ResponseEntity.badRequest().body(
                     ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (IllegalArgumentException e) {
-            log.warn("관리자 답변 등록 실패 - inquiryId: {}, error: {}",
-                    request.inquiryId(), e.getMessage());
+            log.warn("관리자 답변 등록 실패 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
             return ResponseEntity.badRequest().body(
                     ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
-            log.error("관리자 답변 등록 중 서버 오류 - inquiryId: {}", request.inquiryId(), e);
+            log.error("관리자 답변 등록 중 서버 오류 - inquiryId: {}", inquiryId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                     ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
@@ -262,20 +261,23 @@ public class InquiryAdminController {
             @PathVariable String fileId) {
 
         try {
-            Resource resource = inquiryFileService.downloadAdminFile(inquiryId, fileId);
+            Resource resource = inquiryFileService.downloadAdminFileWithoutValidation(inquiryId, fileId);
 
-            // 안전한 파일명 생성
-            String safeFileName = inquiryFileService.generateSafeDownloadFileName("attachment", fileId);
+            // ✅ 파일명 생성을 서비스에 위임
+            String fileName = inquiryFileService.generateAdminDownloadFileName(fileId);
 
             return ResponseEntity.ok()
-                    .header("Content-Disposition", "attachment; filename=\"" + safeFileName + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
+                    .header(HttpHeaders.PRAGMA, "no-cache")
+                    .header(HttpHeaders.EXPIRES, "0")
                     .body(resource);
 
         } catch (EntityNotFoundException e) {
-            log.warn("파일을 찾을 수 없음 - inquiryId: {}, fileId: {}", inquiryId, fileId);
+            log.warn("관리자 - 파일을 찾을 수 없음: inquiryId: {}, fileId: {}", inquiryId, fileId);
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
-            log.error("관리자 파일 다운로드 중 오류 - inquiryId: {}, fileId: {}", inquiryId, fileId, e);
+            log.error("관리자 파일 다운로드 실패 - inquiryId: {}, fileId: {}", inquiryId, fileId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
