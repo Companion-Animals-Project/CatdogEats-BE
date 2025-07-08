@@ -63,10 +63,10 @@ public class ReviewSummaryBatchServiceImpl implements ReviewSummaryBatchService 
                         log.info("[배치요약] 상품 {}: 기존 요약 최신, skip", product.getTitle());
                         continue;
                     }
-                    // 기존 요약 먼저 삭제 (리뷰 요약 이후 최신 리뷰가 하나라도 생기면)
-                    reviewSummaryLLMRepository.delete(latestSummary);
                     // 기존 요약 분류 결과들도 삭제
                     reviewClassificationLLMRepository.deleteAllByProduct(product);
+                    // 기존 요약 삭제 (리뷰 요약 이후 최신 리뷰가 하나라도 생기면)
+                    reviewSummaryLLMRepository.delete(latestSummary);
                 }
 
                 // **기존 단일 상품 요약 메서드 호출** (forceRefresh=true)
