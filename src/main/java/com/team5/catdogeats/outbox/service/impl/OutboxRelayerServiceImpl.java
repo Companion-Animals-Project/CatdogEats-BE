@@ -3,6 +3,7 @@ package com.team5.catdogeats.outbox.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
+import com.team5.catdogeats.global.config.RabbitMQConfig;
 import com.team5.catdogeats.outbox.domain.OutboxMessage;
 import com.team5.catdogeats.outbox.repository.OutboxMessageRepository;
 import com.team5.catdogeats.outbox.service.OutboxRelayerService;
@@ -33,7 +34,7 @@ public class OutboxRelayerServiceImpl implements OutboxRelayerService {
 
 
     @Override
-    @Scheduled(fixedDelay = 200)
+    @Scheduled(fixedDelay = 100)
     @JpaTransactional
     public void processOutboxMessages() {
         List<OutboxMessage> pendingMessages = outboxMessageRepository.findPendingMessages(BATCH_SIZE);
@@ -44,6 +45,8 @@ public class OutboxRelayerServiceImpl implements OutboxRelayerService {
                 // 이벤트 타입에 따라 적절한 라우팅 키와 교환기 선택
                 String exchangeName = determineExchangeName(message.getEventType());
                 String routingKey = determineRoutingKey(message.getEventType());
+                log.debug("메시지 발송 시도: id={}, eventType={}, exchange={}, routingKey={}",
+                        message.getId(), message.getEventType(), exchangeName, routingKey);
 
                 // RabbitMQ 메시지 생성 및 발송
                 MessageProperties props = new MessageProperties();
@@ -110,7 +113,15 @@ public class OutboxRelayerServiceImpl implements OutboxRelayerService {
     }
 
     private String determineRoutingKey(String eventType) {
-        return eventType;  // 이벤트 타입을 라우팅 키로 사용
+        if (eventType.startsWith("order.created")) {
+            return RabbitMQConfig.RK_ORDER_CREATED;
+        } else if (eventType.startsWith("payment.completed")) {
+            return RabbitMQConfig.RK_PAYMENT_SUCCESS;
+        } else if (eventType.startsWith("payment.failed")) {
+            return RabbitMQConfig.RK_PAYMENT_FAILED;
+        }
+        return eventType;
     }
+
 
 }

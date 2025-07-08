@@ -1,8 +1,8 @@
 package com.team5.catdogeats.orders.dto.common;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.team5.catdogeats.products.domain.Products;
-import com.team5.catdogeats.users.domain.mapping.Sellers;
 
 /**
  * 기본 주문 아이템 정보 (Record 타입)
@@ -21,8 +21,8 @@ public record OrderItemInfo(
         Integer quantity,
         Long unitPrice,
         Long totalPrice,
-        @JsonIgnore
-        Sellers sellers
+        String sellerId
+
 ) {
 
     // 기본 생성자 검증
@@ -42,22 +42,41 @@ public record OrderItemInfo(
         if (totalPrice == null || totalPrice < 0) {
             throw new IllegalArgumentException("총 가격은 0 이상이어야 합니다");
         }
-        if (sellers == null) {
+        if (sellerId == null) {
             throw new IllegalArgumentException("판매자 정보는 필수 입니다");
         }
     }
 
+    @JsonCreator
+    public static OrderItemInfo fromJson(
+            @JsonProperty("productId") String productId,
+            @JsonProperty("productName") String productName,
+            @JsonProperty("quantity") Integer quantity,
+            @JsonProperty("unitPrice") Long unitPrice,
+            @JsonProperty("totalPrice") Long totalPrice,
+            @JsonProperty("sellerId") String sellerId)
+    {
+
+        return new OrderItemInfo(
+                productId,
+                productName,
+                quantity,
+                unitPrice,
+                totalPrice,
+                sellerId
+        );
+    }
     /**
      * 정적 팩토리 메서드 - 기본 정보로 생성
      */
-    public static OrderItemInfo of(String productId, String productName, Integer quantity, Long unitPrice, Sellers sellers) {
+    public static OrderItemInfo of(String productId, String productName, Integer quantity, Long unitPrice, String sellers) {
         return new OrderItemInfo(productId, productName, quantity, unitPrice, unitPrice * quantity, sellers);
     }
 
     /**
      * 정적 팩토리 메서드 - 모든 정보 지정
      */
-    public static OrderItemInfo of(String productId, String productName, Integer quantity, Long unitPrice, Long totalPrice, Sellers sellers) {
+    public static OrderItemInfo of(String productId, String productName, Integer quantity, Long unitPrice, Long totalPrice, String sellers) {
         return new OrderItemInfo(productId, productName, quantity, unitPrice, totalPrice, sellers);
     }
 
@@ -68,14 +87,9 @@ public record OrderItemInfo(
                 qty,
                 p.getPrice(),
                 p.getPrice() * qty,
-                p.getSeller()     // ← or getUserId()
+                p.getSeller().getUserId()
         );
     }
-
-    @JsonIgnore      // 직렬화 시 프록시 회피
-    public Sellers seller() { return sellers; }
-
-    public String sellerId() { return sellers.getUserId(); }
 
     public OrderItemInfo mergeQuantity(OrderItemInfo other) {
         if (!this.productId.equals(other.productId())) {
@@ -86,7 +100,7 @@ public record OrderItemInfo(
         return new OrderItemInfo(
                 this.productId, this.productName,
                 mergedQty, this.unitPrice, mergedTotal,
-                this.sellers
+                this.sellerId
         );
     }
 }

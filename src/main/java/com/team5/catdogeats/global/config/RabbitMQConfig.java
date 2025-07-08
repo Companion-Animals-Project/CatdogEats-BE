@@ -23,6 +23,8 @@ public class RabbitMQConfig {
 
     /* ---------- Queue 이름 ---------- */
     public static final String Q_ORDER_CREATED        = "q.order.created";
+    public static final String Q_ORDER_CREATED_STOCK   = "q.order.created.stock";
+    public static final String Q_ORDER_CREATED_PAYMENT = "q.order.created.payment";
     public static final String Q_PAYMENT_COMPLETED    = "q.payment.completed";
     public static final String Q_PAYMENT_FAILED       = "q.payment.failed";
     public static final String DLX_ORDER_EVENTS       = "dlx.order.events";
@@ -44,11 +46,29 @@ public class RabbitMQConfig {
         return ExchangeBuilder.directExchange(DLX_ORDER_EVENTS).durable(true).build();
     }
 
+    @Bean
+    public DirectExchange paymentEventsExchange() {
+        return ExchangeBuilder
+                .directExchange("payment.events")
+                .durable(true)
+                .build();
+    }
+
     /* ---------- Queues + DLQ 연결 ---------- */
     @Bean
     public Queue orderCreatedQueue() {
         return buildQueue(Q_ORDER_CREATED, RK_ORDER_CREATED);
     }
+    @Bean
+    public Queue orderCreatedQueueForStock() {
+        return buildQueue(Q_ORDER_CREATED_STOCK, RK_ORDER_CREATED);
+    }
+
+    @Bean
+    public Queue orderCreatedQueueForPayment() {
+        return buildQueue(Q_ORDER_CREATED_PAYMENT, RK_ORDER_CREATED);
+    }
+
     @Bean
     public Queue paymentCompletedQueue() {
         return buildQueue(Q_PAYMENT_COMPLETED, RK_PAYMENT_SUCCESS);
@@ -83,12 +103,29 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(orderCreatedQueue()).to(ex).with(RK_ORDER_CREATED);
     }
     @Bean
+    public Binding bindOrderCreatedForStock(TopicExchange orderEventsExchange) {
+        return BindingBuilder.bind(orderCreatedQueueForStock())
+                .to(orderEventsExchange)
+                .with(RK_ORDER_CREATED);
+    }
+
+    @Bean
+    public Binding bindOrderCreatedForPayment(TopicExchange orderEventsExchange) {
+        return BindingBuilder.bind(orderCreatedQueueForPayment())
+                .to(orderEventsExchange)
+                .with(RK_ORDER_CREATED);
+    }
+
+    @Bean
     public Binding bindPaymentCompleted(TopicExchange ex) {
         return BindingBuilder.bind(paymentCompletedQueue()).to(ex).with(RK_PAYMENT_SUCCESS);
     }
     @Bean
-    public Binding bindPaymentFailed(TopicExchange ex) {
-        return BindingBuilder.bind(paymentFailedQueue()).to(ex).with(RK_PAYMENT_FAILED);
+    public Binding bindPaymentFailed(Queue paymentFailedQueue,
+                                                      DirectExchange paymentEventsExchange) {
+        return BindingBuilder.bind(paymentFailedQueue)
+                .to(paymentEventsExchange)
+                .with(RK_PAYMENT_FAILED);
     }
 
     /* ---------- RabbitTemplate ---------- */

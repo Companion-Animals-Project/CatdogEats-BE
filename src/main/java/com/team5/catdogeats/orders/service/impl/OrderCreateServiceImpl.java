@@ -5,8 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.coupons.repository.BuyerCouponRepository;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
-import com.team5.catdogeats.outbox.domain.OutboxMessage;
-import com.team5.catdogeats.outbox.repository.OutboxMessageRepository;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.domain.mapping.OrderPendingDetails;
@@ -20,15 +18,17 @@ import com.team5.catdogeats.orders.repository.OrderPendingDetailsRepository;
 import com.team5.catdogeats.orders.repository.OrderRepository;
 import com.team5.catdogeats.orders.service.OrderCreateService;
 import com.team5.catdogeats.orders.util.TossPaymentResponseBuilder;
+import com.team5.catdogeats.outbox.domain.OutboxMessage;
+import com.team5.catdogeats.outbox.repository.OutboxMessageRepository;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.users.domain.dto.BuyerDTO;
 import com.team5.catdogeats.users.domain.mapping.Buyers;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
 import com.team5.catdogeats.users.repository.BuyerRepository;
+import com.team5.catdogeats.users.repository.SellersRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -47,7 +47,7 @@ public class OrderCreateServiceImpl implements OrderCreateService {
     private final OrderPendingDetailsRepository orderPendingDetailsRepository;
     private final BuyerRepository buyerRepository;
     private final ProductRepository productRepository;
-    private final ApplicationEventPublisher eventPublisher;
+    private final SellersRepository sellersRepository;
     private final TossPaymentResponseBuilder tossPaymentResponseBuilder;
     private final ObjectMapper objectMapper;
     private final BuyerCouponRepository buyerCouponRepository;
@@ -233,31 +233,63 @@ public class OrderCreateServiceImpl implements OrderCreateService {
     private Map<Sellers, List<OrderItemInfo>> validateAndCollectOrderItems(
             List<OrderCreateRequest.OrderItemRequest> reqs){
 
-        List<OrderItemInfo> rawItems =reqs.stream()
+        // 1. 상품 ID 목록 추출
+        Set<String> productIds = reqs.stream()
+                .map(OrderCreateRequest.OrderItemRequest::getProductId)
+                .collect(Collectors.toSet());
+
+        // 2. 모든 상품 한 번에 조회
+        Map<String, Products> productsMap = productRepository.findAllById(productIds)
+                .stream()
+                .collect(Collectors.toMap(Products::getId, p -> p));
+
+        // 3. 판매자 ID 수집
+        Set<String> sellerIds = productsMap.values().stream()
+                .map(p -> p.getSeller().getUserId())
+                .collect(Collectors.toSet());
+
+        // 4. 모든 판매자 한 번에 조회
+        Map<String, Sellers> sellersMap = sellersRepository.findAllById(sellerIds)
+                .stream()
+                .collect(Collectors.toMap(Sellers::getUserId, s -> s));
+
+        // 5. 주문 상품 생성 및 검증
+        List<OrderItemInfo> rawItems = reqs.stream()
                 .map(r -> {
                     if (r.getQuantity() <= 0) {
                         throw new IllegalArgumentException("수량은 1개 이상");
                     }
-                    Products p = productRepository.findById(r.getProductId())
-                            .orElseThrow(() -> new NoSuchElementException("상품 없음: " + r.getProductId()));
+
+                    Products p = productsMap.get(r.getProductId());
+                    if (p == null) {
+                        throw new NoSuchElementException("상품 없음: " + r.getProductId());
+                    }
+
+                    // OrderItemInfo에는 sellerId만 포함
                     return OrderItemInfo.of(p, r.getQuantity());
                 })
-                .peek( i -> {
-                    if (i.seller().isDeleted()) {
+                .peek(i -> {
+                    Sellers seller = sellersMap.get(i.sellerId());
+                    if (seller.isDeleted()) {
                         throw new IllegalStateException("탈퇴한 판매자의 상품은 구매할 수 없습니다.");
                     }
                 })
                 .toList();
+
+        // 6. 같은 상품 병합
         Map<String, OrderItemInfo> mergedByProduct = rawItems.stream()
                 .collect(Collectors.toMap(
                         OrderItemInfo::productId,
                         i -> i,
-                        OrderItemInfo::mergeQuantity         // 결합 함수를 사용해 합산
+                        OrderItemInfo::mergeQuantity
                 ));
 
-        // 판매자별로 그룹핑
+        // 7. 판매자별로 그룹핑 (sellerId로 Sellers 객체 조회)
         return mergedByProduct.values().stream()
-                .collect(Collectors.groupingBy(OrderItemInfo::seller));
+                .collect(Collectors.groupingBy(
+                        item -> sellersMap.get(item.sellerId())
+                ));
+
     }
 
 

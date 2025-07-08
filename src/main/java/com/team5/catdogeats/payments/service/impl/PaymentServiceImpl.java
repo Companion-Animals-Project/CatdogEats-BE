@@ -150,8 +150,7 @@ public class PaymentServiceImpl implements PaymentService {
                     .map(s -> OrderItemInfo.of(
                             s.productId(), s.productName(), s.quantity(),
                             s.unitPrice(), s.totalPrice(),
-                            sellersRepository.findById(s.sellerId())
-                                    .orElseThrow(() -> new NoSuchElementException("seller " + s.sellerId() + " 없음"))
+                            s.sellerId()
                     )).toList();
 
             OrderCreateRequest.ShippingAddressRequest shippingAddress = Optional
