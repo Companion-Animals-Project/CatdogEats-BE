@@ -20,7 +20,7 @@ public interface InquiryService {
     InquiryResponseDTO createInquiry(String providerId, InquiryCreateRequestDTO request);
 
     // 사용자용 답글 등록 (스레드 형태)
-    InquiryResponseDTO createUserFollowup(String inquiryId, String providerId, InquiryRequestDTO request);
+    InquiryResponseDTO createUserFollowup(String inquiryId, String providerId, String content);
 
     // 유저 문의 종료 (사유 없음)
     InquiryResponseDTO closeInquiryByUser(String inquiryId, String providerId);
@@ -36,10 +36,10 @@ public interface InquiryService {
     InquiryDetailResponseDTO getInquiryDetailForAdmin(String inquiryId);
 
     // 관리자 답변 (최초/추가)
-    InquiryResponseDTO createAdminReply(String inquiryId, String adminId, InquiryRequestDTO request);
+    InquiryResponseDTO createAdminReply(String inquiryId, String adminId, String content);
 
     // 관리자 강제 종료 (사유 필수)
-    InquiryResponseDTO closeInquiryByAdmin(String inquiryId, String adminId, InquiryRequestDTO request);
+    InquiryResponseDTO closeInquiryByAdmin(String inquiryId, String adminId, String reason);
 
     // 긴급도 수정
     InquiryResponseDTO updateUrgentLevel(String inquiryId, InquiryUrgentLevel urgentLevel);

@@ -165,11 +165,9 @@ public class InquiryController {
             @Valid @RequestBody FollowupRequestWrapper request) {
 
         try {
-            // InquiryRequestDTO 생성
-            InquiryRequestDTO inquiryRequest = InquiryRequestDTO.forContent(request.content());
-
+            // ✅ 컨트롤러에서는 단순히 파라미터만 전달
             InquiryResponseDTO response = inquiryService.createUserFollowup(
-                    request.inquiryId(), userPrincipal.providerId(), inquiryRequest);
+                    request.inquiryId(), userPrincipal.providerId(), request.content());
 
             log.info("사용자 답글 등록 완료 - inquiryId: {}, providerId: {}, followupId: {}",
                     request.inquiryId(), userPrincipal.providerId(), response.inquiryId());
@@ -188,7 +186,7 @@ public class InquiryController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
                     ApiResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage())
             );
-        } catch (IllegalStateException e) { // ✅ 추가: 종료된 문의 예외 처리
+        } catch (IllegalStateException e) {
             log.warn("종료된 문의에 답글 시도 - inquiryId: {}, providerId: {}, error: {}",
                     request.inquiryId(), userPrincipal.providerId(), e.getMessage());
             return ResponseEntity.badRequest().body(

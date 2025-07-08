@@ -141,10 +141,9 @@ public class InquiryAdminController {
         try {
             String adminId = adminPrincipal != null ? adminPrincipal.toString() : "SYSTEM";
 
-            // InquiryRequestDTO 생성
-            InquiryRequestDTO inquiryRequest = InquiryRequestDTO.forContent(request.content());
-
-            InquiryResponseDTO response = inquiryService.createAdminReply(request.inquiryId(), adminId, inquiryRequest);
+            // ✅ 컨트롤러에서는 단순히 파라미터만 전달
+            InquiryResponseDTO response = inquiryService.createAdminReply(
+                    request.inquiryId(), adminId, request.content());
 
             log.info("관리자 답변 등록 완료 - inquiryId: {}, adminId: {}, replyId: {}",
                     request.inquiryId(), adminId, response.inquiryId());
@@ -157,7 +156,7 @@ public class InquiryAdminController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                     ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
             );
-        } catch (IllegalStateException e) { // ✅ 추가: 종료된 문의 예외 처리
+        } catch (IllegalStateException e) {
             log.warn("종료된 문의에 답변 시도 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.badRequest().body(
                     ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
@@ -191,11 +190,9 @@ public class InquiryAdminController {
         try {
             String adminId = adminPrincipal != null ? adminPrincipal.toString() : "SYSTEM";
 
-            // InquiryRequestDTO 생성
-            InquiryRequestDTO inquiryRequest = InquiryRequestDTO.forClose(request.reason());
-
+            // ✅ 컨트롤러에서는 단순히 파라미터만 전달
             InquiryResponseDTO response = inquiryService.closeInquiryByAdmin(
-                    request.inquiryId(), adminId, inquiryRequest);
+                    request.inquiryId(), adminId, request.reason());
 
             log.info("관리자 문의 강제 종료 완료 - inquiryId: {}, adminId: {}, reason: {}",
                     request.inquiryId(), adminId, request.reason());
