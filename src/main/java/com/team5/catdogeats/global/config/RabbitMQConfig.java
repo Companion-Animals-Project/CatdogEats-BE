@@ -117,8 +117,11 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Binding bindPaymentCompleted(TopicExchange ex) {
-        return BindingBuilder.bind(paymentCompletedQueue()).to(ex).with(RK_PAYMENT_SUCCESS);
+    public Binding bindPaymentCompleted(Queue paymentCompletedQueue,
+                                        DirectExchange paymentEventsExchange) {
+        return BindingBuilder.bind(paymentCompletedQueue)
+                .to(paymentEventsExchange)
+                .with(RK_PAYMENT_SUCCESS);
     }
     @Bean
     public Binding bindPaymentFailed(Queue paymentFailedQueue,

@@ -185,7 +185,7 @@ public class PaymentServiceImpl implements PaymentService {
             OutboxMessage outboxMessage = OutboxMessage.builder()
                     .aggregateId(payment.getId())
                     .aggregateType("PAYMENT")
-                    .eventType("payment.completed.v1")
+                    .eventType("payment.completed")
                     .payload(objectMapper.writeValueAsString(event))
                     .status(OutboxMessage.OutboxStatus.PENDING)
                     .retryCount(0)

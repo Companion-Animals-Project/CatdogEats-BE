@@ -33,8 +33,6 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -88,10 +86,21 @@ public class OrderEventListener {
         }
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @RabbitListener(
+            queues = "#{@paymentCompletedQueue.name}",
+            containerFactory = "listenerContainerFactory"
+    )
     @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
-    public void handleOrderItemsAndShipmentsCreation(PaymentCompletedEvent event) {
+    public void handleOrderItemsAndShipmentsCreation(PaymentCompletedEvent event, Message message) {
+        String messageId = message.getMessageProperties().getMessageId();
         String orderId = event.orderId();
+
+        if (!idempotentConsumer.processOnce(messageId, "payment-completed-listener")) {
+            log.info("이미 처리된 결제 완료 메시지입니다: messageId={}, orderId={}", messageId, orderId);
+            return;
+        }
+
+
         log.info("주문 완료 처리 시작: orderId={}, orderNumber={}, itemCount={}",
                 orderId, event.orderNumber(), event.getOrderItemCount());
 
