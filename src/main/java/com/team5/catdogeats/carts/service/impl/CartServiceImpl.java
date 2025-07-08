@@ -47,12 +47,6 @@ public class CartServiceImpl implements CartService {
     @Override
     @JpaTransactional
     public CartResponse addItemToCart(UserPrincipal userPrincipal, AddCartItemRequest request) {
-        // 입력 값 검증
-        if (request.getQuantity() <= 0) {
-            log.warn("잘못된 수량으로 장바구니 추가 시도 - quantity: {}", request.getQuantity());
-            throw new IllegalArgumentException("상품 수량은 1개 이상이어야 합니다.");
-        }
-
         Users user = getUserByPrincipal(userPrincipal);
         Carts cart = getOrCreateCart(user.getId());
         Products product = getProductById(request.getProductId());
@@ -65,8 +59,11 @@ public class CartServiceImpl implements CartService {
         if (existingItem != null) {
             // 기존 상품이 있으면 수량 증가
             int newQuantity = existingItem.getQuantity() + request.getQuantity();
-            existingItem.setQuantity(newQuantity);
+
+            // ⭐ Entity 검증이 동작하도록 수정
+            existingItem.setQuantity(newQuantity); // Entity @Max(10) 검증 실행
             cartItemRepository.save(existingItem);
+
             log.info("장바구니 기존 상품 수량 증가 - productId: {}, 기존: {}, 추가: {}, 총합: {}",
                     request.getProductId(), existingItem.getQuantity() - request.getQuantity(),
                     request.getQuantity(), newQuantity);
@@ -75,9 +72,10 @@ public class CartServiceImpl implements CartService {
             CartItems newItem = CartItems.builder()
                     .carts(cart)
                     .product(product)
-                    .quantity(request.getQuantity())
+                    .quantity(request.getQuantity()) // Entity @Min(1), @Max(10) 검증 실행
                     .build();
             cartItemRepository.save(newItem);
+
             log.info("장바구니 새 상품 추가 - productId: {}, quantity: {}",
                     request.getProductId(), request.getQuantity());
         }
@@ -88,13 +86,6 @@ public class CartServiceImpl implements CartService {
     @Override
     @JpaTransactional
     public CartResponse updateCartItem(UserPrincipal userPrincipal, String cartItemId, UpdateCartItemRequest request) {
-        // 입력 값 검증
-        if (request.getQuantity() <= 0) {
-            log.warn("잘못된 수량으로 장바구니 수정 시도 - cartItemId: {}, quantity: {}",
-                    cartItemId, request.getQuantity());
-            throw new IllegalArgumentException("상품 수량은 1개 이상이어야 합니다.");
-        }
-
         Users user = getUserByPrincipal(userPrincipal);
 
         // 권한확인 + 조회
@@ -106,6 +97,7 @@ public class CartServiceImpl implements CartService {
                 });
 
         int oldQuantity = cartItem.getQuantity();
+
         cartItem.setQuantity(request.getQuantity());
         cartItemRepository.save(cartItem);
 

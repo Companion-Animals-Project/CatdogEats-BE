@@ -30,7 +30,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("CartRecommendationServiceImpl 테스트")
+@DisplayName("CartRecommendationServiceImpl 테스트 (리팩토링)")
 class CartRecommendationServiceImplTest {
 
     @Mock
@@ -44,6 +44,9 @@ class CartRecommendationServiceImplTest {
 
     @InjectMocks
     private CartRecommendationServiceImpl cartRecommendationService;
+
+    // ✅ 상수 추가 (실제 Service와 동일하게)
+    private static final int DEFAULT_RECOMMENDATION_LIMIT = 4;
 
     private UserPrincipal userPrincipal;
     private Users testUser;
@@ -210,8 +213,9 @@ class CartRecommendationServiceImplTest {
                     .willReturn(Optional.of(testUser));
             given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
                     .willReturn(dogOnlyCartItems);
-            given(cartRecommendationRepository.findPopularProductsByCategoryExcluding(
-                    PetCategory.DOG, Arrays.asList("dog-product-1")))
+            // ✅ 새로운 메서드로 변경
+            given(cartRecommendationRepository.findTopPopularProductsByCategoryExcluding(
+                    PetCategory.DOG.name(), Arrays.asList("dog-product-1"), DEFAULT_RECOMMENDATION_LIMIT))
                     .willReturn(dogRecommendProducts);
 
             // when
@@ -224,8 +228,9 @@ class CartRecommendationServiceImplTest {
             assertThat(result.get(0).getPetCategory()).isEqualTo(PetCategory.DOG);
             assertThat(result.get(0).getPrice()).isEqualTo(20000L);
 
-            verify(cartRecommendationRepository).findPopularProductsByCategoryExcluding(
-                    PetCategory.DOG, Arrays.asList("dog-product-1"));
+            // ✅ 새로운 메서드 검증
+            verify(cartRecommendationRepository).findTopPopularProductsByCategoryExcluding(
+                    PetCategory.DOG.name(), Arrays.asList("dog-product-1"), DEFAULT_RECOMMENDATION_LIMIT);
         }
 
         @Test
@@ -239,8 +244,9 @@ class CartRecommendationServiceImplTest {
                     .willReturn(Optional.of(testUser));
             given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
                     .willReturn(catOnlyCartItems);
-            given(cartRecommendationRepository.findPopularProductsByCategoryExcluding(
-                    PetCategory.CAT, Arrays.asList("cat-product-1")))
+            // ✅ 새로운 메서드로 변경
+            given(cartRecommendationRepository.findTopPopularProductsByCategoryExcluding(
+                    PetCategory.CAT.name(), Arrays.asList("cat-product-1"), DEFAULT_RECOMMENDATION_LIMIT))
                     .willReturn(catRecommendProducts);
 
             // when
@@ -253,8 +259,9 @@ class CartRecommendationServiceImplTest {
             assertThat(result.get(0).getPetCategory()).isEqualTo(PetCategory.CAT);
             assertThat(result.get(0).getPrice()).isEqualTo(25000L);
 
-            verify(cartRecommendationRepository).findPopularProductsByCategoryExcluding(
-                    PetCategory.CAT, Arrays.asList("cat-product-1"));
+            // ✅ 새로운 메서드 검증
+            verify(cartRecommendationRepository).findTopPopularProductsByCategoryExcluding(
+                    PetCategory.CAT.name(), Arrays.asList("cat-product-1"), DEFAULT_RECOMMENDATION_LIMIT);
         }
 
         @Test
@@ -268,8 +275,9 @@ class CartRecommendationServiceImplTest {
                     .willReturn(Optional.of(testUser));
             given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
                     .willReturn(mixedCartItems);
-            given(cartRecommendationRepository.findPopularProductsExcluding(
-                    Arrays.asList("dog-product-1", "cat-product-1")))
+            // ✅ 새로운 메서드로 변경
+            given(cartRecommendationRepository.findTopPopularProductsExcluding(
+                    Arrays.asList("dog-product-1", "cat-product-1"), DEFAULT_RECOMMENDATION_LIMIT))
                     .willReturn(allRecommendProducts);
 
             // when
@@ -280,8 +288,9 @@ class CartRecommendationServiceImplTest {
             assertThat(result).extracting(RecommendationResponse::getProductId)
                     .containsExactly("recommend-product-1", "recommend-product-2");
 
-            verify(cartRecommendationRepository).findPopularProductsExcluding(
-                    Arrays.asList("dog-product-1", "cat-product-1"));
+            // ✅ 새로운 메서드 검증
+            verify(cartRecommendationRepository).findTopPopularProductsExcluding(
+                    Arrays.asList("dog-product-1", "cat-product-1"), DEFAULT_RECOMMENDATION_LIMIT);
         }
 
         @Test
@@ -295,7 +304,8 @@ class CartRecommendationServiceImplTest {
                     .willReturn(Optional.of(testUser));
             given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
                     .willReturn(emptyCartItems);
-            given(cartRecommendationRepository.findPopularProductsAll())
+            // ✅ 새로운 메서드로 변경
+            given(cartRecommendationRepository.findTopPopularProductsAll(DEFAULT_RECOMMENDATION_LIMIT))
                     .willReturn(allRecommendProducts);
 
             // when
@@ -306,7 +316,8 @@ class CartRecommendationServiceImplTest {
             assertThat(result).extracting(RecommendationResponse::getProductId)
                     .containsExactly("recommend-product-1", "recommend-product-2");
 
-            verify(cartRecommendationRepository).findPopularProductsAll();
+            // ✅ 새로운 메서드 검증
+            verify(cartRecommendationRepository).findTopPopularProductsAll(DEFAULT_RECOMMENDATION_LIMIT);
         }
 
         @Test
@@ -317,7 +328,8 @@ class CartRecommendationServiceImplTest {
 
             given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
                     .willReturn(Optional.empty());
-            given(cartRecommendationRepository.findPopularProductsAll())
+            // ✅ 새로운 메서드로 변경
+            given(cartRecommendationRepository.findTopPopularProductsAll(DEFAULT_RECOMMENDATION_LIMIT))
                     .willReturn(fallbackProducts);
 
             // when
@@ -328,7 +340,8 @@ class CartRecommendationServiceImplTest {
             assertThat(result).extracting(RecommendationResponse::getProductId)
                     .containsExactly("recommend-product-1", "recommend-product-2");
 
-            verify(cartRecommendationRepository).findPopularProductsAll();
+            // ✅ 새로운 메서드 검증
+            verify(cartRecommendationRepository).findTopPopularProductsAll(DEFAULT_RECOMMENDATION_LIMIT);
             verify(userRepository).findByProviderAndProviderId("google", "test-provider-id");
         }
 
@@ -342,7 +355,8 @@ class CartRecommendationServiceImplTest {
                     .willReturn(Optional.of(testUser));
             given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
                     .willThrow(new RuntimeException("DB 연결 오류"));
-            given(cartRecommendationRepository.findPopularProductsAll())
+            // ✅ 새로운 메서드로 변경
+            given(cartRecommendationRepository.findTopPopularProductsAll(DEFAULT_RECOMMENDATION_LIMIT))
                     .willReturn(fallbackProducts);
 
             // when
@@ -353,7 +367,8 @@ class CartRecommendationServiceImplTest {
             assertThat(result).extracting(RecommendationResponse::getProductId)
                     .containsExactly("recommend-product-1", "recommend-product-2");
 
-            verify(cartRecommendationRepository).findPopularProductsAll();
+            // ✅ 새로운 메서드 검증
+            verify(cartRecommendationRepository).findTopPopularProductsAll(DEFAULT_RECOMMENDATION_LIMIT);
         }
     }
 
@@ -372,7 +387,8 @@ class CartRecommendationServiceImplTest {
                     .willReturn(Optional.of(testUser));
             given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
                     .willReturn(emptyCartItems);
-            given(cartRecommendationRepository.findPopularProductsAll())
+            // ✅ 새로운 메서드로 변경
+            given(cartRecommendationRepository.findTopPopularProductsAll(DEFAULT_RECOMMENDATION_LIMIT))
                     .willReturn(products);
 
             // when
@@ -401,7 +417,8 @@ class CartRecommendationServiceImplTest {
                     .willReturn(Optional.of(testUser));
             given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
                     .willReturn(emptyCartItems);
-            given(cartRecommendationRepository.findPopularProductsAll())
+            // ✅ 새로운 메서드로 변경
+            given(cartRecommendationRepository.findTopPopularProductsAll(DEFAULT_RECOMMENDATION_LIMIT))
                     .willReturn(products);
 
             // when
@@ -443,8 +460,9 @@ class CartRecommendationServiceImplTest {
                     .willReturn(Optional.of(testUser));
             given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
                     .willReturn(dogOnlyCartItems);
-            given(cartRecommendationRepository.findPopularProductsByCategoryExcluding(
-                    PetCategory.DOG, Arrays.asList("dog-product-1")))
+            // ✅ 새로운 메서드로 변경
+            given(cartRecommendationRepository.findTopPopularProductsByCategoryExcluding(
+                    PetCategory.DOG.name(), Arrays.asList("dog-product-1"), DEFAULT_RECOMMENDATION_LIMIT))
                     .willReturn(emptyProducts);
 
             // when
@@ -471,8 +489,9 @@ class CartRecommendationServiceImplTest {
                     .willReturn(Optional.of(testUser));
             given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
                     .willReturn(multipleDogItems);
-            given(cartRecommendationRepository.findPopularProductsByCategoryExcluding(
-                    PetCategory.DOG, Arrays.asList("dog-product-1", "dog-product-2")))
+            // ✅ 새로운 메서드로 변경
+            given(cartRecommendationRepository.findTopPopularProductsByCategoryExcluding(
+                    PetCategory.DOG.name(), Arrays.asList("dog-product-1", "dog-product-2"), DEFAULT_RECOMMENDATION_LIMIT))
                     .willReturn(dogRecommendProducts);
 
             // when
@@ -482,8 +501,59 @@ class CartRecommendationServiceImplTest {
             assertThat(result).hasSize(1);
             assertThat(result.get(0).getProductId()).isEqualTo("recommend-product-1");
 
-            verify(cartRecommendationRepository).findPopularProductsByCategoryExcluding(
-                    PetCategory.DOG, Arrays.asList("dog-product-1", "dog-product-2"));
+            // ✅ 새로운 메서드 검증
+            verify(cartRecommendationRepository).findTopPopularProductsByCategoryExcluding(
+                    PetCategory.DOG.name(), Arrays.asList("dog-product-1", "dog-product-2"), DEFAULT_RECOMMENDATION_LIMIT);
+        }
+    }
+
+    // ✅ 새로운 테스트: LIMIT 기능 검증
+    @Nested
+    @DisplayName("LIMIT 기능 검증")
+    class LimitFunctionality {
+
+        @Test
+        @DisplayName("DEFAULT_RECOMMENDATION_LIMIT이 올바르게 전달되는지 확인")
+        void verifyDefaultLimitIsPassed() {
+            // given
+            List<CartItems> emptyCartItems = Collections.emptyList();
+            List<Products> products = Arrays.asList(recommendProduct1, recommendProduct2);
+
+            given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
+                    .willReturn(Optional.of(testUser));
+            given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
+                    .willReturn(emptyCartItems);
+            given(cartRecommendationRepository.findTopPopularProductsAll(DEFAULT_RECOMMENDATION_LIMIT))
+                    .willReturn(products);
+
+            // when
+            cartRecommendationService.getCartBasedRecommendations(userPrincipal);
+
+            // then - LIMIT 파라미터가 올바르게 전달되었는지 확인
+            verify(cartRecommendationRepository).findTopPopularProductsAll(DEFAULT_RECOMMENDATION_LIMIT);
+        }
+
+        @Test
+        @DisplayName("카테고리별 추천에서도 LIMIT이 올바르게 전달되는지 확인")
+        void verifyLimitPassedForCategoryRecommendation() {
+            // given
+            List<CartItems> dogOnlyCartItems = Arrays.asList(dogCartItem);
+            List<Products> dogProducts = Arrays.asList(recommendProduct1);
+
+            given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
+                    .willReturn(Optional.of(testUser));
+            given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
+                    .willReturn(dogOnlyCartItems);
+            given(cartRecommendationRepository.findTopPopularProductsByCategoryExcluding(
+                    PetCategory.DOG.name(), Arrays.asList("dog-product-1"), DEFAULT_RECOMMENDATION_LIMIT))
+                    .willReturn(dogProducts);
+
+            // when
+            cartRecommendationService.getCartBasedRecommendations(userPrincipal);
+
+            // then - LIMIT 파라미터가 올바르게 전달되었는지 확인
+            verify(cartRecommendationRepository).findTopPopularProductsByCategoryExcluding(
+                    PetCategory.DOG.name(), Arrays.asList("dog-product-1"), DEFAULT_RECOMMENDATION_LIMIT);
         }
     }
 }

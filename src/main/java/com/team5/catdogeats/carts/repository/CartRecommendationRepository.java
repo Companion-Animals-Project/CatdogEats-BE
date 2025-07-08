@@ -16,10 +16,10 @@ public interface CartRecommendationRepository extends JpaRepository<Products, St
         FROM products p
         LEFT JOIN order_items oi ON oi.product_id = p.id
         LEFT JOIN orders o ON o.id = oi.order_id
-        WHERE p.petcategory = :petCategory
+        WHERE p.pet_category = :petCategory
           AND (o.order_status IN ('PAYMENT_COMPLETED', 'PREPARING', 'READY_FOR_SHIPMENT', 'IN_DELIVERY', 'DELIVERED') OR o.id IS NULL)
           AND p.id NOT IN (:excludeProductIds)
-        GROUP BY p.id, p.product_number, p.title, p.price, p.petcategory
+        GROUP BY p.id, p.product_number, p.title, p.price, p.pet_category
         ORDER BY COALESCE(SUM(oi.quantity), 0) DESC, p.id ASC
         LIMIT :limit
         """, nativeQuery = true)
@@ -35,9 +35,9 @@ public interface CartRecommendationRepository extends JpaRepository<Products, St
         FROM products p
         LEFT JOIN order_items oi ON oi.product_id = p.id
         LEFT JOIN orders o ON o.id = oi.order_id
-        WHERE p.petcategory = :petCategory
+        WHERE p.pet_category = :petCategory
           AND (o.order_status IN ('PAYMENT_COMPLETED', 'PREPARING', 'READY_FOR_SHIPMENT', 'IN_DELIVERY', 'DELIVERED') OR o.id IS NULL)
-        GROUP BY p.id, p.product_number, p.title, p.price, p.petcategory
+        GROUP BY p.id, p.product_number, p.title, p.price, p.pet_category
         ORDER BY COALESCE(SUM(oi.quantity), 0) DESC, p.id ASC
         LIMIT :limit
         """, nativeQuery = true)
@@ -54,7 +54,7 @@ public interface CartRecommendationRepository extends JpaRepository<Products, St
         LEFT JOIN orders o ON o.id = oi.order_id
         WHERE (o.order_status IN ('PAYMENT_COMPLETED', 'PREPARING', 'READY_FOR_SHIPMENT', 'IN_DELIVERY', 'DELIVERED') OR o.id IS NULL)
           AND p.id NOT IN (:excludeProductIds)
-        GROUP BY p.id, p.product_number, p.title, p.price, p.petcategory
+        GROUP BY p.id, p.product_number, p.title, p.price, p.pet_category
         ORDER BY COALESCE(SUM(oi.quantity), 0) DESC, p.id ASC
         LIMIT :limit
         """, nativeQuery = true)
@@ -70,7 +70,7 @@ public interface CartRecommendationRepository extends JpaRepository<Products, St
         LEFT JOIN order_items oi ON oi.product_id = p.id
         LEFT JOIN orders o ON o.id = oi.order_id
         WHERE (o.order_status IN ('PAYMENT_COMPLETED', 'PREPARING', 'READY_FOR_SHIPMENT', 'IN_DELIVERY', 'DELIVERED') OR o.id IS NULL)
-        GROUP BY p.id, p.product_number, p.title, p.price, p.petcategory
+        GROUP BY p.id, p.product_number, p.title, p.price, p.pet_category
         ORDER BY COALESCE(SUM(oi.quantity), 0) DESC, p.id ASC
         LIMIT :limit
         """, nativeQuery = true)
