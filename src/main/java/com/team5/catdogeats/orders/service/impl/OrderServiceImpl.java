@@ -18,6 +18,7 @@ import com.team5.catdogeats.orders.repository.OrderPendingDetailsRepository;
 import com.team5.catdogeats.orders.repository.OrderRepository;
 import com.team5.catdogeats.orders.repository.ShipmentRepository;
 import com.team5.catdogeats.orders.service.OrderService;
+import com.team5.catdogeats.orders.util.ShippingAddressUtils;
 import com.team5.catdogeats.orders.util.TossPaymentResponseBuilder;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.repository.ProductRepository;
@@ -423,7 +424,7 @@ public class OrderServiceImpl implements OrderService {
             return new OrderDetailResponse.RecipientInfo(
                     shipment.getRecipientName(),
                     shipment.getRecipientPhone(),
-                    shipment.getFullAddress(),
+                    ShippingAddressUtils.buildFullAddress(shipment.getStreetAddress(), shipment.getDetailAddress()),
                     shipment.getDeliveryRequest() != null ? shipment.getDeliveryRequest() : "배송 요청사항 없음"
             );
         }
