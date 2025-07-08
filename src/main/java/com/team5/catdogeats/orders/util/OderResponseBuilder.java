@@ -1,9 +1,14 @@
 package com.team5.catdogeats.orders.util;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.global.config.TossPaymentsConfig;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.dto.request.OrderCreateRequest;
 import com.team5.catdogeats.orders.dto.response.OrderCreateResponse;
+import com.team5.catdogeats.orders.event.OrderCreatedEvent;
+import com.team5.catdogeats.outbox.domain.OutboxMessage;
+import com.team5.catdogeats.outbox.domain.enums.OutboxStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -18,9 +23,10 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class TossPaymentResponseBuilder {
+public class OderResponseBuilder {
 
     private final TossPaymentsConfig.TossPaymentsProperties tossPaymentsProperties;
+    private final ObjectMapper objectMapper;
 
     /**
      * 토스 페이먼츠 응답 객체를 생성합니다.
@@ -61,5 +67,17 @@ public class TossPaymentResponseBuilder {
                 orderName, tossPaymentInfo.getAmount());
 
         return response;
+    }
+
+
+    public OutboxMessage buildOutboxMessage(Orders savedOrder, OrderCreatedEvent event) throws JsonProcessingException {
+        return OutboxMessage.builder()
+                .aggregateId(savedOrder.getId())
+                .aggregateType("ORDER")
+                .eventType("order.created")
+                .payload(objectMapper.writeValueAsString(event))
+                .status(OutboxStatus.PENDING)
+                .retryCount(0)
+                .build();
     }
 }

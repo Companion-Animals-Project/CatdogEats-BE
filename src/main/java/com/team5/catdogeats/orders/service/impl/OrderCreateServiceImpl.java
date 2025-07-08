@@ -17,9 +17,8 @@ import com.team5.catdogeats.orders.event.OrderCreatedEvent;
 import com.team5.catdogeats.orders.repository.OrderPendingDetailsRepository;
 import com.team5.catdogeats.orders.repository.OrderRepository;
 import com.team5.catdogeats.orders.service.OrderCreateService;
-import com.team5.catdogeats.orders.util.TossPaymentResponseBuilder;
-import com.team5.catdogeats.outbox.domain.OutboxMessage;
-import com.team5.catdogeats.outbox.domain.enums.OutboxStatus;
+import com.team5.catdogeats.orders.util.OderResponseBuilder;
+import com.team5.catdogeats.orders.util.OrderCreateUtils;
 import com.team5.catdogeats.outbox.repository.OutboxMessageRepository;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.repository.ProductRepository;
@@ -33,10 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -49,7 +45,7 @@ public class OrderCreateServiceImpl implements OrderCreateService {
     private final BuyerRepository buyerRepository;
     private final ProductRepository productRepository;
     private final SellersRepository sellersRepository;
-    private final TossPaymentResponseBuilder tossPaymentResponseBuilder;
+    private final OderResponseBuilder oderResponseBuilder;
     private final ObjectMapper objectMapper;
     private final BuyerCouponRepository buyerCouponRepository;
     private final OutboxMessageRepository outboxMessageRepository;
@@ -72,10 +68,10 @@ public class OrderCreateServiceImpl implements OrderCreateService {
             List<GroupSellerAndCouponsDTO> coupons = getCouponRequest(buyers, request.getPaymentInfo());
 
             // 4. 주문 금액 계산 (메서드 시그니처 변경)
-            Long originalTotalPrice = calculateOriginalTotalPrice(validatedOrderItems);
-            Long discountAmount = applyCouponDiscount(coupons, validatedOrderItems);
+            Long originalTotalPrice = OrderCreateUtils.calculateOriginalTotalPrice(validatedOrderItems);
+            Long discountAmount = OrderCreateUtils.applyCouponDiscount(coupons, validatedOrderItems);
 
-            Long totalDeliveryFee = calculateTotalDeliveryFee(validatedOrderItems);
+            Long totalDeliveryFee = OrderCreateUtils.calculateTotalDeliveryFee(validatedOrderItems);
             Long discountedTotalPrice = originalTotalPrice - discountAmount;
             Long finalPaymentAmount = discountedTotalPrice + totalDeliveryFee;
 
@@ -98,51 +94,12 @@ public class OrderCreateServiceImpl implements OrderCreateService {
                     .toList();
 
             // 6. OrderCreatedEvent 발행 (재고 예약 및 결제 정보 생성용)
-            OrderCreatedEvent event = OrderCreatedEvent.of(
-                    savedOrder.getId(),
-                    savedOrder.getOrderNumber(),
-                    buyers.getUserId(),
-                    userPrincipal.provider(),
-                    userPrincipal.providerId(),
-                    finalPaymentAmount,
-                    flatItems
-            );
+            OrderCreatedEvent event = getOrderCreatedEvent(userPrincipal, savedOrder, buyers, finalPaymentAmount, flatItems);
 
-            log.debug("OrderCreatedEvent 발행 완료: orderId={} (shippingAddress는 OrderPendingDetails에 저장됨)",
-                    savedOrder.getId());
-
-            OutboxMessage outboxMessage = OutboxMessage.builder()
-                    .aggregateId(savedOrder.getId())
-                    .aggregateType("ORDER")
-                    .eventType("order.created")
-                    .payload(objectMapper.writeValueAsString(event))
-                    .status(OutboxStatus.PENDING)
-                    .retryCount(0)
-                    .build();
-
-            outboxMessageRepository.save(outboxMessage);
+            outboxMessageRepository.save(oderResponseBuilder.buildOutboxMessage(savedOrder, event));
 
 
-            // 7. Toss Payments 응답 생성
-            String orderName = validatedOrderItems.values().stream()
-                    .flatMap(List::stream)
-                    .map(OrderItemInfo::productName)
-                    .limit(1)
-                    .findFirst()
-                    .map(firstName -> {
-                        long totalCount = validatedOrderItems.values().stream()
-                                .mapToLong(List::size)
-                                .sum();
-                        return totalCount > 1 ? firstName + " 외 " + (totalCount - 1) + "개" : firstName;
-                    })
-                    .orElse("주문 상품");
-
-
-            return tossPaymentResponseBuilder.buildTossPaymentResponse(
-                    savedOrder,
-                    request.getPaymentInfo(),
-                    orderName
-            );
+            return getOrderCreateResponse(request, validatedOrderItems, savedOrder);
 
         } catch (NoSuchElementException | IllegalArgumentException e) {
             throw e;
@@ -152,14 +109,44 @@ public class OrderCreateServiceImpl implements OrderCreateService {
         }
     }
 
+    private OrderCreatedEvent getOrderCreatedEvent(UserPrincipal userPrincipal,
+                                                   Orders savedOrder,
+                                                   Buyers buyers,
+                                                   Long finalPaymentAmount,
+                                                   List<OrderItemInfo> flatItems) {
+        return OrderCreatedEvent.of(
+                savedOrder.getId(),
+                savedOrder.getOrderNumber(),
+                buyers.getUserId(),
+                userPrincipal.provider(),
+                userPrincipal.providerId(),
+                finalPaymentAmount,
+                flatItems
+        );
+    }
 
-    private long calculateTotalDeliveryFee(Map<Sellers, List<OrderItemInfo>> bySeller){
-        return bySeller.entrySet().stream()
-                .mapToLong(e -> {
-                    Sellers s = e.getKey();
-                    long sub = e.getValue().stream().mapToLong(OrderItemInfo::totalPrice).sum();
-                    return sub >= s.getFreeShippingThreshold() ? 0L : s.getDeliveryFee();
-                }).sum();
+
+    private OrderCreateResponse getOrderCreateResponse(OrderCreateRequest request, Map<Sellers, List<OrderItemInfo>> validatedOrderItems, Orders savedOrder) {
+        // 7. Toss Payments 응답 생성
+        String orderName = validatedOrderItems.values().stream()
+                .flatMap(List::stream)
+                .map(OrderItemInfo::productName)
+                .limit(1)
+                .findFirst()
+                .map(firstName -> {
+                    long totalCount = validatedOrderItems.values().stream()
+                            .mapToLong(List::size)
+                            .sum();
+                    return totalCount > 1 ? firstName + " 외 " + (totalCount - 1) + "개" : firstName;
+                })
+                .orElse("주문 상품");
+
+
+        return oderResponseBuilder.buildTossPaymentResponse(
+                savedOrder,
+                request.getPaymentInfo(),
+                orderName
+        );
     }
 
 
@@ -200,25 +187,6 @@ public class OrderCreateServiceImpl implements OrderCreateService {
             }
         });
         return result;
-    }
-
-    /**
-     * 쿠폰 할인 적용 (새 버전 - PaymentInfoRequest 전체를 받음)
-     */
-    private long applyCouponDiscount(List<GroupSellerAndCouponsDTO> coupons,
-                                     Map<Sellers, List<OrderItemInfo>> bySeller){
-        if(coupons==null || coupons.isEmpty()) return 0L;
-
-        return coupons.stream().mapToLong(c -> {
-            Sellers seller = c.sellers();
-            long sub = bySeller.getOrDefault(seller, List.of())
-                    .stream().mapToLong(OrderItemInfo::totalPrice).sum();
-
-            return switch (c.coupons().getDiscountType()){
-                case PERCENT -> applyCouponDiscountPercent(sub, c.coupons().getDiscountValue());
-                case AMOUNT  -> applyCouponDiscountAmount(sub, c.coupons().getDiscountValue());
-            };
-        }).sum();
     }
 
 
@@ -292,35 +260,10 @@ public class OrderCreateServiceImpl implements OrderCreateService {
 
     }
 
-
-    private Long calculateOriginalTotalPrice(Map<Sellers, List<OrderItemInfo>> groupedOrderItems) {
-        return groupedOrderItems.values().stream()
-                .flatMap(List::stream)
-                .mapToLong(OrderItemInfo::totalPrice)
-                .sum();
-    }
-
-
-    /**
-     * 정률 할인 적용
-     */
-    private Long applyCouponDiscountPercent(Long subTotal, Integer couponDiscountRate) {
-        if (couponDiscountRate <= 0 || couponDiscountRate > 100) {
-            throw new IllegalArgumentException("할인율 0이하 또는 100을 초과할 수 없습니다.");
-        }
-        return Math.round(subTotal * (couponDiscountRate / 100.0));
-    }
-
-    private long applyCouponDiscountAmount(long subTotal, int amount) {
-        if (amount <= 0 || amount > subTotal)
-            throw new IllegalArgumentException("할인 금액 오류");
-        return amount;
-    }
-
     private Orders createAndSaveOrderOnly(Buyers buyer, Long subTotalPrice, Long discountAmount, Long finalPaymentAmount, Long totalDeliveryFee) {
         Orders order = Orders.builder()
                 .buyers(buyer)
-                .orderNumber(generateOrderNumber()) // String 타입 반환값 사용
+                .orderNumber(OrderCreateUtils.generateOrderNumber()) // String 타입 반환값 사용
                 .orderStatus(OrderStatus.PAYMENT_PENDING)
                 .subtotalPrice(subTotalPrice)
                 .totalDeliveryFee(totalDeliveryFee)
@@ -377,12 +320,5 @@ public class OrderCreateServiceImpl implements OrderCreateService {
             return objectMapper.writeValueAsString(paymentInfo.getSellerCoupons());
         }
         return objectMapper.writeValueAsString(List.of());
-    }
-
-
-    private String generateOrderNumber() {
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        int randomSuffix = ThreadLocalRandom.current().nextInt(10000, 100000);
-        return timestamp + randomSuffix;
     }
 }
