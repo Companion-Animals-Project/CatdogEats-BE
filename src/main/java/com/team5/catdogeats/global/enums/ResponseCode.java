@@ -36,6 +36,7 @@ public enum ResponseCode {
     BUSINESS_NUMBER_DUPLICATE(HttpStatus.CONFLICT, "이미 등록된 사업자 등록번호입니다."),
     INVALID_OPERATING_HOURS(HttpStatus.BAD_REQUEST, "운영 시간 설정이 올바르지 않습니다."),
     INVALID_CLOSED_DAYS(HttpStatus.BAD_REQUEST, "휴무일 설정이 올바르지 않습니다."),
+    DUPLICATE_COUPON_CODE(HttpStatus.CONFLICT, "중복된 쿠폰 코드입니다."),
 
     // === 판매자 스토어 관련 응답 ===
     SELLER_STORE_SUCCESS(HttpStatus.OK, "판매자 스토어 페이지 조회 성공"),
