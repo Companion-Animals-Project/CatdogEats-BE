@@ -11,11 +11,10 @@ import java.time.ZonedDateTime;
                 @Index(name = "idx_processed_message_id", columnList = "message_id", unique = true)
         })
 @Getter
-@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProcessedMessage {
+    public class ProcessedMessage {
 
     @Id
     @Column(name = "message_id", length = 36)

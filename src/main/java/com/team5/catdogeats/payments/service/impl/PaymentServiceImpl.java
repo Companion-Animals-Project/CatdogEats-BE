@@ -5,7 +5,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.orders.domain.Orders;
-import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.domain.mapping.OrderPendingDetails;
 import com.team5.catdogeats.orders.dto.common.GroupOrdersAndPayments;
 import com.team5.catdogeats.orders.dto.common.OrderItemInfo;
@@ -27,7 +26,7 @@ import com.team5.catdogeats.payments.event.PaymentCompletedEvent;
 import com.team5.catdogeats.payments.repository.PaymentRepository;
 import com.team5.catdogeats.payments.service.PaymentFailService;
 import com.team5.catdogeats.payments.service.PaymentService;
-import com.team5.catdogeats.users.repository.SellersRepository;
+import com.team5.catdogeats.payments.util.PaymentUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -50,7 +49,6 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
 
-    private final SellersRepository sellersRepository;
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final OrderPendingDetailsRepository orderPendingDetailsRepository;
@@ -71,12 +69,12 @@ public class PaymentServiceImpl implements PaymentService {
                     .orElseThrow(() -> new NoSuchElementException("주문과 일치하는 결제 정보가 없습니다."));
 
             // 2. 결제 상태 및 금액 검증
-            validatePaymentStatus(groupOrdersAndPayments.payments(), groupOrdersAndPayments.orders() );
-            validatePaymentAmount(groupOrdersAndPayments.orders(), amount);
+            PaymentUtils.validatePaymentStatus(groupOrdersAndPayments.payments(), groupOrdersAndPayments.orders() );
+            PaymentUtils.validatePaymentAmount(groupOrdersAndPayments.orders(), amount);
 
             // 3. Toss Payments API 호출
             TossPaymentConfirmResponse tossResponse = callTossPaymentConfirm(paymentKey, orderId, amount);
-            validateTossResponse(tossResponse, groupOrdersAndPayments.orders(), amount);
+            PaymentUtils.validateTossResponse(tossResponse, groupOrdersAndPayments.orders(), amount);
 
             // 4. 결제 정보 업데이트 (PaymentStatus.SUCCESS로 변경)
             updatePaymentStatus(groupOrdersAndPayments.payments(), tossResponse);
@@ -129,7 +127,6 @@ public class PaymentServiceImpl implements PaymentService {
     // === createPaymentCompletedOutbox 발행 ===
     private void createPaymentCompletedOutbox(Orders order, Payments payment, TossPaymentConfirmResponse tossResponse) {
         try {
-            // OrderPendingDetails에서 임시 저장된 정보 조회
             OrderPendingDetails pendingDetails = orderPendingDetailsRepository.findByOrderId(order.getId())
                     .orElseThrow(() -> new NoSuchElementException("주문 대기 정보를 찾을 수 없습니다: " + order.getId()));
 
@@ -232,30 +229,9 @@ public class PaymentServiceImpl implements PaymentService {
                 log.warn("쿠폰 정보 파싱 실패, 기본값 사용: appliedCouponsJson={}, error={}",
                         appliedCouponsJson, e2.getMessage());
                 return new CouponInfo(false, 0L);
-            }
-    }
-
-
-    // === 검증 메서드들 ===
-
-    private void validatePaymentStatus(Payments payment, Orders order) {
-        if (payment.getStatus() != PaymentStatus.PENDING) {
-            throw new IllegalStateException("결제가 이미 처리되었습니다: " + payment.getStatus());
-        }
-
-        if (order.getOrderStatus() != OrderStatus.PAYMENT_PENDING) {
-            throw new IllegalStateException("주문 상태가 결제 대기가 아닙니다: " + order.getOrderStatus());
         }
     }
 
-    private void validatePaymentAmount(Orders order, Long amount) {
-        if (!order.getDiscountedTotalPrice().equals(amount)) {
-            throw new IllegalArgumentException(
-                    String.format("결제 금액이 일치하지 않습니다. 주문금액: %d, 결제요청금액: %d",
-                            order.getTotalDiscountAmount(), amount)
-            );
-        }
-    }
 
     private TossPaymentConfirmResponse callTossPaymentConfirm(String paymentKey, String orderId, Long amount) {
         TossPaymentConfirmRequest request = TossPaymentConfirmRequest.builder()
@@ -265,20 +241,6 @@ public class PaymentServiceImpl implements PaymentService {
                 .build();
 
         return tossPaymentsClient.confirmPayment(request);
-    }
-
-    private void validateTossResponse(TossPaymentConfirmResponse response, Orders order, Long amount) {
-        if (response == null) {
-            throw new RuntimeException("Toss Payments API 응답이 null입니다");
-        }
-
-        if (!response.getOrderId().equals(order.getId())) {
-            throw new RuntimeException("응답의 주문 ID가 일치하지 않습니다");
-        }
-
-        if (!response.getTotalAmount().equals(amount)) {
-            throw new RuntimeException("응답의 결제 금액이 일치하지 않습니다");
-        }
     }
 
     private void updatePaymentStatus(Payments payment, TossPaymentConfirmResponse response) {

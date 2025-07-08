@@ -89,4 +89,8 @@ public class Orders extends BaseEntity {
     public boolean isOrderHidden() {
         return Boolean.TRUE.equals(this.isHidden);
     }
+
+    public void updateOderStatus(OrderStatus orderStatus) {
+        this.orderStatus=orderStatus;
+    }
 }

@@ -35,8 +35,7 @@ public class DebeziumRunner {
     public void start() {
         Properties props = debeziumConfig.asProperties();
 
-        // ****** 이 두 줄을 추가해야 합니다! ******
-        // 내부 컨버터는 항상 JSON 컨버터를 사용하고 스키마를 포함하도록 설정합니다.
+        // 내부 컨버터는 항상 JSON 컨버터를 사용
         props.setProperty("internal.key.converter", "org.apache.kafka.connect.json.JsonConverter");
         props.setProperty("internal.key.converter.schemas.enable", "true");
         props.setProperty("internal.value.converter", "org.apache.kafka.connect.json.JsonConverter");
@@ -47,13 +46,13 @@ public class DebeziumRunner {
                 .build();
 
         executor.execute(engine);
-        log.info("✅ Debezium Engine started asynchronously.");
+        log.info("Debezium Engine started.");
     }
 
     @PreDestroy
     public void stop() throws IOException {
         if (engine != null) engine.close();
         executor.shutdown();
-        log.info("🛑 Debezium Engine stopped.");
+        log.info("Debezium Engine stopped and closed.");
     }
 }

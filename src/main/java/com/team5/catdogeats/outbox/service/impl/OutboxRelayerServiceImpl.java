@@ -97,7 +97,11 @@ public class OutboxRelayerServiceImpl implements OutboxRelayerService {
                     .andProperties(props)
                     .build();
 
-            rabbitTemplate.send(exchangeName, routingKey, amqpMessage);
+            if (RabbitMQConfig.RK_ORDER_PAYMENT_TIMEOUT.equals(routingKey)) {
+                rabbitTemplate.send("", RabbitMQConfig.Q_ORDER_PAYMENT_TIMEOUT_DELAY, amqpMessage);
+            } else {
+                rabbitTemplate.send(exchangeName, routingKey, amqpMessage);
+            }
 
             batchedMessageIds.add(eventData.id());
             batchUpdateStatus();
@@ -190,14 +194,13 @@ public class OutboxRelayerServiceImpl implements OutboxRelayerService {
     }
 
     private String determineRoutingKey(String eventType) {
-        if (eventType.startsWith("order.created")) {
-            return RabbitMQConfig.RK_ORDER_CREATED;
-        } else if (eventType.startsWith("payment.completed")) {
-            return RabbitMQConfig.RK_PAYMENT_SUCCESS;
-        } else if (eventType.startsWith("payment.failed")) {
-            return RabbitMQConfig.RK_PAYMENT_FAILED;
-        }
-        return eventType;
+        return switch (eventType) {
+            case "order.created" -> RabbitMQConfig.RK_ORDER_CREATED;
+            case "payment.completed" -> RabbitMQConfig.RK_PAYMENT_SUCCESS;
+            case "payment.failed"    -> RabbitMQConfig.RK_PAYMENT_FAILED;
+            case "order.payment_timeout" -> RabbitMQConfig.RK_ORDER_PAYMENT_TIMEOUT;
+            default -> eventType;
+        };
     }
 
     private void batchUpdateStatus() {

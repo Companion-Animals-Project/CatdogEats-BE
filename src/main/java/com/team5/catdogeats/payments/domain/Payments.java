@@ -58,4 +58,8 @@ public class Payments extends BaseEntity {
         this.tossPaymentKey= response.getPaymentKey();;
         this.paidAt=ZonedDateTime.now();
     }
+
+    public void updatePaymentStatus(PaymentStatus status) {
+        this.status=status;
+    }
 }

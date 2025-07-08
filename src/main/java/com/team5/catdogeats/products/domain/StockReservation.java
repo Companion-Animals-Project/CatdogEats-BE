@@ -65,7 +65,7 @@ public class StockReservation extends BaseEntity {
 
     /**
      * 예약 상태
-     * RESERVED → CONFIRMED/CANCELLED/EXPIRED 순서로 상태가 변경됩니다.
+     * RESERVED → CONFIRMED/CANCELLED 순서로 상태가 변경됩니다.
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "reservation_status", nullable = false, length = 20)
@@ -84,14 +84,6 @@ public class StockReservation extends BaseEntity {
      */
     @Column(name = "confirmed_at")
     private ZonedDateTime confirmedAt;
-
-    /**
-     * 예약 만료 시간
-     * RabbitMQ 지연 메시지 처리를 위한 만료 시간입니다.
-     * 기본값: 예약 시간 + 30분
-     */
-    @Column(name = "expired_at", nullable = false)
-    private ZonedDateTime expiredAt;
 
     /**
      * 동시성 제어를 위한 버전 관리
@@ -132,20 +124,6 @@ public class StockReservation extends BaseEntity {
     }
 
     /**
-     * 예약 만료 처리
-     * RabbitMQ 지연 메시지를 통해 자동으로 만료 처리할 때 호출됩니다.
-     */
-    public void expire() {
-        if (this.reservationStatus != ReservationStatus.RESERVED) {
-            throw new IllegalStateException(
-                    String.format("예약 만료 불가: 현재 상태=%s, 예약 ID=%s",
-                            this.reservationStatus, this.id));
-        }
-
-        this.reservationStatus = ReservationStatus.EXPIRED;
-    }
-
-    /**
      * 예약이 활성 상태인지 확인
      * RESERVED 상태만 활성 상태로 간주합니다.
      */
@@ -154,18 +132,9 @@ public class StockReservation extends BaseEntity {
     }
 
     /**
-     * 예약이 만료되었는지 확인
-     * 현재 시간이 만료 시간을 초과했는지 검사합니다.
-     */
-    public boolean isExpired() {
-        return ZonedDateTime.now().isAfter(this.expiredAt);
-    }
-
-    /**
      * 정적 팩토리 메서드: 새로운 재고 예약 생성
      */
-    public static StockReservation createReservation(Orders order, Products product,
-                                                     Integer quantity, int expirationMinutes) {
+    public static StockReservation createReservation(Orders order, Products product, Integer quantity) {
         ZonedDateTime now = ZonedDateTime.now();
 
         return StockReservation.builder()
@@ -174,7 +143,6 @@ public class StockReservation extends BaseEntity {
                 .reservedQuantity(quantity)
                 .reservationStatus(ReservationStatus.RESERVED)
                 .reservedAt(now)
-                .expiredAt(now.plusMinutes(expirationMinutes))
                 .build();
     }
 }

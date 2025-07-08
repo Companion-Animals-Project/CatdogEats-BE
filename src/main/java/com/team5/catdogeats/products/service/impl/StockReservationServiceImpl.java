@@ -8,13 +8,11 @@ import com.team5.catdogeats.products.repository.StockReservationRepository;
 import com.team5.catdogeats.products.service.StockReservationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,8 +31,6 @@ public class StockReservationServiceImpl implements StockReservationService {
     private final StockReservationRepository stockReservationRepository;
     private final StockValidator stockValidator;
 
-    @Value("${stock.reservation.expiration-minutes:30}")
-    private int reservationExpirationMinutes;
 
     @Override
     @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
@@ -52,7 +48,7 @@ public class StockReservationServiceImpl implements StockReservationService {
         List<StockReservation> reservations = new ArrayList<>();
         for (ReservationRequest request : reservationRequests) {
             StockReservation reservation = StockReservation.createReservation(
-                    order, request.product(), request.quantity(), reservationExpirationMinutes);
+                    order, request.product(), request.quantity());
             reservations.add(reservation);
         }
 

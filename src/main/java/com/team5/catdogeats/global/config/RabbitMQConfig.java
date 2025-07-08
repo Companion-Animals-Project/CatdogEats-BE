@@ -20,6 +20,7 @@ public class RabbitMQConfig {
     public static final String RK_ORDER_CREATED   = "order.created";
     public static final String RK_PAYMENT_SUCCESS = "payment.completed";
     public static final String RK_PAYMENT_FAILED  = "payment.failed";
+    public static final String RK_ORDER_PAYMENT_TIMEOUT = "order.payment.timeout";
 
     /* ---------- Queue 이름 ---------- */
     public static final String Q_ORDER_CREATED        = "q.order.created";
@@ -28,6 +29,9 @@ public class RabbitMQConfig {
     public static final String Q_PAYMENT_COMPLETED    = "q.payment.completed";
     public static final String Q_PAYMENT_FAILED       = "q.payment.failed";
     public static final String DLX_ORDER_EVENTS       = "dlx.order.events";
+    public static final String Q_ORDER_PAYMENT_TIMEOUT_DELAY = "q.order.payment.timeout.delay";
+    public static final String Q_ORDER_PAYMENT_TIMEOUT       = "q.order.payment.timeout";
+
     /* ---------- JSON Converter ---------- */
     @Bean
     public MessageConverter jacksonConverter() {
@@ -84,6 +88,31 @@ public class RabbitMQConfig {
                 .withArgument("x-dead-letter-routing-key", deadLetterRoutingKey + ".dlq")
                 .build();
     }
+
+    // 1) Delay Queue Bean
+    @Bean
+    public Queue paymentTimeoutDelayQueue() {
+        return QueueBuilder.durable(Q_ORDER_PAYMENT_TIMEOUT_DELAY)
+                .withArgument("x-message-ttl", 600_000)                                 // 10분
+                .withArgument("x-dead-letter-exchange", EXCHANGE_ORDERS)               // 최종 exchange
+                .withArgument("x-dead-letter-routing-key", RK_ORDER_PAYMENT_TIMEOUT)   // 실제 처리 큐 라우팅키
+                .build();
+    }
+
+    // 2) 실제 처리용 큐 Bean
+    @Bean
+    public Queue paymentTimeoutQueue() {
+        return QueueBuilder.durable(Q_ORDER_PAYMENT_TIMEOUT).build();
+    }
+
+    // 3) 실제 처리 큐 바인딩
+    @Bean
+    public Binding bindPaymentTimeoutQueue(TopicExchange orderEventsExchange) {
+        return BindingBuilder.bind(paymentTimeoutQueue())
+                .to(orderEventsExchange)
+                .with(RK_ORDER_PAYMENT_TIMEOUT);
+    }
+
 
     /* ---------- DLQ 자체 ---------- */
     @Bean

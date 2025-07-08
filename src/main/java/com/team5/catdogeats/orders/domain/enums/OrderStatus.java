@@ -19,6 +19,8 @@ public enum OrderStatus {
      */
     PAYMENT_COMPLETED,
 
+    PAYMENT_TIMEOUT,
+
     /**
      * 상품 준비 중
      * 결제 완료 후 판매자가 상품을 준비하는 상태
