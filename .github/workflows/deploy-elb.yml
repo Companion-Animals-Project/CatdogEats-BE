@@ -103,17 +103,19 @@ jobs:
       - name: Prepare Dockerrun
         run: |
           cat > Dockerrun.aws.json <<EOF
-          {
-            "AWSEBDockerrunVersion": 1,
-            "image": {
-              "name": "${{ needs.build-and-publish.outputs.IMAGE_LATEST }}",
-              "update": true
-            },
-            "ports": [
-              {"containerPort": 8080}
-            ]
-          }
-          EOF
+           {
+           "AWSEBDockerrunVersion": 1,
+           "Image": {
+               "Name": "${{ needs.build-and-publish.outputs.IMAGE_LATEST }}",
+               "Update": "true"
+                       +           },
+           "Ports": [
+               {
+                   "ContainerPort": "8080"
+                  +             }
+             ]
+           }
+           EOF
 
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v20
