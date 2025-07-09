@@ -206,3 +206,23 @@ admin:
 app:
   admin:
     base-url: ${APP_BASE_URL}  # 이메일 링크용 (운영 도메인)
+
+outbox:
+  processing:
+    mode: cdc
+
+debezium:
+  database:
+    hostname: ${DB_URL}
+    port: 5432
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    dbname: catdogeats
+    server-name: catdogeats
+  connector:
+    slot-name: debezium_slot
+    publication-name: debezium_publication
+    plugin-name: pgoutput
+    table-include-list: public.outbox_messages
+  offset:
+    storage-file: ./data/debezium-offsets.dat

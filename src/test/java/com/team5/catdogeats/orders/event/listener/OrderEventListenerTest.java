@@ -15,7 +15,7 @@ import com.team5.catdogeats.payments.domain.enums.PaymentStatus;
 import com.team5.catdogeats.payments.event.PaymentCompletedEvent;
 import com.team5.catdogeats.payments.repository.PaymentRepository;
 import com.team5.catdogeats.products.domain.Products;
-import com.team5.catdogeats.products.domain.StockReservation;
+import com.team5.catdogeats.products.domain.mapping.StockReservation;
 import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.products.service.ProductStockManager;
 import com.team5.catdogeats.products.service.StockReservationService;

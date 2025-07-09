@@ -1,23 +1,14 @@
-package com.team5.catdogeats.products.domain;
+package com.team5.catdogeats.products.domain.mapping;
 
 import com.team5.catdogeats.baseEntity.BaseEntity;
 import com.team5.catdogeats.orders.domain.Orders;
+import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.domain.enums.ReservationStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.ZonedDateTime;
 
-/**
- * 재고 예약 엔티티
- * 안전한 재고 관리를 위한 예약 시스템의 핵심 엔티티입니다.
- * 주문 생성 시 재고를 즉시 차감하지 않고 예약하여,
- * 결제 성공 시에만 확정 차감하는 안전한 재고 관리를 제공합니다.
- * 주요 기능:
- * - 재고 예약/해제/확정 상태 관리
- * - RabbitMQ를 통한 자동 만료 처리 지원
- * - 동시성 제어를 위한 Version 관리
- */
 @Entity
 @Table(name = "stock_reservations",
         indexes = {
@@ -70,10 +61,6 @@ public class StockReservation extends BaseEntity {
     @Column(name = "reservation_status", nullable = false, length = 20)
     private ReservationStatus reservationStatus;
 
-    /**
-     * 예약 생성 시간
-     * 주문 생성과 동시에 설정됩니다.
-     */
     @Column(name = "reserved_at", nullable = false)
     private ZonedDateTime reservedAt;
 

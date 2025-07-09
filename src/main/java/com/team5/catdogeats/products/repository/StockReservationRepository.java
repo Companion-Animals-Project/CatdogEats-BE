@@ -1,6 +1,6 @@
 package com.team5.catdogeats.products.repository;
 
-import com.team5.catdogeats.products.domain.StockReservation;
+import com.team5.catdogeats.products.domain.mapping.StockReservation;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

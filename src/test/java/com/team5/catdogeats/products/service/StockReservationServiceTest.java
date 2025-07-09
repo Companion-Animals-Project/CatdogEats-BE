@@ -3,7 +3,7 @@ package com.team5.catdogeats.products.service;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.products.domain.Products;
-import com.team5.catdogeats.products.domain.StockReservation;
+import com.team5.catdogeats.products.domain.mapping.StockReservation;
 import com.team5.catdogeats.products.domain.enums.ReservationStatus;
 import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.domain.enums.Role;

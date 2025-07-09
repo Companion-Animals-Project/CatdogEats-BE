@@ -8,6 +8,8 @@ import com.team5.catdogeats.products.domain.enums.ProductCategory;
 import com.team5.catdogeats.products.domain.enums.StockStatus;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.*;
 
 @Entity
@@ -15,6 +17,7 @@ import lombok.*;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
+@Table(name = "products")
 public class Products extends BaseEntity {
 
     @Id
@@ -50,19 +53,22 @@ public class Products extends BaseEntity {
     @Column(length = 20)
     private ProductCategory productCategory;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "stock_status", length = 15)
-    private StockStatus stockStatus;
-
-    @Column(name = "is_discounted")
+    @Column(name = "discounted")
     @Builder.Default
-    private boolean isDiscounted = false;
+    private Boolean discounted = false;
 
-    @Column(name = "discount_rate", columnDefinition = "DECIMAL(10,2)")
-    private Double discountRate;
+    @Min(0)
+    @Max(100)
+    @Column(name = "discount_rate",
+            nullable = false,
+            columnDefinition = "SMALLINT")
+    private short discountRate;
 
     @Column(nullable = false)
     private Long price;
+
+    @Column(name = "discounted_price", columnDefinition = "DECIMAL(10,2)")
+    private Double discountedPrice;
 
     @Column(name = "lead_time", nullable = false)
     private Short leadTime;
@@ -70,8 +76,22 @@ public class Products extends BaseEntity {
     @Column(nullable = false)
     private Integer stock;
 
+    @Column(name = "safety_stock", nullable = false)
+    private int safetyStock;
+
     @Version // 동시성 제어
     private Long version;
+
+    @Transient
+    public StockStatus getStockStatus() {
+        if (stock <= 0) {
+            return StockStatus.OUT_OF_STOCK;
+        }
+        if (stock <= safetyStock) {
+            return StockStatus.LOW_STOCK;
+        }
+        return StockStatus.IN_STOCK;
+    }
 
     public void decreaseStock(int qty) {
         if (this.stock < qty) throw new IllegalArgumentException("재고 부족");
@@ -88,12 +108,12 @@ public class Products extends BaseEntity {
                 .contents(dto.contents())
                 .petCategory(dto.petCategory())
                 .productCategory(dto.productCategory())
-                .stockStatus(dto.stockStatus())
-                .isDiscounted(dto.isDiscounted())
+                .discounted(dto.isDiscounted())
                 .discountRate(dto.discountRate())
                 .price(dto.price())
                 .leadTime(dto.leadTime())
                 .stock(dto.stock())
+                .safetyStock(dto.stock()/2)
                 .build();
     }
 
@@ -104,10 +124,8 @@ public class Products extends BaseEntity {
         if (dto.contents() != null) this.contents = dto.contents();
         if (dto.petCategory() != null) this.petCategory = dto.petCategory();
         if (dto.productCategory() != null) this.productCategory = dto.productCategory();
-        if (dto.stockStatus() != null) this.stockStatus = dto.stockStatus();
-        if (dto.isDiscounted() != null) this.isDiscounted = dto.isDiscounted();
+        if (dto.isDiscounted() != null) this.discounted = dto.isDiscounted();
         if (dto.discountRate() != null) this.discountRate = dto.discountRate();
-        if (dto.stockStatus() != null) this.stockStatus = dto.stockStatus();
         if (dto.price() != null) this.price = dto.price();
         if (dto.leadTime() != null) this.leadTime = dto.leadTime();
         if (dto.stock() != null) this.stock = dto.stock();
