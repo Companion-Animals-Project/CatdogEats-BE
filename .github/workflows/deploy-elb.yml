@@ -62,8 +62,10 @@ jobs:
           REPO_LOWER=${GITHUB_REPOSITORY,,}
           IMAGE="ghcr.io/${REPO_LOWER}:${GITHUB_SHA}"
           IMAGE_LATEST="ghcr.io/${REPO_LOWER}:latest"
-          echo "image=${IMAGE}"       >> $GITHUB_OUTPUT
+          CACHE="ghcr.io/${REPO_LOWER}:cache"
+          echo "image=${IMAGE}"             >> $GITHUB_OUTPUT
           echo "image_latest=${IMAGE_LATEST}" >> $GITHUB_OUTPUT
+          echo "cache=${CACHE}"             >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
@@ -72,12 +74,12 @@ jobs:
           file: Dockerfile
           push: true
           tags: |
-            ${{ steps.prepare-tags.outputs.image }}
-            ${{ steps.prepare-tags.outputs.image_latest }}
+            ${{ steps.prepare.outputs.image }}
+            ${{ steps.prepare.outputs.image_latest }}
           build-args: |
             JAR_FILE=build/libs/*.jar
-          cache-from: type=registry,ref=${{ steps.prepare-tags.outputs.image }};mode=max
-          cache-to:   type=registry,ref=${{ steps.prepare-tags.outputs.image }};mode=max
+          cache-from: type=registry,ref=${{ steps.prepare.outputs.cache }}
+          cache-to: type=registry,ref=${{ steps.prepare.outputs.cache }},mode=max
 
   deploy-to-eb:
     needs: build-and-publish
