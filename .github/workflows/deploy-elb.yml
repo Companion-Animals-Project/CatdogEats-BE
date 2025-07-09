@@ -4,19 +4,33 @@ on:
   workflow_run:
     workflows: ["Build & Publish Docker image"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: 'Build SHA to deploy'
+        required: true
 permissions:
   contents: read
   packages: read
 
 jobs:
   deploy:
-    if: ${{
-      github.event.workflow_run.conclusion == 'success' &&
-      contains(['feat/cicd/91','develop','main'], github.event.workflow_run.head_branch)
-      }}
     runs-on: ubuntu-latest
 
     steps:
+      - name: Download image info artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: image-info
+          path: .
+
+      - name: Load image variables
+        run: |
+          IMAGE=$(sed -n '1p' image_info.txt)
+          IMAGE_LATEST=$(sed -n '2p' image_info.txt)
+          echo "IMAGE=${IMAGE}"         >> $GITHUB_ENV
+          echo "IMAGE_LATEST=${IMAGE_LATEST}" >> $GITHUB_ENV
+
       - name: Checkout code
         uses: actions/checkout@v3
 

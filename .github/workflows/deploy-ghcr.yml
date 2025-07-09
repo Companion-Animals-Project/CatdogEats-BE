@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - feat/cicd/91
-  pull_request:
-    branches:
       - develop
       - main
   workflow_dispatch:
@@ -74,3 +72,14 @@ jobs:
             JAR_FILE=build/libs/*.jar
           cache-from: type=registry,ref=ghcr.io/${{ env.REPO_LOWER }}:cache
           cache-to: type=registry,ref=ghcr.io/${{ env.REPO_LOWER }}:cache,mode=max
+
+      - name: Save image info
+        run: |
+          echo "${{ env.IMAGE }}"       > image_info.txt
+          echo "${{ env.IMAGE_LATEST }}" >> image_info.txt
+
+      - name: Upload image info artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: image-info
+          path: image_info.txt
