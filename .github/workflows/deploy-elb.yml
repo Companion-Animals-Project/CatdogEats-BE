@@ -124,4 +124,4 @@ jobs:
           environment_name:  aibe1-team05-env
           version_label:     deploy-${{ github.run_number }}
           deployment_package: Dockerrun.aws.json
-          wait_for_environment_recovery: 120
+          wait_for_environment_recovery: false
