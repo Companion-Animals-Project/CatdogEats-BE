@@ -4,14 +4,16 @@ on:
   workflow_run:
     workflows: ["Build & Publish Docker image"]
     types: [completed]
-
 permissions:
   contents: read
   packages: read
 
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{
+      github.event.workflow_run.conclusion == 'success' &&
+      contains(['feat/cicd/91','develop','main'], github.event.workflow_run.head_branch)
+      }}
     runs-on: ubuntu-latest
 
     steps:
