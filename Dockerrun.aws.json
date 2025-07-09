@@ -1,0 +1,13 @@
+{
+  "AWSEBDockerrunVersion": 2,
+  "image": {
+    "name": "ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}",
+    "update": true
+  },
+  "ports": [
+    {
+      "containerPort": 8080
+    }
+  ],
+  "logging": "/var/log/nginx"
+}
