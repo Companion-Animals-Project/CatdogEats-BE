@@ -104,13 +104,14 @@ jobs:
         run: |
           cat > Dockerrun.aws.json <<EOF
           {
-            "AWSEBDockerrunVersion": 2,
+            "AWSEBDockerrunVersion": 1,
             "image": {
               "name": "${{ needs.build-and-publish.outputs.IMAGE_LATEST }}",
               "update": true
             },
-            "ports": [{"containerPort": 8080}],
-            "logging": "/var/log/nginx"
+            "ports": [
+              {"containerPort": 8080}
+            ]
           }
           EOF
 
