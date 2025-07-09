@@ -67,5 +67,5 @@ jobs:
             ${{ env.IMAGE_LATEST }}
           build-args: |
             JAR_FILE=build/libs/*.jar
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:cache
-          cache-to:   type=registry,ref=ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:cache,mode=max
+          cache-from: type=registry,ref=ghcr.io/${{ env.REPO_LOWER }}:cache
+          cache-to: type=registry,ref=ghcr.io/${{ env.REPO_LOWER }}:cache,mode=max
