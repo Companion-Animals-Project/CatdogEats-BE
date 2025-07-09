@@ -1,7 +1,7 @@
 {
   "AWSEBDockerrunVersion": 1,
   "Image": {
-    "Name": "ghcr.io/your-owner/your-repo:latest",
+    "Name": "ghcr.io/prgrms-aibe-devcourse/aibe1-finalproject-todayscommit_be:cache",
     "Update": "true"
   },
   "Ports": [

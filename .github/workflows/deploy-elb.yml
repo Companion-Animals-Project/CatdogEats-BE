@@ -100,22 +100,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Prepare Dockerrun
-        run: |
-          cat > Dockerrun.aws.json <<EOF
-           {
-           "AWSEBDockerrunVersion": 1,
-           "Image": {
-               "Name": "${{ needs.build-and-publish.outputs.IMAGE_LATEST }}",
-               "Update": "true"
-                       +           },
-           "Ports": [
-               {
-                   "ContainerPort": "8080"
-                  +             }
-             ]
-           }
-           EOF
 
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v20
@@ -126,5 +110,4 @@ jobs:
           application_name:  aibe1-team05
           environment_name:  aibe1-team05-env
           version_label:     deploy-${{ github.run_number }}
-          deployment_package: Dockerrun.aws.json
           wait_for_environment_recovery: false
