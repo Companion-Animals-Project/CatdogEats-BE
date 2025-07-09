@@ -79,7 +79,7 @@ jobs:
           echo "${{ env.IMAGE_LATEST }}" >> image_info.txt
 
       - name: Upload image info artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: image-info
           path: image_info.txt
