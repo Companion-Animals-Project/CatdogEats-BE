@@ -2,7 +2,7 @@ name: Deploy to Elastic Beanstalk
 
 on:
   workflow_run:
-    workflows: ["Build & Publish Docker Image"]
+    workflows: ["Build & Publish Docker image"]
     types: [completed]
 
 permissions:
