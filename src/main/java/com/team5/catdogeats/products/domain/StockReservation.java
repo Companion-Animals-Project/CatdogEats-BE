@@ -24,7 +24,6 @@ import java.time.ZonedDateTime;
                 @Index(name = "idx_stock_reservation_order_id", columnList = "order_id"),
                 @Index(name = "idx_stock_reservation_product_id", columnList = "product_id"),
                 @Index(name = "idx_stock_reservation_status", columnList = "reservation_status"),
-                @Index(name = "idx_stock_reservation_expired_at", columnList = "expired_at")
         })
 @Getter
 @Setter

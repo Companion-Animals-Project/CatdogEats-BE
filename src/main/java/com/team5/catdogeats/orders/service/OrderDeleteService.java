@@ -5,7 +5,7 @@ import com.team5.catdogeats.orders.dto.response.OrderDeleteResponse;
 
 import java.util.NoSuchElementException;
 
-public interface OderDeleteService {
+public interface OrderDeleteService {
 
     /**
      * 주문 내역 삭제 (구매자) - 논리적 삭제 방식 + 상태별 제한

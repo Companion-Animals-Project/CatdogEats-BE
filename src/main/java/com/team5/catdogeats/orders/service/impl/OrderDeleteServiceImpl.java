@@ -6,7 +6,7 @@ import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.dto.response.OrderDeleteResponse;
 import com.team5.catdogeats.orders.repository.OrderRepository;
-import com.team5.catdogeats.orders.service.OderDeleteService;
+import com.team5.catdogeats.orders.service.OrderDeleteService;
 import com.team5.catdogeats.users.domain.dto.BuyerDTO;
 import com.team5.catdogeats.users.domain.mapping.Buyers;
 import com.team5.catdogeats.users.repository.BuyerRepository;
@@ -20,7 +20,7 @@ import java.util.NoSuchElementException;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class OderDeleteServiceImpl implements OderDeleteService {
+public class OrderDeleteServiceImpl implements OrderDeleteService {
     private final OrderRepository orderRepository;
     private final BuyerRepository buyerRepository;
 

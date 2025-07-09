@@ -23,7 +23,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OderResponseBuilder {
+public class OrderResponseBuilder {
 
     private final TossPaymentsConfig.TossPaymentsProperties tossPaymentsProperties;
     private final ObjectMapper objectMapper;
@@ -70,11 +70,22 @@ public class OderResponseBuilder {
     }
 
 
-    public OutboxMessage buildOutboxMessage(Orders savedOrder, OrderCreatedEvent event) throws JsonProcessingException {
+    public OutboxMessage orderCteateOutboxMessage(Orders savedOrder, OrderCreatedEvent event) throws JsonProcessingException {
         return OutboxMessage.builder()
                 .aggregateId(savedOrder.getId())
                 .aggregateType("ORDER")
                 .eventType("order.created")
+                .payload(objectMapper.writeValueAsString(event))
+                .status(OutboxStatus.PENDING)
+                .retryCount(0)
+                .build();
+    }
+
+    public OutboxMessage timeOutOutboxMessage(Orders savedOrder, OrderCreatedEvent event) throws JsonProcessingException {
+        return OutboxMessage.builder()
+                .aggregateId(savedOrder.getId())
+                .aggregateType("ORDER")
+                .eventType("order.payment.timeout")
                 .payload(objectMapper.writeValueAsString(event))
                 .status(OutboxStatus.PENDING)
                 .retryCount(0)

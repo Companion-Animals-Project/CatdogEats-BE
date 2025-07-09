@@ -8,8 +8,8 @@ import com.team5.catdogeats.orders.dto.request.OrderDeleteRequest;
 import com.team5.catdogeats.orders.dto.response.OrderCreateResponse;
 import com.team5.catdogeats.orders.dto.response.OrderDeleteResponse;
 import com.team5.catdogeats.orders.dto.response.OrderDetailResponse;
-import com.team5.catdogeats.orders.service.OderDeleteService;
 import com.team5.catdogeats.orders.service.OrderCreateService;
+import com.team5.catdogeats.orders.service.OrderDeleteService;
 import com.team5.catdogeats.orders.service.OrderDetailService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +34,7 @@ public class OrderController {
 
     private final OrderCreateService orderCreateService;
     private final OrderDetailService orderDetailService;
-    private final OderDeleteService orderDeleteService;
+    private final OrderDeleteService orderDeleteService;
 
     /**
      * 주문 생성 (구매자) - 기존 메서드 유지

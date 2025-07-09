@@ -17,8 +17,9 @@ import com.team5.catdogeats.orders.event.OrderCreatedEvent;
 import com.team5.catdogeats.orders.repository.OrderPendingDetailsRepository;
 import com.team5.catdogeats.orders.repository.OrderRepository;
 import com.team5.catdogeats.orders.service.OrderCreateService;
-import com.team5.catdogeats.orders.util.OderResponseBuilder;
+import com.team5.catdogeats.orders.util.OrderResponseBuilder;
 import com.team5.catdogeats.orders.util.OrderCreateUtils;
+import com.team5.catdogeats.outbox.domain.OutboxMessage;
 import com.team5.catdogeats.outbox.repository.OutboxMessageRepository;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.repository.ProductRepository;
@@ -45,7 +46,7 @@ public class OrderCreateServiceImpl implements OrderCreateService {
     private final BuyerRepository buyerRepository;
     private final ProductRepository productRepository;
     private final SellersRepository sellersRepository;
-    private final OderResponseBuilder oderResponseBuilder;
+    private final OrderResponseBuilder orderResponseBuilder;
     private final ObjectMapper objectMapper;
     private final BuyerCouponRepository buyerCouponRepository;
     private final OutboxMessageRepository outboxMessageRepository;
@@ -95,8 +96,10 @@ public class OrderCreateServiceImpl implements OrderCreateService {
 
             // 6. OrderCreatedEvent 발행 (재고 예약 및 결제 정보 생성용)
             OrderCreatedEvent event = getOrderCreatedEvent(userPrincipal, savedOrder, buyers, finalPaymentAmount, flatItems);
-
-            outboxMessageRepository.save(oderResponseBuilder.buildOutboxMessage(savedOrder, event));
+            OutboxMessage createMessage = orderResponseBuilder.orderCteateOutboxMessage(savedOrder, event);
+            outboxMessageRepository.save(createMessage);
+            OutboxMessage timeOutMessage = orderResponseBuilder.timeOutOutboxMessage(savedOrder, event);
+            outboxMessageRepository.save(timeOutMessage);
 
 
             return getOrderCreateResponse(request, validatedOrderItems, savedOrder);
@@ -142,7 +145,7 @@ public class OrderCreateServiceImpl implements OrderCreateService {
                 .orElse("주문 상품");
 
 
-        return oderResponseBuilder.buildTossPaymentResponse(
+        return orderResponseBuilder.buildTossPaymentResponse(
                 savedOrder,
                 request.getPaymentInfo(),
                 orderName
