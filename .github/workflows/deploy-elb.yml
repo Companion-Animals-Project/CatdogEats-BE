@@ -100,31 +100,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Dockerrun.aws.json
-        run: |
-          # build-and-publish 잡에서 생성된 이미지 태그를 가져옵니다.
-          # 이 태그는 각 빌드마다 고유한 커밋 SHA를 포함합니다.
-          IMAGE_NAME="${{ needs.build-and-publish.outputs.IMAGE }}"
-          
-          # Dockerrun.aws.json 파일을 동적으로 생성합니다.
-          # Image.Name 필드에 빌드된 Docker 이미지의 전체 경로와 태그를 삽입합니다.
-          cat <<EOF > Dockerrun.aws.json
-          {
-            "AWSEBDockerrunVersion": 1,
-            "Image": {
-              "Name": "${IMAGE_NAME}",
-              "Update": "true"
-            },
-            "Ports": [
-              {
-                "ContainerPort": "8080"
-              }
-            ]
-          }
-          EOF
-          echo "Generated Dockerrun.aws.json:"
-          cat Dockerrun.aws.json
-
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v20
         with:
