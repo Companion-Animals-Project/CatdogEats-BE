@@ -50,6 +50,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: 리포지토리명 소문자 변환 & 태그 변수 설정
+        run: |
+          REPO_LOWER=${GITHUB_REPOSITORY,,}
+          echo "IMAGE=ghcr.io/${REPO_LOWER}:${GITHUB_SHA}" >> $GITHUB_ENV
+          echo "IMAGE_LATEST=ghcr.io/${REPO_LOWER}:latest" >> $GITHUB_ENV
+
       - name: Build and push Docker image (with remote cache)
         uses: docker/build-push-action@v4
         with:
