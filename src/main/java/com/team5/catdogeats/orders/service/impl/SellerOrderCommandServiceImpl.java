@@ -396,12 +396,30 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
             default -> "주문 상태가 변경되었습니다.";
         };
 
+        // 지연 처리 여부 및 관련 정보 설정
+        Boolean isDelayed = request.isDelayed() != null ? request.isDelayed() : false;
+        String delayReason = isDelayed ? request.reason() : null;
+        ZonedDateTime expectedDeliveryDate = null;
+
+        // 예상 배송일 파싱 (지연인 경우에만)
+        if (isDelayed && request.expectedShipDate() != null) {
+            try {
+                expectedDeliveryDate = ZonedDateTime.parse(request.expectedShipDate() + "T00:00:00Z");
+            } catch (Exception e) {
+                log.warn("예상 배송일 파싱 실패: {}", request.expectedShipDate());
+            }
+        }
+
         return OrderStatusUpdateResponse.builder()
                 .orderNumber(order.getOrderNumber())
-                .oldStatus(oldStatus)
-                .newStatus(request.newStatus())
+                .previousStatus(oldStatus)  // oldStatus → previousStatus 수정
+                .currentStatus(request.newStatus())  // newStatus → currentStatus 수정
+                .reason(request.reason())
                 .updatedAt(ZonedDateTime.now())
                 .message(message)
+                .isDelayed(isDelayed)
+                .delayReason(delayReason)
+                .expectedDeliveryDate(expectedDeliveryDate)
                 .build();
     }
 
