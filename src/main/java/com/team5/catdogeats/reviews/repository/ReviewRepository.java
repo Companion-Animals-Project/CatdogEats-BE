@@ -68,8 +68,5 @@ public interface ReviewRepository extends JpaRepository<Reviews, String> {
     """)
     List<Object[]> findGroupStarCountBySellerId(@Param("sellerId") String sellerId);
 
-    // 해당 상품에 속하는 최신 리뷰 30개를 createdAt 내림차순(최신순)으로 조회
-    List<Reviews> findTop30ByProductOrderByCreatedAtDesc(Products product);
-
     void deleteAllByProduct(Products product);
 }

@@ -1,10 +1,10 @@
 package com.team5.catdogeats.reviews.controller;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.reviews.domain.dto.ReviewSummaryResponseDto;
-import com.team5.catdogeats.reviews.domain.mapping.ReviewsSummaryLLM;
 import com.team5.catdogeats.reviews.service.ReviewSummaryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -24,11 +24,9 @@ public class ReviewSummaryController {
     @GetMapping("/{productNumber}")
     public ResponseEntity<ApiResponse<ReviewSummaryResponseDto>> getReviewSummary(@PathVariable Long productNumber) {
         try {
-            ReviewSummaryResponseDto summary = reviewSummaryService.summarizeReviewsByProductNumber(productNumber, false);
-
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS,
-                    summary));
-        } catch (JsonProcessingException e) {
+            ReviewSummaryResponseDto summary = reviewSummaryService.getReviewSummaryByProductNumber(productNumber);
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, summary));
+        } catch (JsonParseException e) {
             return ResponseEntity
                     .status(ResponseCode.JSON_PARSING_FAIL.getStatus())
                     .body(ApiResponse.error(ResponseCode.JSON_PARSING_FAIL, e.getMessage()));
