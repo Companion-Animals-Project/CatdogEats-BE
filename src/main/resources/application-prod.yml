@@ -114,9 +114,9 @@ spring:
           max-active: 8
           max-idle: 8
           min-idle: 0
-      mongodb:
-        uri: ${MONGO_URL}
-        database: ${MONGO_DATABASE}
+    mongodb:
+      uri: ${MONGO_URL}
+      database: ${MONGO_DATABASE}
   rabbitmq:
     host: localhost
     port: 5672
