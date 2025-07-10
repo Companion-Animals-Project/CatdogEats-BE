@@ -2,6 +2,29 @@ batch:
   withdrawn:
     cron: "${WITHDRAW_CRON:0 30 2 * * ?}"
     chunk-size: ${WITHDRAW_CHUNK:1000}
+
+  forecast:
+    # 배치 활성화 여부
+    enabled: ${FORECAST_BATCH_ENABLED:true}
+
+    # 크론 표현식 설정
+    aggregation-cron: "${FORECAST_AGGREGATION_CRON:0 0 2 * * ?}"  # 매일 새벽 2시 (정산 배치와 동시)
+    forecast-cron: "${FORECAST_PREDICTION_CRON:0 0 3 * * ?}"      # 매일 새벽 3시 (집계 후 1시간 뒤)
+
+    # 성능 관련 설정
+    chunk-size: ${FORECAST_CHUNK_SIZE:100}                        # 판매자 청크 크기
+    skip-limit: ${FORECAST_SKIP_LIMIT:50}                         # 스킵 한계치
+    retry-limit: ${FORECAST_RETRY_LIMIT:3}                        # 재시도 한계치
+    timeout-minutes: ${FORECAST_TIMEOUT_MINUTES:120}              # 배치 타임아웃 (2시간)
+
+    # 수요예측 알고리즘 설정
+    prediction-period-days: ${FORECAST_PREDICTION_DAYS:7}         # 예측 기간 (일)
+    historical-data-days: ${FORECAST_HISTORICAL_DAYS:30}          # 과거 데이터 분석 기간 (일)
+    min-sales-data-days: ${FORECAST_MIN_SALES_DAYS:15}            # 최소 판매 기록 일수
+    moving-average-window: ${FORECAST_MOVING_AVERAGE:7}           # 이동평균 윈도우
+
+    # 데이터 관리 설정
+    cleanup-old-data-days: ${FORECAST_CLEANUP_DAYS:30}            # 오래된 데이터 정리 기간 (일)
 spring:
   batch:
     jdbc:

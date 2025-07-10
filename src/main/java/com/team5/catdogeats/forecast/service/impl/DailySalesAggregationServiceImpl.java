@@ -37,7 +37,7 @@ public class DailySalesAggregationServiceImpl implements DailySalesAggregationSe
         log.info("일별 판매 집계 시작 - targetDate: {}", targetDate);
 
         try {
-            // 1. 원본 주문 데이터에서 일별 집계 추출 (MyBatis)
+            // 1. 원본 주문 데이터에서 일별 집계 추출
             List<DailySalesDataDTO> aggregatedData = dailySalesMapper.aggregateDailySalesByDate(targetDate);
 
             if (aggregatedData.isEmpty()) {
@@ -81,7 +81,7 @@ public class DailySalesAggregationServiceImpl implements DailySalesAggregationSe
     }
 
     /**
-     * 새로운 집계 데이터 저장 (타임스탬프 명시적 설정)
+     * 새로운 집계 데이터 저장
      */
     private void saveDailySalesAggregation(DailySalesDataDTO data) {
         try {
@@ -124,7 +124,7 @@ public class DailySalesAggregationServiceImpl implements DailySalesAggregationSe
     }
 
     /**
-     * 기존 집계 데이터 업데이트 (타임스탬프 명시적 설정)
+     * 기존 집계 데이터 업데이트
      */
     private void updateDailySalesAggregation(DailySalesDataDTO data) {
         try {
@@ -150,10 +150,10 @@ public class DailySalesAggregationServiceImpl implements DailySalesAggregationSe
                     .orderCount(data.orderCount())
                     .build();
 
-            // BaseEntity 필드 직접 설정 (기존 생성일 유지, 수정일만 업데이트)
-            setTimestamps(aggregation, null, now); // createdAt은 null로 두어 기존값 유지
 
-            // MyBatis로 UPSERT (업데이트)
+            setTimestamps(aggregation, null, now);
+
+
             dailySalesMapper.upsertDailySales(aggregation);
 
         } catch (Exception e) {

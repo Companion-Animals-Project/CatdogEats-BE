@@ -37,7 +37,6 @@ public interface DailySalesAggregationMapper {
 
     /**
      * 원본 주문 데이터에서 일별 판매 집계 생성 (배치용)
-     * Record 생성자 매핑을 사용하여 DailySalesDataDTO 객체 생성
      */
     @Select("""
         SELECT 
@@ -93,7 +92,6 @@ public interface DailySalesAggregationMapper {
 
     /**
      * 특정 상품의 최근 N일간 판매 데이터 조회 (예측 계산용)
-     * 모든 필드를 조회해서 Record 생성자 파라미터 맞춤
      */
     @Select("""
         SELECT 

@@ -1,6 +1,6 @@
 package com.team5.catdogeats.batch.forecast.config;
 
-import com.team5.catdogeats.batch.forecast.dto.ForecastBatchItem;
+import com.team5.catdogeats.batch.forecast.domain.dto.ForecastBatchItem;
 import com.team5.catdogeats.batch.mapper.ForecastBatchMapper;
 import com.team5.catdogeats.batch.forecast.processor.ForecastBatchItemProcessor;
 import com.team5.catdogeats.batch.forecast.reader.ForecastBatchItemReader;
@@ -27,8 +27,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import java.time.LocalDate;
 
 /**
- * 수요예측 Spring Batch 설정
- * 정산 배치와 동일한 패턴으로 구성
+ * 수요예측 Spring Batch 설정 (기존 서비스 로직 통합 버전)
+ * DemandForecastService와 DailySalesAggregationService를 활용
  */
 @Slf4j
 @Configuration
@@ -55,6 +55,7 @@ public class ForecastBatchConfig {
     public Job forecastAggregationJob() {
         return new JobBuilder("forecastAggregationJob", jobRepository)
                 .start(aggregationStep())
+                .listener(createJobExecutionListener())
                 .build();
     }
 
@@ -65,6 +66,7 @@ public class ForecastBatchConfig {
     public Job forecastPredictionJob() {
         return new JobBuilder("forecastPredictionJob", jobRepository)
                 .start(predictionStep())
+                .listener(createJobExecutionListener())
                 .build();
     }
 
@@ -75,6 +77,7 @@ public class ForecastBatchConfig {
     public Job forecastCleanupJob() {
         return new JobBuilder("forecastCleanupJob", jobRepository)
                 .start(cleanupStep())
+                .listener(createJobExecutionListener())
                 .build();
     }
 
@@ -91,7 +94,7 @@ public class ForecastBatchConfig {
                 .tasklet((contribution, chunkContext) -> {
                     log.info("일별 판매 집계 Tasklet 시작");
 
-                    // 어제 날짜 집계 실행
+                    // 어제 날짜 집계 실행 (기존 서비스 로직 활용)
                     LocalDate yesterday = LocalDate.now().minusDays(1);
                     int aggregatedRecords = dailySalesAggregationService.aggregateDailySales(yesterday);
 
@@ -101,6 +104,11 @@ public class ForecastBatchConfig {
                     chunkContext.getStepContext().getStepExecution()
                             .getExecutionContext().putInt("aggregatedRecords", aggregatedRecords);
 
+                    // 집계 결과가 0개면 경고 로그
+                    if (aggregatedRecords == 0) {
+                        log.warn("집계된 판매 데이터가 없습니다. 어제({}) 주문이 없었거나 이미 집계되었을 수 있습니다.", yesterday);
+                    }
+
                     return org.springframework.batch.repeat.RepeatStatus.FINISHED;
                 }, batchTransactionManager)
                 .build();
@@ -108,6 +116,7 @@ public class ForecastBatchConfig {
 
     /**
      * 수요예측 실행 Step (청크 기반)
+     * 각 판매자별로 DemandForecastService.executeForecasting() 호출
      */
     @Bean
     public Step predictionStep() {
@@ -129,6 +138,7 @@ public class ForecastBatchConfig {
 
     /**
      * 오래된 데이터 정리 Step
+     * 기존 DemandForecastService.cleanupOldForecasts() 활용
      */
     @Bean
     public Step cleanupStep() {
@@ -165,7 +175,8 @@ public class ForecastBatchConfig {
     }
 
     /**
-     * 수요예측 ItemProcessor
+     * 수요예측 ItemProcessor (기존 서비스 로직 활용)
+     * DemandForecastService를 주입하여 실제 비즈니스 로직 실행
      */
     @Bean
     public ForecastBatchItemProcessor forecastBatchItemProcessor() {
@@ -173,7 +184,7 @@ public class ForecastBatchConfig {
     }
 
     /**
-     * 수요예측 ItemWriter
+     * 수요예측 ItemWriter (통계 수집 및 로깅)
      */
     @Bean
     public ForecastBatchItemWriter forecastBatchItemWriter() {
@@ -186,6 +197,7 @@ public class ForecastBatchConfig {
 
     /**
      * 수요예측 전용 Skip Policy
+     * 비즈니스 로직 검증 실패는 스킵, 시스템 오류는 재시도 후 스킵
      */
     @Bean
     public SkipPolicy forecastSkipPolicy() {
@@ -196,20 +208,26 @@ public class ForecastBatchConfig {
                 return true;
             }
 
-            // 일반적인 비즈니스 로직 오류도 스킵 허용
-            if (t instanceof IllegalArgumentException || t instanceof RuntimeException) {
-                log.warn("비즈니스 로직 오류로 스킵 - skipCount: {}, error: {}", skipCount, t.getMessage());
+            // 비즈니스 로직 검증 실패 (IllegalArgumentException)는 스킵
+            if (t instanceof IllegalArgumentException) {
+                log.warn("비즈니스 검증 실패로 스킵 - skipCount: {}, error: {}", skipCount, t.getMessage());
                 return true;
             }
 
-            // 기타 예외는 스킵하지 않음
-            log.error("스킵하지 않을 오류 - skipCount: {}, error: {}", skipCount, t.getMessage());
+            // 일반적인 런타임 오류도 스킵 허용 (데이터 품질 문제 등)
+            if (t instanceof RuntimeException) {
+                log.warn("런타임 오류로 스킵 - skipCount: {}, error: {}", skipCount, t.getMessage());
+                return true;
+            }
+
+            // 기타 예외는 스킵하지 않음 (시스템 중단)
+            log.error("스킵하지 않을 심각한 오류 - skipCount: {}, error: {}", skipCount, t.getMessage());
             return false;
         };
     }
 
     /**
-     * Step 실행 리스너
+     * Step 실행 리스너 (향상된 모니터링)
      */
     @Bean
     public org.springframework.batch.core.StepExecutionListener createStepExecutionListener() {
@@ -222,6 +240,10 @@ public class ForecastBatchConfig {
                         forecastBatchProperties.getChunkSize(),
                         forecastBatchProperties.getSkipLimit(),
                         forecastBatchProperties.getRetryLimit());
+                log.info("예측 설정 - 예측기간: {}일, 과거데이터: {}일, 최소판매일수: {}일",
+                        forecastBatchProperties.getPredictionPeriodDays(),
+                        forecastBatchProperties.getHistoricalDataDays(),
+                        forecastBatchProperties.getMinSalesDataDays());
             }
 
             @Override
@@ -236,9 +258,13 @@ public class ForecastBatchConfig {
                                 stepExecution.getEndTime()
                         ).getSeconds());
 
-                // Skip 비율이 높으면 경고
+                // Skip 비율 분석
                 if (stepExecution.getReadCount() > 0) {
                     double skipRate = (double) stepExecution.getSkipCount() / stepExecution.getReadCount() * 100;
+                    double successRate = (double) stepExecution.getWriteCount() / stepExecution.getReadCount() * 100;
+
+                    log.info("처리 통계 - 성공률: {:.1f}%, Skip률: {:.1f}%", successRate, skipRate);
+
                     if (skipRate > forecastBatchProperties.getNotification().getHighSkipRateThreshold()) {
                         log.warn("⚠️ 높은 Skip 비율 감지 - {:.1f}% (임계치: {:.1f}%)",
                                 skipRate, forecastBatchProperties.getNotification().getHighSkipRateThreshold());
@@ -251,20 +277,21 @@ public class ForecastBatchConfig {
     }
 
     /**
-     * Job 실행 리스너
+     * Job 실행 리스너 (향상된 모니터링)
      */
     @Bean
     public org.springframework.batch.core.JobExecutionListener createJobExecutionListener() {
         return new org.springframework.batch.core.JobExecutionListener() {
             @Override
             public void beforeJob(org.springframework.batch.core.JobExecution jobExecution) {
-                log.info("🚀 수요예측 배치 Job 시작 - {}", jobExecution.getJobInstance().getJobName());
+                log.info("수요예측 배치 Job 시작 - {}", jobExecution.getJobInstance().getJobName());
                 log.info("Job 파라미터: {}", jobExecution.getJobParameters());
+                log.info("실행 시간: {}", java.time.LocalDateTime.now());
             }
 
             @Override
             public void afterJob(org.springframework.batch.core.JobExecution jobExecution) {
-                log.info("✅ 수요예측 배치 Job 완료 - {}", jobExecution.getJobInstance().getJobName());
+                log.info("수요예측 배치 Job 완료 - {}", jobExecution.getJobInstance().getJobName());
                 log.info("Job 상태: {}, 종료 코드: {}",
                         jobExecution.getStatus(), jobExecution.getExitStatus().getExitCode());
 
@@ -273,13 +300,46 @@ public class ForecastBatchConfig {
                             jobExecution.getStartTime(), jobExecution.getEndTime()).getSeconds();
                     log.info("총 실행 시간: {}초", executionSeconds);
 
-                    // 실행 시간이 임계치를 초과하면 경고
+                    // 실행 시간 임계치 확인
                     if (executionSeconds > forecastBatchProperties.getNotification().getSlowProcessingThreshold()) {
-                        log.warn("⚠️ 느린 처리 시간 감지 - {}초 (임계치: {}초)",
+                        log.warn("느린 처리 시간 감지 - {}초 (임계치: {}초)",
                                 executionSeconds, forecastBatchProperties.getNotification().getSlowProcessingThreshold());
                     }
                 }
+
+                // Job 실행 통계 출력
+                printJobExecutionSummary(jobExecution);
             }
         };
+    }
+
+    /**
+     * Job 실행 요약 출력
+     */
+    private void printJobExecutionSummary(org.springframework.batch.core.JobExecution jobExecution) {
+        log.info("========================================");
+        log.info("수요예측 배치 Job 실행 요약");
+        log.info("========================================");
+
+        jobExecution.getStepExecutions().forEach(stepExecution -> {
+            String stepName = stepExecution.getStepName();
+
+            if ("aggregationStep".equals(stepName)) {
+                int aggregatedRecords = stepExecution.getExecutionContext().getInt("aggregatedRecords", 0);
+                log.info("일별 집계: {}건", aggregatedRecords);
+
+            } else if ("predictionStep".equals(stepName)) {
+                log.info("수요예측: Read {}건, Write {}건, Skip {}건",
+                        stepExecution.getReadCount(),
+                        stepExecution.getWriteCount(),
+                        stepExecution.getSkipCount());
+
+            } else if ("cleanupStep".equals(stepName)) {
+                int deletedRecords = stepExecution.getExecutionContext().getInt("deletedRecords", 0);
+                log.info("데이터 정리: {}건 삭제", deletedRecords);
+            }
+        });
+
+        log.info("========================================");
     }
 }

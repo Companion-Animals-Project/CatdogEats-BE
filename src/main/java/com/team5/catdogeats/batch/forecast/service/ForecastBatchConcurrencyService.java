@@ -17,7 +17,6 @@ import java.util.UUID;
 
 /**
  * 수요예측 배치 동시성 제어 서비스
- * 정산 배치의 BatchConcurrencyService와 동일한 패턴 적용
  */
 @Slf4j
 @Service

@@ -1,6 +1,6 @@
 package com.team5.catdogeats.batch.forecast.reader;
 
-import com.team5.catdogeats.batch.forecast.dto.ForecastBatchItem;
+import com.team5.catdogeats.batch.forecast.domain.dto.ForecastBatchItem;
 import com.team5.catdogeats.batch.mapper.ForecastBatchMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,7 +49,7 @@ public class ForecastBatchItemReader implements ItemReader<ForecastBatchItem> {
             processedItemCount++;
 
             log.debug("ItemReader - 판매자 읽기: {} ({}/{}) - {}",
-                    item.getSellerId(), processedItemCount, totalItemCount, item.getVendorName());
+                    item.sellerId(), processedItemCount, totalItemCount, item.vendorName());
 
             return item;
         }

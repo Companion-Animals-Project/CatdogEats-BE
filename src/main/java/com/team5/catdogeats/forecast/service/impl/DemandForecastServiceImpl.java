@@ -9,9 +9,7 @@ import com.team5.catdogeats.forecast.mapper.DemandForecastMapper;
 import com.team5.catdogeats.forecast.service.DemandForecastService;
 import com.team5.catdogeats.global.annotation.MybatisTransactional;
 import com.team5.catdogeats.products.domain.Products;
-import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
-import com.team5.catdogeats.users.repository.SellersRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -66,7 +64,7 @@ public class DemandForecastServiceImpl implements DemandForecastService {
 
             log.info("예측 대상 상품 수: {} - sellerId: {}", eligibleProducts.size(), sellerId);
 
-            // 3. 기존 오늘자 예측 데이터 삭제 (재실행 대비) (MyBatis)
+            // 3. 기존 오늘자 예측 데이터 삭제
             LocalDate today = LocalDate.now();
             demandForecastMapper.deleteForecastsBySellerAndDate(sellerId, today);
 
@@ -103,7 +101,7 @@ public class DemandForecastServiceImpl implements DemandForecastService {
                 throw new IllegalArgumentException("상품을 찾을 수 없습니다: " + productId);
             }
 
-            // 2. 판매 데이터 조회 (MyBatis)
+            // 2. 판매 데이터 조회
             List<DailySalesDataDTO> salesData = dailySalesMapper.findSalesDataForForecast(
                     seller.getUserId(), productId, startDate, endDate);
 

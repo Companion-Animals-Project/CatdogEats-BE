@@ -1,6 +1,6 @@
 package com.team5.catdogeats.batch.forecast.writer;
 
-import com.team5.catdogeats.batch.forecast.dto.ForecastBatchItem;
+import com.team5.catdogeats.batch.forecast.domain.dto.ForecastBatchItem;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.Chunk;
@@ -8,16 +8,17 @@ import org.springframework.batch.item.ItemWriter;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 수요예측 배치 ItemWriter
- * 처리 결과를 로깅하고 통계를 수집
+ * 수요예측 배치 ItemWriter (기존 서비스 로직 연동 버전)
+ * 실제 DemandForecastService 처리 결과를 기반으로 통계 수집 및 로깅
  */
 @Slf4j
 @RequiredArgsConstructor
 public class ForecastBatchItemWriter implements ItemWriter<ForecastBatchItem> {
 
-    // 배치 통계
+    // 배치 통계 (원자적 연산으로 스레드 안전성 보장)
     private final AtomicInteger totalProcessedCount = new AtomicInteger(0);
     private final AtomicInteger successCount = new AtomicInteger(0);
     private final AtomicInteger failureCount = new AtomicInteger(0);
@@ -25,9 +26,17 @@ public class ForecastBatchItemWriter implements ItemWriter<ForecastBatchItem> {
     private final AtomicLong totalProcessingTime = new AtomicLong(0);
     private final AtomicInteger totalForecastedProducts = new AtomicInteger(0);
     private final AtomicInteger totalShortageProducts = new AtomicInteger(0);
+    private final AtomicReference<Double> confidenceScoreSum = new AtomicReference<>(0.0);
+    private final AtomicInteger confidenceScoreCount = new AtomicInteger(0);
+
+    // 품질 분석 통계
+    private final AtomicInteger highQualityPredictions = new AtomicInteger(0); // 신뢰도 0.8 이상
+    private final AtomicInteger lowQualityPredictions = new AtomicInteger(0);  // 신뢰도 0.5 미만
+    private final AtomicInteger highShortageVendors = new AtomicInteger(0);    // 재고 부족 5개 이상
 
     /**
      * 청크 단위로 처리 결과 기록
+     * 실제 수요예측 서비스 처리 결과를 기반으로 상세 통계 수집
      */
     @Override
     public void write(Chunk<? extends ForecastBatchItem> chunk) throws Exception {
@@ -38,144 +47,244 @@ public class ForecastBatchItemWriter implements ItemWriter<ForecastBatchItem> {
 
         log.info("배치 Writer 시작 - 청크 크기: {}개", chunk.size());
 
-        int chunkSuccessCount = 0;
-        int chunkFailureCount = 0;
-        int chunkSkippedCount = 0;
-        long chunkProcessingTime = 0;
-        int chunkForecastedProducts = 0;
-        int chunkShortageProducts = 0;
+        ChunkStatistics chunkStats = new ChunkStatistics();
 
         // 청크 내 각 아이템 처리
         for (ForecastBatchItem item : chunk) {
             try {
-                processItem(item);
-
-                // 청크 통계 업데이트
-                if (item.getProcessingResult() != null) {
-                    chunkProcessingTime += item.getProcessingResult().getProcessingTimeMs();
-
-                    if (item.getProcessingResult().isSuccess()) {
-                        if (item.getProcessingResult().getProcessedProductCount() > 0) {
-                            chunkSuccessCount++;
-                            chunkForecastedProducts += item.getProcessingResult().getProcessedProductCount();
-                            chunkShortageProducts += item.getProcessingResult().getShortageProductCount();
-                        } else {
-                            chunkSkippedCount++;
-                        }
-                    } else {
-                        chunkFailureCount++;
-                    }
-                }
-
+                processItemAndUpdateStatistics(item, chunkStats);
             } catch (Exception e) {
-                log.error("아이템 처리 중 오류 - sellerId: {}", item.getSellerId(), e);
-                chunkFailureCount++;
+                log.error("아이템 처리 중 Writer에서 예외 발생 - sellerId: {}", item.sellerId(), e);
+                chunkStats.incrementFailure(0);
             }
         }
 
         // 전체 통계 업데이트
-        totalProcessedCount.addAndGet(chunk.size());
-        successCount.addAndGet(chunkSuccessCount);
-        failureCount.addAndGet(chunkFailureCount);
-        skippedCount.addAndGet(chunkSkippedCount);
-        totalProcessingTime.addAndGet(chunkProcessingTime);
-        totalForecastedProducts.addAndGet(chunkForecastedProducts);
-        totalShortageProducts.addAndGet(chunkShortageProducts);
+        updateGlobalStatistics(chunkStats);
 
         // 청크 처리 결과 로깅
-        log.info("배치 Writer 완료 - 청크 결과: 성공 {}개, 실패 {}개, 스킵 {}개, 예측상품 {}개, 부족상품 {}개",
-                chunkSuccessCount, chunkFailureCount, chunkSkippedCount,
-                chunkForecastedProducts, chunkShortageProducts);
-
-        // 현재까지 전체 진행 상황 로깅
-        logProgressSummary();
+        logChunkResults(chunkStats);
     }
 
     /**
-     * 개별 아이템 처리
+     * 개별 아이템 처리 및 통계 업데이트
      */
-    private void processItem(ForecastBatchItem item) {
-        if (item.getProcessingResult() == null) {
-            log.warn("처리 결과가 없는 아이템 - sellerId: {}", item.getSellerId());
+    private void processItemAndUpdateStatistics(ForecastBatchItem item, ChunkStatistics chunkStats) {
+        if (item.processingResult() == null) {
+            log.warn("처리 결과 없음 - sellerId: {}, vendorName: {}", item.sellerId(), item.vendorName());
+            chunkStats.incrementFailure(0);
             return;
         }
 
-        ForecastBatchItem.ProcessingResult result = item.getProcessingResult();
+        ForecastBatchItem.ProcessingResult result = item.processingResult();
 
-        if (result.isSuccess()) {
-            if (result.getProcessedProductCount() > 0) {
-                // 성공 케이스
-                log.info("✅ 예측 성공 - 판매자: {} ({}), 예측상품: {}개, 부족상품: {}개, 신뢰도: {:.2f}, 소요시간: {}ms",
-                        item.getVendorName(), item.getSellerId(),
-                        result.getProcessedProductCount(),
-                        result.getShortageProductCount(),
-                        result.getAverageConfidenceScore() != null ? result.getAverageConfidenceScore() : 0.0,
-                        result.getProcessingTimeMs());
-
-                // 재고 부족 경고
-                if (result.getShortageProductCount() > 0) {
-                    log.warn("⚠️ 재고 부족 상품 발견 - 판매자: {} ({}), 부족상품: {}개",
-                            item.getVendorName(), item.getSellerId(), result.getShortageProductCount());
-                }
-
-                // 낮은 신뢰도 경고
-                if (result.getAverageConfidenceScore() != null && result.getAverageConfidenceScore() < 0.3) {
-                    log.warn("⚠️ 낮은 신뢰도 예측 - 판매자: {} ({}), 신뢰도: {:.2f}",
-                            item.getVendorName(), item.getSellerId(), result.getAverageConfidenceScore());
-                }
-
-            } else {
-                // 스킵 케이스
-                log.debug("⏭️ 예측 스킵 - 판매자: {} ({}), 사유: {}",
-                        item.getVendorName(), item.getSellerId(),
-                        result.getErrorMessage() != null ? result.getErrorMessage() : "알 수 없음");
-            }
+        if (result.success()) {
+            handleSuccessfulProcessing(item, result, chunkStats);
+        } else if (result.isSkipped()) {
+            handleSkippedProcessing(item, result, chunkStats);
         } else {
-            // 실패 케이스
-            log.error("❌ 예측 실패 - 판매자: {} ({}), 오류: {}, 소요시간: {}ms",
-                    item.getVendorName(), item.getSellerId(),
-                    result.getErrorMessage(), result.getProcessingTimeMs());
+            handleFailedProcessing(item, result, chunkStats);
         }
     }
 
     /**
-     * 진행 상황 요약 로깅
+     * 성공 처리 로깅 및 통계 업데이트
      */
-    private void logProgressSummary() {
-        int processed = totalProcessedCount.get();
-        if (processed > 0 && processed % 50 == 0) { // 50개마다 진행상황 로깅
-            double successRate = (double) successCount.get() / processed * 100;
-            double avgProcessingTime = totalProcessingTime.get() / (double) processed;
+    private void handleSuccessfulProcessing(ForecastBatchItem item,
+                                            ForecastBatchItem.ProcessingResult result,
+                                            ChunkStatistics chunkStats) {
 
-            log.info("📊 진행 상황 - 처리: {}개, 성공률: {:.1f}%, 평균 처리시간: {:.1f}ms, 총 예측상품: {}개, 총 부족상품: {}개",
-                    processed, successRate, avgProcessingTime,
-                    totalForecastedProducts.get(), totalShortageProducts.get());
+        log.info("✅ 수요예측 성공 - sellerId: {}, vendorName: {}, 처리상품: {}개, 신뢰도: {:.3f}, 소요시간: {}ms",
+                item.sellerId(), item.vendorName(), result.processedProductCount(),
+                result.averageConfidenceScore(), result.processingTimeMs());
+
+        // 통계 업데이트
+        chunkStats.incrementSuccess(
+                result.processingTimeMs(),
+                result.processedProductCount(),
+                result.shortageProductCount(),
+                result.averageConfidenceScore()
+        );
+
+        // 품질 분석
+        analyzeQuality(item, result, chunkStats);
+
+        // 재고 부족 경고
+        if (result.shortageProductCount() > 0) {
+            log.warn("⚠️ 재고 부족 상품 발견 - sellerId: {}, 부족상품: {}개",
+                    item.sellerId(), result.shortageProductCount());
         }
     }
 
     /**
-     * 최종 통계 조회
+     * 스킵 처리 로깅
      */
-    public WriterStatistics getFinalStatistics() {
-        int processed = totalProcessedCount.get();
-        double successRate = processed > 0 ? (double) successCount.get() / processed * 100 : 0.0;
-        double avgProcessingTime = processed > 0 ? totalProcessingTime.get() / (double) processed : 0.0;
+    private void handleSkippedProcessing(ForecastBatchItem item,
+                                         ForecastBatchItem.ProcessingResult result,
+                                         ChunkStatistics chunkStats) {
 
-        return WriterStatistics.builder()
-                .totalProcessedCount(processed)
-                .successCount(successCount.get())
-                .failureCount(failureCount.get())
-                .skippedCount(skippedCount.get())
-                .successRate(successRate)
-                .totalProcessingTimeMs(totalProcessingTime.get())
-                .averageProcessingTimeMs(avgProcessingTime)
-                .totalForecastedProducts(totalForecastedProducts.get())
-                .totalShortageProducts(totalShortageProducts.get())
-                .build();
+        log.debug("⏭️ 처리 스킵 - sellerId: {}, vendorName: {}, 사유: {}",
+                item.sellerId(), item.vendorName(), result.errorMessage());
+
+        chunkStats.incrementSkipped();
     }
 
     /**
-     * 통계 초기화 (새로운 배치 시작시)
+     * 실패 처리 로깅
+     */
+    private void handleFailedProcessing(ForecastBatchItem item,
+                                        ForecastBatchItem.ProcessingResult result,
+                                        ChunkStatistics chunkStats) {
+
+        log.error("❌ 수요예측 실패 - sellerId: {}, vendorName: {}, 오류: {}, 소요시간: {}ms",
+                item.sellerId(), item.vendorName(), result.errorMessage(), result.processingTimeMs());
+
+        chunkStats.incrementFailure(result.processingTimeMs());
+    }
+
+    /**
+     * 예측 품질 분석
+     */
+    private void analyzeQuality(ForecastBatchItem item,
+                                ForecastBatchItem.ProcessingResult result,
+                                ChunkStatistics chunkStats) {
+
+        Double confidence = result.averageConfidenceScore();
+        if (confidence != null) {
+            if (confidence >= 0.8) {
+                chunkStats.incrementHighQuality();
+                log.debug("🌟 고품질 예측 - sellerId: {}, 신뢰도: {:.3f}", item.sellerId(), confidence);
+            } else if (confidence < 0.5) {
+                chunkStats.incrementLowQuality();
+                log.warn("⚠️ 저품질 예측 - sellerId: {}, 신뢰도: {:.3f}", item.sellerId(), confidence);
+            }
+        }
+
+        // 높은 재고 부족 경고
+        if (result.shortageProductCount() >= 5) {
+            chunkStats.incrementHighShortage();
+            log.warn("🚨 높은 재고 부족 - sellerId: {}, 부족상품: {}개",
+                    item.sellerId(), result.shortageProductCount());
+        }
+    }
+
+    /**
+     * 전체 통계 업데이트 (원자적 연산)
+     */
+    private void updateGlobalStatistics(ChunkStatistics chunkStats) {
+        totalProcessedCount.addAndGet(chunkStats.getTotalCount());
+        successCount.addAndGet(chunkStats.getSuccessCount());
+        failureCount.addAndGet(chunkStats.getFailureCount());
+        skippedCount.addAndGet(chunkStats.getSkippedCount());
+        totalProcessingTime.addAndGet(chunkStats.getTotalProcessingTime());
+        totalForecastedProducts.addAndGet(chunkStats.getTotalForecastedProducts());
+        totalShortageProducts.addAndGet(chunkStats.getTotalShortageProducts());
+
+        // 신뢰도 점수 누적 (동기화 필요)
+        synchronized (this) {
+            confidenceScoreSum.updateAndGet(current -> current + chunkStats.getConfidenceScoreSum());
+            confidenceScoreCount.addAndGet(chunkStats.getConfidenceScoreCount());
+        }
+
+        // 품질 분석 통계
+        highQualityPredictions.addAndGet(chunkStats.getHighQualityCount());
+        lowQualityPredictions.addAndGet(chunkStats.getLowQualityCount());
+        highShortageVendors.addAndGet(chunkStats.getHighShortageCount());
+    }
+
+    /**
+     * 청크 처리 결과 로깅
+     */
+    private void logChunkResults(ChunkStatistics chunkStats) {
+        log.info("청크 처리 완료 - 성공: {}개, 실패: {}개, 스킵: {}개, 예측상품: {}개, 처리시간: {}ms",
+                chunkStats.getSuccessCount(),
+                chunkStats.getFailureCount(),
+                chunkStats.getSkippedCount(),
+                chunkStats.getTotalForecastedProducts(),
+                chunkStats.getTotalProcessingTime());
+
+        // 품질 통계 로깅
+        if (chunkStats.getSuccessCount() > 0) {
+            log.info("품질 분석 - 고품질: {}개, 저품질: {}개, 높은재고부족: {}개",
+                    chunkStats.getHighQualityCount(),
+                    chunkStats.getLowQualityCount(),
+                    chunkStats.getHighShortageCount());
+        }
+    }
+
+    /**
+     * 배치 완료 시 최종 통계 출력
+     */
+    public void printFinalStatistics() {
+        int total = totalProcessedCount.get();
+        int success = successCount.get();
+        int failure = failureCount.get();
+        int skipped = skippedCount.get();
+        long totalTime = totalProcessingTime.get();
+        int forecastedProducts = totalForecastedProducts.get();
+        int shortageProducts = totalShortageProducts.get();
+
+        double avgConfidence = confidenceScoreCount.get() > 0 ?
+                confidenceScoreSum.get() / confidenceScoreCount.get() : 0.0;
+
+        log.info("========================================");
+        log.info("🎯 수요예측 배치 최종 통계");
+        log.info("========================================");
+        log.info("총 처리 판매자: {}개", total);
+        log.info("✅ 성공: {}개 ({:.1f}%)", success, getPercentage(success, total));
+        log.info("❌ 실패: {}개 ({:.1f}%)", failure, getPercentage(failure, total));
+        log.info("⏭️ 스킵: {}개 ({:.1f}%)", skipped, getPercentage(skipped, total));
+        log.info("📊 총 예측 상품: {}개", forecastedProducts);
+        log.info("⚠️ 재고 부족 상품: {}개 ({:.1f}%)",
+                shortageProducts,
+                forecastedProducts > 0 ? (shortageProducts * 100.0 / forecastedProducts) : 0.0);
+        log.info("🎖️ 평균 신뢰도: {:.3f}", avgConfidence);
+        log.info("⏱️ 총 처리 시간: {}ms (평균: {}ms/판매자)",
+                totalTime, total > 0 ? totalTime / total : 0);
+
+        // 품질 분석 통계
+        log.info("📈 품질 분석:");
+        log.info("  🌟 고품질 예측: {}개 ({:.1f}%)",
+                highQualityPredictions.get(), getPercentage(highQualityPredictions.get(), success));
+        log.info("  ⚠️ 저품질 예측: {}개 ({:.1f}%)",
+                lowQualityPredictions.get(), getPercentage(lowQualityPredictions.get(), success));
+        log.info("  🚨 높은 재고부족: {}개 ({:.1f}%)",
+                highShortageVendors.get(), getPercentage(highShortageVendors.get(), success));
+
+        log.info("========================================");
+    }
+
+    /**
+     * 백분율 계산
+     */
+    private double getPercentage(int count, int total) {
+        return total > 0 ? (count * 100.0 / total) : 0.0;
+    }
+
+    /**
+     * 현재 통계 조회 (외부에서 호출 가능)
+     */
+    public BatchStatistics getCurrentStatistics() {
+        double avgConfidence = confidenceScoreCount.get() > 0 ?
+                confidenceScoreSum.get() / confidenceScoreCount.get() : 0.0;
+
+        return new BatchStatistics(
+                totalProcessedCount.get(),
+                successCount.get(),
+                failureCount.get(),
+                skippedCount.get(),
+                totalProcessingTime.get(),
+                totalForecastedProducts.get(),
+                totalShortageProducts.get(),
+                avgConfidence,
+                highQualityPredictions.get(),
+                lowQualityPredictions.get(),
+                highShortageVendors.get()
+        );
+    }
+
+    /**
+     * 통계 초기화 (배치 시작 시 호출)
      */
     public void resetStatistics() {
         totalProcessedCount.set(0);
@@ -185,33 +294,136 @@ public class ForecastBatchItemWriter implements ItemWriter<ForecastBatchItem> {
         totalProcessingTime.set(0);
         totalForecastedProducts.set(0);
         totalShortageProducts.set(0);
+        confidenceScoreSum.set(0.0);
+        confidenceScoreCount.set(0);
+        highQualityPredictions.set(0);
+        lowQualityPredictions.set(0);
+        highShortageVendors.set(0);
 
-        log.info("Writer 통계 초기화 완료");
+        log.info("배치 통계 초기화 완료");
     }
 
     /**
-     * Writer 통계 정보
+     * 청크별 통계 임시 저장 클래스
      */
-    @lombok.Builder
-    @lombok.Getter
-    public static class WriterStatistics {
-        private final int totalProcessedCount;
-        private final int successCount;
-        private final int failureCount;
-        private final int skippedCount;
-        private final double successRate;
-        private final long totalProcessingTimeMs;
-        private final double averageProcessingTimeMs;
-        private final int totalForecastedProducts;
-        private final int totalShortageProducts;
+    private static class ChunkStatistics {
+        private int successCount = 0;
+        private int failureCount = 0;
+        private int skippedCount = 0;
+        private long totalProcessingTime = 0;
+        private int totalForecastedProducts = 0;
+        private int totalShortageProducts = 0;
+        private double confidenceScoreSum = 0.0;
+        private int confidenceScoreCount = 0;
+        private int highQualityCount = 0;
+        private int lowQualityCount = 0;
+        private int highShortageCount = 0;
 
-        @Override
-        public String toString() {
+        public void incrementSuccess(long processingTime, int forecastedProducts,
+                                     int shortageProducts, Double confidenceScore) {
+            successCount++;
+            totalProcessingTime += processingTime;
+            totalForecastedProducts += forecastedProducts;
+            totalShortageProducts += shortageProducts;
+
+            if (confidenceScore != null) {
+                confidenceScoreSum += confidenceScore;
+                confidenceScoreCount++;
+            }
+        }
+
+        public void incrementFailure(long processingTime) {
+            failureCount++;
+            totalProcessingTime += processingTime;
+        }
+
+        public void incrementSkipped() {
+            skippedCount++;
+        }
+
+        public void incrementHighQuality() { highQualityCount++; }
+        public void incrementLowQuality() { lowQualityCount++; }
+        public void incrementHighShortage() { highShortageCount++; }
+
+        // Getter 메서드들
+        public int getTotalCount() { return successCount + failureCount + skippedCount; }
+        public int getSuccessCount() { return successCount; }
+        public int getFailureCount() { return failureCount; }
+        public int getSkippedCount() { return skippedCount; }
+        public long getTotalProcessingTime() { return totalProcessingTime; }
+        public int getTotalForecastedProducts() { return totalForecastedProducts; }
+        public int getTotalShortageProducts() { return totalShortageProducts; }
+        public double getConfidenceScoreSum() { return confidenceScoreSum; }
+        public int getConfidenceScoreCount() { return confidenceScoreCount; }
+        public int getHighQualityCount() { return highQualityCount; }
+        public int getLowQualityCount() { return lowQualityCount; }
+        public int getHighShortageCount() { return highShortageCount; }
+    }
+
+    /**
+     * 배치 통계 Record (확장 버전)
+     */
+    public record BatchStatistics(
+            int totalProcessedCount,
+            int successCount,
+            int failureCount,
+            int skippedCount,
+            long totalProcessingTime,
+            int totalForecastedProducts,
+            int totalShortageProducts,
+            double averageConfidenceScore,
+            int highQualityPredictions,
+            int lowQualityPredictions,
+            int highShortageVendors
+    ) {
+
+        public double getSuccessRate() {
+            return totalProcessedCount > 0 ? (successCount * 100.0 / totalProcessedCount) : 0.0;
+        }
+
+        public long getAverageProcessingTime() {
+            return totalProcessedCount > 0 ? totalProcessingTime / totalProcessedCount : 0;
+        }
+
+        public double getCompletionRate() {
+            int completed = successCount + failureCount;
+            return totalProcessedCount > 0 ? (completed * 100.0 / totalProcessedCount) : 0.0;
+        }
+
+        public double getSkipRate() {
+            return totalProcessedCount > 0 ? (skippedCount * 100.0 / totalProcessedCount) : 0.0;
+        }
+
+        public double getFailureRate() {
+            return totalProcessedCount > 0 ? (failureCount * 100.0 / totalProcessedCount) : 0.0;
+        }
+
+        public double getAverageForecastedProducts() {
+            return successCount > 0 ? (totalForecastedProducts * 1.0 / successCount) : 0.0;
+        }
+
+        public double getShortageRate() {
+            return totalForecastedProducts > 0 ?
+                    (totalShortageProducts * 100.0 / totalForecastedProducts) : 0.0;
+        }
+
+        public double getHighQualityRate() {
+            return successCount > 0 ? (highQualityPredictions * 100.0 / successCount) : 0.0;
+        }
+
+        public double getLowQualityRate() {
+            return successCount > 0 ? (lowQualityPredictions * 100.0 / successCount) : 0.0;
+        }
+
+        public String getSummary() {
             return String.format(
-                    "Writer 통계 - 처리: %d개, 성공: %d개(%.1f%%), 실패: %d개, 스킵: %d개, " +
-                            "총 처리시간: %dms, 평균 처리시간: %.1fms, 예측상품: %d개, 부족상품: %d개",
-                    totalProcessedCount, successCount, successRate, failureCount, skippedCount,
-                    totalProcessingTimeMs, averageProcessingTimeMs, totalForecastedProducts, totalShortageProducts
+                    "총 %d개 처리 (성공: %d개 %.1f%%, 실패: %d개 %.1f%%, 스킵: %d개 %.1f%%) - " +
+                            "예측상품: %d개, 평균신뢰도: %.3f, 평균처리시간: %dms",
+                    totalProcessedCount,
+                    successCount, getSuccessRate(),
+                    failureCount, getFailureRate(),
+                    skippedCount, getSkipRate(),
+                    totalForecastedProducts, averageConfidenceScore, getAverageProcessingTime()
             );
         }
     }

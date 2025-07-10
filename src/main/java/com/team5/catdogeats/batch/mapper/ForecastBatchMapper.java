@@ -1,7 +1,7 @@
 package com.team5.catdogeats.batch.mapper;
 
 import com.team5.catdogeats.batch.forecast.domain.ForecastBatchExecutionStatus;
-import com.team5.catdogeats.batch.forecast.dto.ForecastBatchItem;
+import com.team5.catdogeats.batch.forecast.domain.dto.ForecastBatchItem;
 import org.apache.ibatis.annotations.*;
 
 import java.time.LocalDate;
@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 수요예측 배치 관련 MyBatis 매퍼
+ * 수요예측 배치 관련 MyBatis 매퍼 (Record 지원 버전)
  */
 @Mapper
 public interface ForecastBatchMapper {
@@ -65,14 +65,14 @@ public interface ForecastBatchMapper {
     Optional<ForecastBatchExecutionStatus> findByBatchNameForUpdate(@Param("batchName") String batchName);
 
     /**
-     * 배치 상태를 RUNNING으로 업데이트
+     * 배치 실행 상태를 RUNNING으로 업데이트
      */
     @Update("""
         UPDATE forecast_batch_execution_status 
         SET execution_status = 'RUNNING',
-            last_execution_id = #{executionId},
             started_at = #{startedAt},
             finished_at = NULL,
+            last_execution_id = #{executionId},
             updated_at = #{updatedAt}
         WHERE batch_name = #{batchName}
         """)
@@ -82,7 +82,7 @@ public interface ForecastBatchMapper {
                         @Param("updatedAt") OffsetDateTime updatedAt);
 
     /**
-     * 배치 상태를 COMPLETED로 업데이트
+     * 배치 실행 상태를 COMPLETED로 업데이트
      */
     @Update("""
         UPDATE forecast_batch_execution_status 
@@ -96,7 +96,7 @@ public interface ForecastBatchMapper {
                           @Param("updatedAt") OffsetDateTime updatedAt);
 
     /**
-     * 배치 상태를 FAILED로 업데이트
+     * 배치 실행 상태를 FAILED로 업데이트
      */
     @Update("""
         UPDATE forecast_batch_execution_status 
@@ -147,31 +147,31 @@ public interface ForecastBatchMapper {
     List<ForecastBatchExecutionStatus> findTimeoutBatches(@Param("timeoutThreshold") OffsetDateTime timeoutThreshold);
 
     // ================================
-    // 배치 데이터 조회 (ItemReader용)
+    // 배치 데이터 조회 (ItemReader용) - Record 매핑
     // ================================
-
 
     /**
      * 수요예측 처리 대상 판매자 목록 조회 (페이징)
+     * Record는 @ConstructorArgs 없이 자동 매핑됨
      */
     @Select("""
         SELECT 
-            s.user_id as seller_id,
-            u.name as vendor_name,
-            CASE WHEN s.deleted_at IS NULL THEN true ELSE false END as is_active,
-            DATE(s.created_at) as join_date,
-            NULL as last_order_date,
+            s.user_id as sellerId,
+            s.vendor_name as vendorName,
+            CASE WHEN s.deleted_at IS NULL THEN true ELSE false END as isActive,
+            DATE(s.created_at) as joinDate,
+            NULL as lastOrderDate,
             (
                 SELECT COUNT(*)
                 FROM products p
                 WHERE p.seller_id = s.user_id
-            ) as total_product_count,
+            ) as totalProductCount,
             (
                 SELECT COUNT(*)
                 FROM products p
                 WHERE p.seller_id = s.user_id
                 AND p.stock > 0
-            ) as active_product_count
+            ) as activeProductCount
         FROM sellers s
         INNER JOIN users u ON s.user_id = u.id
         WHERE s.deleted_at IS NULL
@@ -184,15 +184,6 @@ public interface ForecastBatchMapper {
         ORDER BY s.created_at ASC
         LIMIT #{chunkSize} OFFSET #{offset}
         """)
-    @ConstructorArgs({
-            @Arg(column = "seller_id", javaType = String.class),
-            @Arg(column = "vendor_name", javaType = String.class),
-            @Arg(column = "is_active", javaType = Boolean.class),
-            @Arg(column = "join_date", javaType = LocalDate.class),
-            @Arg(column = "last_order_date", javaType = LocalDate.class),
-            @Arg(column = "total_product_count", javaType = Integer.class),
-            @Arg(column = "active_product_count", javaType = Integer.class)
-    })
     List<ForecastBatchItem> findSellersForForecastBatch(
             @Param("recentActivityThreshold") LocalDate recentActivityThreshold,
             @Param("chunkSize") int chunkSize,
