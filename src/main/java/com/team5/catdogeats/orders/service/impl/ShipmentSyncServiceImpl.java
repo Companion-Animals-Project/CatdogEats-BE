@@ -88,53 +88,6 @@ public class ShipmentSyncServiceImpl implements ShipmentSyncService {
     }
 
     /**
-     * 특정 주문 배송 상태 동기화
-     */
-    @Override
-    @JpaTransactional
-    public ShipmentSyncResponse syncSingleShipmentStatus(UserPrincipal userPrincipal, String orderNumber) {
-        try {
-            log.info("단일 주문 배송 상태 동기화 시작 - orderNumber: {}", orderNumber);
-
-            // 1. 판매자 인증 및 조회
-            Sellers seller = findSellerByPrincipal(userPrincipal);
-
-            // 2. 주문 조회 및 권한 확인
-            Shipments shipment = findShipmentByOrderNumber(orderNumber);
-            Orders order = shipment.getOrders();
-
-            // 3. 판매자 소유 상품 확인
-            validateSellerOwnership(seller, order);
-
-            // 4. 배송 중 상태 확인
-            if (order.getOrderStatus() != OrderStatus.IN_DELIVERY) {
-                return ShipmentSyncResponse.error("배송 중 상태의 주문만 동기화할 수 있습니다.");
-            }
-
-            // 5. 단일 주문 동기화 처리
-            SyncResult syncResult = processSingleSync(shipment);
-
-            // 6. 동기화 결과 반환
-            return ShipmentSyncResponse.success(
-                    1,
-                    syncResult.updatedOrderList.size(),
-                    syncResult.failedOrderList.size(),
-                    syncResult.updatedOrderList,
-                    syncResult.failedOrderList
-            );
-
-        } catch (NoSuchElementException e) {
-            log.warn("단일 주문 동기화 실패 - orderNumber: {}, reason: {}", orderNumber, e.getMessage());
-            throw e;
-        } catch (Exception e) {
-            log.error("단일 주문 동기화 중 오류 - orderNumber: {}", orderNumber, e);
-            return ShipmentSyncResponse.error("동기화 중 오류가 발생했습니다: " + e.getMessage());
-        }
-    }
-
-    // ===== Private Helper Methods =====
-
-    /**
      * 판매자 조회
      */
     private Sellers findSellerByPrincipal(UserPrincipal userPrincipal) {
@@ -145,28 +98,6 @@ public class ShipmentSyncServiceImpl implements ShipmentSyncService {
         return sellerRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new IllegalArgumentException("판매자 권한이 없습니다"));
     }
-
-    /**
-     * 주문 조회
-     */
-    private Shipments findShipmentByOrderNumber(String orderNumber) {
-        return shipmentRepository.findByOrderNumber(orderNumber)
-                .orElseThrow(() -> new NoSuchElementException(
-                        String.format("주문을 찾을 수 없습니다: %s", orderNumber)));
-    }
-
-    /**
-     * 판매자 소유 상품 확인
-     */
-    private void validateSellerOwnership(Sellers seller, Orders order) {
-        boolean hasSellerProducts = order.getOrderItems().stream()
-                .anyMatch(item -> item.getProducts().getSeller().getUserId().equals(seller.getUserId()));
-
-        if (!hasSellerProducts) {
-            throw new IllegalArgumentException("해당 주문에 대한 접근 권한이 없습니다");
-        }
-    }
-
     /**
      * 판매자의 배송 중인 주문 목록 조회
      */
@@ -221,35 +152,6 @@ public class ShipmentSyncServiceImpl implements ShipmentSyncService {
 
         return new SyncResult(updatedList, failedList);
     }
-
-    /**
-     * 단일 동기화 처리
-     */
-    private SyncResult processSingleSync(Shipments shipment) {
-        List<ShipmentSyncResponse.UpdatedOrderInfo> updatedList = new ArrayList<>();
-        List<ShipmentSyncResponse.FailedOrderInfo> failedList = new ArrayList<>();
-
-        try {
-            if (processShipmentSync(shipment)) {
-                updatedList.add(ShipmentSyncResponse.UpdatedOrderInfo.of(
-                        shipment.getOrders().getOrderNumber(),
-                        shipment.getTrackingNumber(),
-                        shipment.getCourier(),
-                        shipment.getDeliveredAt()
-                ));
-            }
-        } catch (Exception e) {
-            failedList.add(ShipmentSyncResponse.FailedOrderInfo.of(
-                    shipment.getOrders().getOrderNumber(),
-                    shipment.getTrackingNumber(),
-                    shipment.getCourier(),
-                    e.getMessage()
-            ));
-        }
-
-        return new SyncResult(updatedList, failedList);
-    }
-
     /**
      * 개별 배송 정보 동기화 처리
      * @param shipment 동기화할 배송 정보

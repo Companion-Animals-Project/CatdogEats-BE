@@ -114,14 +114,6 @@ public record ShipmentSyncResponse(
     }
 
     /**
-     * 동기화 성공 여부 확인
-     * @return 1개 이상 업데이트되었거나 모든 주문이 이미 최신 상태인 경우 true
-     */
-    public boolean isSuccessful() {
-        return failedOrders == 0 || (totalCheckedOrders > 0 && failedOrders < totalCheckedOrders);
-    }
-
-    /**
      * 동기화 결과 요약
      * @return 동기화 결과 요약 문자열
      */

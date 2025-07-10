@@ -109,14 +109,6 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
     }
 
     /**
-     * 특정 주문 배송 상태 동기화
-     */
-    @Override
-    public ShipmentSyncResponse syncSingleShipmentStatus(UserPrincipal userPrincipal, String orderNumber) {
-        return shipmentSyncService.syncSingleShipmentStatus(userPrincipal, orderNumber);
-    }
-
-    /**
      * 운송장 번호 등록 (판매자)
      */
     @Override

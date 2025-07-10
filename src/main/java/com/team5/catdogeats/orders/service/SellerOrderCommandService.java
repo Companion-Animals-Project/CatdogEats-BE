@@ -127,16 +127,4 @@ public interface SellerOrderCommandService {
      * @throws IllegalArgumentException 판매자 권한이 없는 경우
      */
     ShipmentSyncResponse syncAllShipmentStatus(UserPrincipal userPrincipal);
-
-    /**
-     * 특정 주문 배송 상태 동기화
-     * 특정 주문 번호에 대해서만 배송 상태를 동기화합니다.
-     *
-     * @param userPrincipal JWT에서 추출된 인증된 판매자 정보
-     * @param orderNumber 동기화할 주문 번호
-     * @return 동기화 결과
-     * @throws NoSuchElementException 주문이 존재하지 않거나 접근 권한이 없는 경우
-     * @throws IllegalArgumentException 판매자 권한이 없는 경우, 배송 중 상태가 아닌 경우
-     */
-    ShipmentSyncResponse syncSingleShipmentStatus(UserPrincipal userPrincipal, String orderNumber);
 }

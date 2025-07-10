@@ -42,26 +42,4 @@ public record OrderStatusUpdateResponse(
                 .isDelayed(false)
                 .build();
     }
-
-    /**
-     * 배송 지연 포함 응답 생성
-     */
-    public static OrderStatusUpdateResponse withDelay(
-            String orderNumber,
-            OrderStatus previousStatus,
-            OrderStatus currentStatus,
-            String delayReason,
-            ZonedDateTime expectedDeliveryDate
-    ) {
-        return OrderStatusUpdateResponse.builder()
-                .orderNumber(orderNumber)
-                .previousStatus(previousStatus)
-                .currentStatus(currentStatus)
-                .updatedAt(ZonedDateTime.now())
-                .message("주문 상태가 변경되었습니다 (배송 지연)")
-                .isDelayed(true)
-                .delayReason(delayReason)
-                .expectedDeliveryDate(expectedDeliveryDate)
-                .build();
-    }
 }

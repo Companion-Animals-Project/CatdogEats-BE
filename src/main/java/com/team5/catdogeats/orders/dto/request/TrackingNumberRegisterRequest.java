@@ -60,26 +60,12 @@ public record TrackingNumberRegisterRequest(
             startShipmentImmediately = true;
         }
     }
-    /**
-     * 즉시 배송 시작 여부 반환 (주 접근자)
-     */
-    public Boolean shouldStartShipmentImmediately() {
-        return startShipmentImmediately;
-    }
 
     /**
      * 간단한 배송 시작 여부 체크 (호환성 유지)
      */
     public boolean shouldStartShipment() {
         return Boolean.TRUE.equals(startShipmentImmediately);
-    }
-
-    /**
-     * 택배사의 표시명 반환
-     * @return 사용자에게 표시되는 택배사명
-     */
-    public String getCourierDisplayName() {
-        return courierCompany != null ? courierCompany.getDisplayName() : "알 수 없음";
     }
 
     @Override

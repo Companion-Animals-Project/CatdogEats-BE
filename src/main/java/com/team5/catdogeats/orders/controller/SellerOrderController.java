@@ -3,7 +3,6 @@ package com.team5.catdogeats.orders.controller;
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
-import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.dto.request.OrderStatusUpdateRequest;
 import com.team5.catdogeats.orders.dto.request.TrackingNumberRegisterRequest;
 import com.team5.catdogeats.orders.dto.response.OrderStatusUpdateResponse;
@@ -258,48 +257,6 @@ public class SellerOrderController {
                     .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "배송 상태 동기화 중 서버 오류가 발생했습니다."));
         }
     }
-
-    /**
-     * 특정 주문 배송 상태 동기화 (판매자)
-     * API: POST /v1/sellers/orders/{order-number}/sync-shipment-status
-     * 특정 주문의 배송 상태만 동기화
-     */
-    @PostMapping("/{order-number}/sync-shipment-status")
-    public ResponseEntity<ApiResponse<ShipmentSyncResponse>> syncSingleShipmentStatus(
-            @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @PathVariable("order-number") String orderNumber) {
-
-        log.info("단일 주문 배송 상태 동기화 요청 - provider: {}, providerId: {}, orderNumber: {}",
-                userPrincipal.provider(), userPrincipal.providerId(), orderNumber);
-
-        try {
-            ShipmentSyncResponse response = sellerOrderCommandService.syncSingleShipmentStatus(userPrincipal, orderNumber);
-
-            log.info("단일 주문 배송 상태 동기화 완료 - orderNumber: {}, 결과: {}",
-                    orderNumber, response.getSummary());
-
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
-
-        } catch (NoSuchElementException e) {
-            log.warn("단일 주문 동기화 실패 - orderNumber: {}, reason: {}", orderNumber, e.getMessage());
-            return ResponseEntity
-                    .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
-
-        } catch (IllegalArgumentException e) {
-            log.warn("단일 주문 동기화 실패 - 잘못된 요청: {}", e.getMessage());
-            return ResponseEntity
-                    .status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
-
-        } catch (Exception e) {
-            log.error("단일 주문 동기화 중 서버 오류 - orderNumber: {}", orderNumber, e);
-            return ResponseEntity
-                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "배송 상태 동기화 중 서버 오류가 발생했습니다."));
-        }
-    }
-
     /**
      * 주문 내역 삭제 (판매자)
      * API: DELETE /v1/sellers/orders
@@ -342,47 +299,6 @@ public class SellerOrderController {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
                     .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "주문 삭제 중 서버 오류가 발생했습니다."));
-        }
-    }
-
-    /**
-     * 상태별 주문 목록 조회 (판매자)
-     * API: GET /v1/sellers/orders/list/by-status?status={}&page={}&sort={}
-     */
-    @GetMapping("/list/by-status")
-    public ResponseEntity<ApiResponse<SellerOrderListResponse>> getSellerOrdersByStatus(
-            @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @RequestParam("status") OrderStatus orderStatus,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-
-        log.info("판매자 상태별 주문 목록 조회 요청 - provider: {}, providerId: {}, status: {}, page: {}",
-                userPrincipal.provider(), userPrincipal.providerId(), orderStatus, pageable.getPageNumber());
-
-        try {
-            SellerOrderListResponse response = sellerOrderService.getSellerOrdersByStatus(userPrincipal, orderStatus, pageable);
-
-            log.info("판매자 상태별 주문 목록 조회 성공 - provider: {}, providerId: {}, status: {}, 총 주문수: {}",
-                    userPrincipal.provider(), userPrincipal.providerId(), orderStatus, response.totalElements());
-
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
-
-        } catch (NoSuchElementException e) {
-            log.warn("상태별 주문 목록 조회 실패 - 사용자 없음: {}", e.getMessage());
-            return ResponseEntity
-                    .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
-
-        } catch (IllegalArgumentException e) {
-            log.warn("상태별 주문 목록 조회 실패 - 잘못된 요청: {}", e.getMessage());
-            return ResponseEntity
-                    .status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
-
-        } catch (Exception e) {
-            log.error("상태별 주문 목록 조회 중 서버 오류 - status: {}", orderStatus, e);
-            return ResponseEntity
-                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "주문 목록 조회 중 서버 오류가 발생했습니다."));
         }
     }
 }

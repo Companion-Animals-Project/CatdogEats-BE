@@ -73,31 +73,4 @@ public record TrackingNumberRegisterResponse(
                 .shipmentInfo(shipmentInfo)
                 .build();
     }
-
-    /**
-     * 운송장 번호 마스킹 처리
-     * @return 마스킹된 운송장 번호
-     */
-    public String getMaskedTrackingNumber() {
-        if (trackingNumber == null || trackingNumber.length() <= 6) {
-            return "***";
-        }
-        return trackingNumber.substring(0, 3) + "***" + trackingNumber.substring(trackingNumber.length() - 3);
-    }
-
-    /**
-     * 배송 시작 여부 확인
-     * @return 배송이 시작되었는지 여부
-     */
-    public boolean isShipped() {
-        return shippedAt != null && orderStatus == OrderStatus.IN_DELIVERY;
-    }
-
-    /**
-     * 택배사 표시명 반환
-     * @return 택배사 표시명
-     */
-    public String getCourierDisplayName() {
-        return courierCompany != null ? courierCompany.getDisplayName() : "알 수 없음";
-    }
 }

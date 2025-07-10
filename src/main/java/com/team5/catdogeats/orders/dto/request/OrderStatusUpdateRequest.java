@@ -80,14 +80,6 @@ public record OrderStatusUpdateRequest(
     }
 
     /**
-     * 배송 시작 상태로 변경하는 요청인지 확인
-     * @return 배송 시작 요청 여부
-     */
-    public boolean isShipmentStartRequest() {
-        return OrderStatus.IN_DELIVERY.equals(newStatus);
-    }
-
-    /**
      * 출고 지연 요청인지 확인
      * @return 출고 지연 요청 여부
      */
@@ -103,44 +95,7 @@ public record OrderStatusUpdateRequest(
         return isCancellationRequest() || isDelayRequest();
     }
 
-    /**
-     * 유효한 상태 전환인지 확인
-     * @param currentStatus 현재 주문 상태
-     * @return 유효한 전환 여부
-     */
-    public boolean isValidStatusTransition(OrderStatus currentStatus) {
-        if (currentStatus == null || newStatus == null) {
-            return false;
-        }
 
-        return switch (currentStatus) {
-            case PAYMENT_COMPLETED -> newStatus == OrderStatus.PREPARING ||
-                    newStatus == OrderStatus.CANCELLED;
-            case PREPARING -> newStatus == OrderStatus.READY_FOR_SHIPMENT ||
-                    newStatus == OrderStatus.CANCELLED;
-            case READY_FOR_SHIPMENT -> newStatus == OrderStatus.IN_DELIVERY;
-            default -> false;
-        };
-    }
-
-    /**
-     * 상태 전환 설명 반환
-     * @param currentStatus 현재 상태
-     * @return 전환 설명
-     */
-    public String getTransitionDescription(OrderStatus currentStatus) {
-        if (!isValidStatusTransition(currentStatus)) {
-            return String.format("잘못된 상태 전환: %s → %s", currentStatus, newStatus);
-        }
-
-        return switch (newStatus) {
-            case PREPARING -> "상품 준비 시작";
-            case READY_FOR_SHIPMENT -> "배송 준비 완료";
-            case IN_DELIVERY -> "배송 시작";
-            case CANCELLED -> "주문 취소";
-            default -> String.format("%s → %s", currentStatus, newStatus);
-        };
-    }
 
     /**
      * 요청 정보 요약 (로깅용)
@@ -173,37 +128,5 @@ public record OrderStatusUpdateRequest(
      */
     public static OrderStatusUpdateRequest of(String orderNumber, OrderStatus newStatus) {
         return new OrderStatusUpdateRequest(orderNumber, newStatus, null, false, null);
-    }
-
-    /**
-     * 정적 팩토리 메서드 - 사유 포함 상태 변경
-     * @param orderNumber 주문 번호
-     * @param newStatus 새 상태
-     * @param reason 변경 사유
-     * @return 상태 변경 요청
-     */
-    public static OrderStatusUpdateRequest withReason(String orderNumber, OrderStatus newStatus, String reason) {
-        return new OrderStatusUpdateRequest(orderNumber, newStatus, reason, false, null);
-    }
-
-    /**
-     * 정적 팩토리 메서드 - 출고 지연 요청
-     * @param orderNumber 주문 번호
-     * @param reason 지연 사유
-     * @param expectedShipDate 예상 출고일
-     * @return 출고 지연 요청
-     */
-    public static OrderStatusUpdateRequest delayed(String orderNumber, String reason, String expectedShipDate) {
-        return new OrderStatusUpdateRequest(orderNumber, OrderStatus.PREPARING, reason, true, expectedShipDate);
-    }
-
-    /**
-     * 정적 팩토리 메서드 - 주문 취소
-     * @param orderNumber 주문 번호
-     * @param reason 취소 사유
-     * @return 주문 취소 요청
-     */
-    public static OrderStatusUpdateRequest cancel(String orderNumber, String reason) {
-        return new OrderStatusUpdateRequest(orderNumber, OrderStatus.CANCELLED, reason, false, null);
     }
 }
