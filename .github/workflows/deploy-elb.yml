@@ -100,8 +100,8 @@ jobs:
           aws_access_key:    ${{ secrets.AWS_ACTION_ACCESS_KEY_ID }}
           aws_secret_key:    ${{ secrets.AWS_ACTION_SECRET_ACCESS_KEY }}
           region:            ap-northeast-2
-          application_name:  aibe1-team05
-          environment_name:  aibe1-team05-env
+          application_name:  aibe1-team05-fianl
+          environment_name:  aibe1-team05-final-env
           version_label:     deploy-${{ github.run_number }}
           deployment_package: Dockerrun.aws.json
           wait_for_environment_recovery: false
