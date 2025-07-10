@@ -58,119 +58,131 @@ class SellerOrderServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        // UserPrincipal 초기화
-        principal = new UserPrincipal("google", "google123");
-        testOrderNumber = "ORDER-2025-001";
-        testPageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt"));
+        ZonedDateTime testDateTime = ZonedDateTime.now();
+        testOrderNumber = "ORDER-2024-1234567890";
+        testPageable = PageRequest.of(0, 10, Sort.by("createdAt").descending());
 
-        // 테스트 사용자 생성
+        // JWT 인증 정보
+        principal = new UserPrincipal("google", "google123");
+
+        // 테스트 사용자
         testUser = Users.builder()
                 .id("user123")
                 .provider("google")
                 .providerId("google123")
-                .name("김철수")
+                .name("테스트 판매자")
+                .userNameAttribute("sub")
                 .role(Role.ROLE_SELLER)
                 .accountDisable(false)
                 .build();
 
-        // 테스트 판매자 생성
+        // 테스트 판매자
         testSeller = Sellers.builder()
-                .userId("seller123")
+                .userId("user123")
                 .user(testUser)
-                .vendorName("멍냥이네 수제간식")
-                .isDeleted(false)
+                .vendorName("테스트 스토어")
+                .businessNumber("123-45-67890")
                 .build();
 
-        // 테스트 상품들 생성
+        // 테스트 상품들
         testProduct1 = Products.builder()
                 .id("product1")
-                .title("프리미엄 강아지 사료")
+                .title("테스트 상품1")
                 .price(25000L)
                 .seller(testSeller)
                 .build();
 
         testProduct2 = Products.builder()
                 .id("product2")
-                .title("고양이 간식")
+                .title("테스트 상품2")
                 .price(15000L)
                 .seller(testSeller)
                 .build();
 
-        // 테스트 주문 상품들 생성
+        // 테스트 주문 상품들
         testOrderItem1 = OrderItems.builder()
-                .id("orderItem1")
-                .products(testProduct1)
+                .id("item1")
                 .quantity(2)
                 .price(25000L)
+                .products(testProduct1)
                 .build();
 
         testOrderItem2 = OrderItems.builder()
-                .id("orderItem2")
-                .products(testProduct2)
+                .id("item2")
                 .quantity(1)
                 .price(15000L)
+                .products(testProduct2)
                 .build();
 
-        // 테스트 주문 생성
+        // 테스트 주문
         testOrder = Orders.builder()
                 .id("order123")
                 .orderNumber(testOrderNumber)
+                .orderStatus(OrderStatus.READY_FOR_SHIPMENT)
                 .user(testUser)
-                .orderStatus(OrderStatus.PAYMENT_COMPLETED)
-                .totalPrice(65000L)
                 .orderItems(Arrays.asList(testOrderItem1, testOrderItem2))
                 .build();
 
-        // 테스트 배송 정보 생성
+        // 테스트 배송 정보
         testShipment = Shipments.builder()
                 .id("shipment123")
                 .orders(testOrder)
+                .user(testUser)
+                .seller(testSeller)
                 .recipientName("김철수")
                 .recipientPhone("010-1234-5678")
-                .postalCode("06234")
-                .shippingAddress("서울시 강남구 테헤란로 123")
+                .postalCode("12345")
+                .streetAddress("서울시 강남구 테헤란로 123")
                 .detailAddress("456호")
-                .deliveryNote("문 앞에 놓아주세요")
+                .deliveryRequest("문 앞에 놓아주세요")
                 .build();
     }
 
     @Nested
-    @DisplayName("판매자용 주문 상세 조회 테스트")
+    @DisplayName("주문 상세 조회 테스트")
     class GetSellerOrderDetailTests {
 
         @Test
-        @DisplayName("✅ 정상적인 주문 상세 조회 성공")
+        @DisplayName("✅ 정상적인 주문 상세 조회")
         void getSellerOrderDetail_Success() {
             // given
             SellerOrderDetailResponse expectedResponse = SellerOrderDetailResponse.builder()
                     .orderNumber(testOrderNumber)
-                    .orderStatus(OrderStatus.PAYMENT_COMPLETED)
-                    .recipientInfo(SellerOrderDetailResponse.RecipientInfo.builder()
+                    .orderStatus(OrderStatus.READY_FOR_SHIPMENT)
+                    .orderDate(testOrder.getCreatedAt())
+                    .shippingAddress(SellerOrderDetailResponse.ShippingAddress.builder()
                             .recipientName("김철수")
                             .recipientPhone("010-1234-5678")
-                            .postalCode("06234")
-                            .shippingAddress("서울시 강남구 테헤란로 123")
-                            .detailAddress("456호")
-                            .deliveryNote("문 앞에 놓아주세요")
+                            .zipCode("12345")
+                            .address("서울시 강남구 테헤란로 123")
+                            .addressDetail("456호")
+                            .fullAddress("서울시 강남구 테헤란로 123 456호")
+                            .deliveryRequest("문 앞에 놓아주세요")
                             .build())
-                    .orderItems(Arrays.asList(
-                            SellerOrderDetailResponse.SellerOrderItem.builder()
+                    .orderItems(List.of(
+                            SellerOrderDetailResponse.SellerOrderDetailItem.builder()
+                                    .orderItemId("item1")
                                     .productId("product1")
-                                    .productTitle("프리미엄 강아지 사료")
+                                    .productName("테스트 상품1")
                                     .quantity(2)
                                     .unitPrice(25000L)
-                                    .itemTotalPrice(50000L)
+                                    .totalPrice(50000L)
                                     .build(),
-                            SellerOrderDetailResponse.SellerOrderItem.builder()
+                            SellerOrderDetailResponse.SellerOrderDetailItem.builder()
+                                    .orderItemId("item2")
                                     .productId("product2")
-                                    .productTitle("고양이 간식")
+                                    .productName("테스트 상품2")
                                     .quantity(1)
                                     .unitPrice(15000L)
-                                    .itemTotalPrice(15000L)
+                                    .totalPrice(15000L)
                                     .build()
                     ))
-                    .totalAmount(65000L)
-                    .orderedAt(ZonedDateTime.now())
+                    .orderSummary(SellerOrderDetailResponse.OrderSummary.builder()
+                            .itemCount(2)
+                            .totalProductPrice(65000L)
+                            .deliveryFee(0L)
+                            .totalAmount(65000L)
+                            .build())
                     .build();
 
             given(queryService.getSellerOrderDetail(principal, testOrderNumber))
@@ -180,79 +192,109 @@ class SellerOrderServiceImplTest {
             SellerOrderDetailResponse response = sellerOrderService.getSellerOrderDetail(principal, testOrderNumber);
 
             // then
-            assertThat(response).isNotNull();
             assertThat(response.orderNumber()).isEqualTo(testOrderNumber);
-            assertThat(response.orderStatus()).isEqualTo(OrderStatus.PAYMENT_COMPLETED);
+            assertThat(response.orderStatus()).isEqualTo(OrderStatus.READY_FOR_SHIPMENT);
             assertThat(response.orderItems()).hasSize(2);
-            assertThat(response.totalAmount()).isEqualTo(65000L);
 
-            // 수신자 정보 검증
-            SellerOrderDetailResponse.RecipientInfo recipientInfo = response.recipientInfo();
+            // totalAmount() 메서드 테스트
+            assertThat(response.getTotalAmount()).isEqualTo(65000L);
+
+            // 받는 사람 정보 검증
+            SellerOrderDetailResponse.ShippingAddress recipientInfo = response.shippingAddress();
             assertThat(recipientInfo.recipientName()).isEqualTo("김철수");
             assertThat(recipientInfo.recipientPhone()).isEqualTo("010-1234-5678");
-            assertThat(recipientInfo.deliveryNote()).isEqualTo("문 앞에 놓아주세요");
 
             // 주문 상품 정보 검증
-            List<SellerOrderDetailResponse.SellerOrderItem> orderItems = response.orderItems();
-            SellerOrderDetailResponse.SellerOrderItem firstItem = orderItems.get(0);
-            assertThat(firstItem.productId()).isEqualTo("product1");
-            assertThat(firstItem.productTitle()).isEqualTo("프리미엄 강아지 사료");
+            List<SellerOrderDetailResponse.SellerOrderDetailItem> orderItems = response.orderItems();
+            SellerOrderDetailResponse.SellerOrderDetailItem firstItem = orderItems.get(0);
+            assertThat(firstItem.orderItemId()).isEqualTo("item1");
+            assertThat(firstItem.productName()).isEqualTo("테스트 상품1");
             assertThat(firstItem.quantity()).isEqualTo(2);
             assertThat(firstItem.unitPrice()).isEqualTo(25000L);
-            assertThat(firstItem.itemTotalPrice()).isEqualTo(50000L);
+            assertThat(firstItem.totalPrice()).isEqualTo(50000L);
 
             verify(queryService).getSellerOrderDetail(principal, testOrderNumber);
         }
 
         @Test
-        @DisplayName("❌ 존재하지 않는 주문으로 조회 시 예외 발생")
-        void getSellerOrderDetail_OrderNotFound_ThrowsException() {
+        @DisplayName("✅ 서비스 계층에서 쿼리 서비스 위임 확인")
+        void getSellerOrderDetail_DelegationToQueryService() {
             // given
+            SellerOrderDetailResponse mockResponse = SellerOrderDetailResponse.builder()
+                    .orderNumber(testOrderNumber)
+                    .orderStatus(OrderStatus.READY_FOR_SHIPMENT)
+                    .orderDate(testOrder.getCreatedAt())
+                    .build();
+
             given(queryService.getSellerOrderDetail(principal, testOrderNumber))
-                    .willThrow(new RuntimeException("주문을 찾을 수 없거나 접근 권한이 없습니다"));
+                    .willReturn(mockResponse);
+
+            // when
+            SellerOrderDetailResponse response = sellerOrderService.getSellerOrderDetail(principal, testOrderNumber);
+
+            // then
+            assertThat(response).isSameAs(mockResponse);
+            verify(queryService).getSellerOrderDetail(principal, testOrderNumber);
+        }
+
+        @Test
+        @DisplayName("❌ 쿼리 서비스에서 예외 발생 시 그대로 전파")
+        void getSellerOrderDetail_QueryServiceException_Propagated() {
+            // given
+            RuntimeException expectedException = new RuntimeException("쿼리 서비스 에러");
+            given(queryService.getSellerOrderDetail(principal, testOrderNumber))
+                    .willThrow(expectedException);
 
             // when & then
-            assertThatThrownBy(() -> sellerOrderService.getSellerOrderDetail(principal, testOrderNumber))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("주문을 찾을 수 없거나 접근 권한이 없습니다");
+            assertThatThrownBy(() ->
+                    sellerOrderService.getSellerOrderDetail(principal, testOrderNumber)
+            ).isSameAs(expectedException);
 
             verify(queryService).getSellerOrderDetail(principal, testOrderNumber);
         }
     }
 
     @Nested
-    @DisplayName("판매자용 주문 목록 조회 테스트")
+    @DisplayName("주문 목록 조회 테스트")
     class GetSellerOrdersTests {
 
         @Test
-        @DisplayName("✅ 정상적인 주문 목록 조회 성공")
+        @DisplayName("✅ 정상적인 주문 목록 조회")
         void getSellerOrders_Success() {
             // given
             SellerOrderListResponse expectedResponse = SellerOrderListResponse.builder()
-                    .orders(Arrays.asList(
+                    .orders(List.of(
                             SellerOrderListResponse.SellerOrderSummary.builder()
-                                    .orderNumber("ORDER-2025-001")
-                                    .orderStatus(OrderStatus.PAYMENT_COMPLETED)
-                                    .recipientName("김철수")
-                                    .maskedPhone("010-1234-****")
-                                    .totalAmount(65000L)
-                                    .orderItemCount(2)
-                                    .orderedAt(ZonedDateTime.now())
-                                    .build(),
-                            SellerOrderListResponse.SellerOrderSummary.builder()
-                                    .orderNumber("ORDER-2025-002")
-                                    .orderStatus(OrderStatus.PREPARING)
-                                    .recipientName("이영희")
-                                    .maskedPhone("010-5678-****")
-                                    .totalAmount(35000L)
-                                    .orderItemCount(1)
-                                    .orderedAt(ZonedDateTime.now().minusDays(1))
+                                    .orderNumber(testOrderNumber)
+                                    .orderStatus(OrderStatus.READY_FOR_SHIPMENT)
+                                    .orderDate(testOrder.getCreatedAt())
+                                    .buyerName("테스트 판매자")
+                                    .maskedBuyerName("테***자")
+                                    .orderItems(List.of(
+                                            SellerOrderListResponse.SellerOrderItem.builder()
+                                                    .orderItemId("item1")
+                                                    .productId("product1")
+                                                    .productName("테스트 상품1")
+                                                    .quantity(2)
+                                                    .unitPrice(25000L)
+                                                    .totalPrice(50000L)
+                                                    .build()
+                                    ))
+                                    .orderSummary(SellerOrderListResponse.OrderSummaryInfo.builder()
+                                            .itemCount(2)
+                                            .totalAmount(65000L)
+                                            .build())
+                                    .shipmentInfo(SellerOrderListResponse.ShipmentBasicInfo.builder()
+                                            .isShipped(false)
+                                            .build())
                                     .build()
                     ))
                     .currentPage(0)
                     .totalPages(1)
-                    .totalElements(2L)
+                    .totalElements(1L)
+                    .pageSize(10)
                     .hasNext(false)
+                    .hasPrevious(false)
                     .build();
 
             given(queryService.getSellerOrders(principal, testPageable))
@@ -262,112 +304,191 @@ class SellerOrderServiceImplTest {
             SellerOrderListResponse response = sellerOrderService.getSellerOrders(principal, testPageable);
 
             // then
-            assertThat(response).isNotNull();
-            assertThat(response.orders()).hasSize(2);
-            assertThat(response.totalElements()).isEqualTo(2L);
+            assertThat(response.orders()).hasSize(1);
             assertThat(response.currentPage()).isEqualTo(0);
-            assertThat(response.totalPages()).isEqualTo(1);
+            assertThat(response.totalElements()).isEqualTo(1L);
             assertThat(response.hasNext()).isFalse();
-
-            // 첫 번째 주문 검증
-            SellerOrderListResponse.SellerOrderSummary firstOrder = response.orders().get(0);
-            assertThat(firstOrder.orderNumber()).isEqualTo("ORDER-2025-001");
-            assertThat(firstOrder.orderStatus()).isEqualTo(OrderStatus.PAYMENT_COMPLETED);
-            assertThat(firstOrder.recipientName()).isEqualTo("김철수");
-            assertThat(firstOrder.maskedPhone()).isEqualTo("010-1234-****");
-            assertThat(firstOrder.totalAmount()).isEqualTo(65000L);
-            assertThat(firstOrder.orderItemCount()).isEqualTo(2);
+            assertThat(response.hasPrevious()).isFalse();
 
             verify(queryService).getSellerOrders(principal, testPageable);
         }
 
         @Test
-        @DisplayName("✅ 빈 주문 목록 조회 성공")
-        void getSellerOrders_EmptyList_Success() {
+        @DisplayName("✅ 빈 주문 목록 조회")
+        void getSellerOrders_EmptyResult_Success() {
             // given
-            SellerOrderListResponse expectedResponse = SellerOrderListResponse.builder()
+            SellerOrderListResponse emptyResponse = SellerOrderListResponse.builder()
                     .orders(List.of())
                     .currentPage(0)
                     .totalPages(0)
                     .totalElements(0L)
+                    .pageSize(10)
                     .hasNext(false)
+                    .hasPrevious(false)
                     .build();
 
             given(queryService.getSellerOrders(principal, testPageable))
-                    .willReturn(expectedResponse);
+                    .willReturn(emptyResponse);
 
             // when
             SellerOrderListResponse response = sellerOrderService.getSellerOrders(principal, testPageable);
 
             // then
-            assertThat(response).isNotNull();
             assertThat(response.orders()).isEmpty();
             assertThat(response.totalElements()).isEqualTo(0L);
-            assertThat(response.currentPage()).isEqualTo(0);
-            assertThat(response.totalPages()).isEqualTo(0);
-            assertThat(response.hasNext()).isFalse();
 
             verify(queryService).getSellerOrders(principal, testPageable);
         }
 
         @Test
-        @DisplayName("❌ 판매자 권한 없는 사용자로 조회 시 예외 발생")
-        void getSellerOrders_UnauthorizedUser_ThrowsException() {
+        @DisplayName("✅ 서비스 계층에서 쿼리 서비스 위임 확인")
+        void getSellerOrders_DelegationToQueryService() {
             // given
+            SellerOrderListResponse mockResponse = SellerOrderListResponse.builder()
+                    .orders(List.of())
+                    .currentPage(0)
+                    .totalPages(0)
+                    .totalElements(0L)
+                    .pageSize(10)
+                    .hasNext(false)
+                    .hasPrevious(false)
+                    .build();
+
             given(queryService.getSellerOrders(principal, testPageable))
-                    .willThrow(new IllegalArgumentException("판매자 권한이 없습니다"));
+                    .willReturn(mockResponse);
+
+            // when
+            SellerOrderListResponse response = sellerOrderService.getSellerOrders(principal, testPageable);
+
+            // then
+            assertThat(response).isSameAs(mockResponse);
+            verify(queryService).getSellerOrders(principal, testPageable);
+        }
+
+        @Test
+        @DisplayName("❌ 쿼리 서비스에서 예외 발생 시 그대로 전파")
+        void getSellerOrders_QueryServiceException_Propagated() {
+            // given
+            RuntimeException expectedException = new RuntimeException("쿼리 서비스 에러");
+            given(queryService.getSellerOrders(principal, testPageable))
+                    .willThrow(expectedException);
 
             // when & then
-            assertThatThrownBy(() -> sellerOrderService.getSellerOrders(principal, testPageable))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("판매자 권한이 없습니다");
+            assertThatThrownBy(() ->
+                    sellerOrderService.getSellerOrders(principal, testPageable)
+            ).isSameAs(expectedException);
 
             verify(queryService).getSellerOrders(principal, testPageable);
         }
     }
 
     @Nested
-    @DisplayName("서비스 의존성 및 위임 테스트")
-    class ServiceDelegationTests {
+    @DisplayName("CQRS 패턴 검증 테스트")
+    class CQRSPatternTests {
 
         @Test
-        @DisplayName("✅ 주문 상세 조회가 QueryService에 올바르게 위임됨")
-        void getSellerOrderDetail_ProperlyDelegated() {
+        @DisplayName("✅ 읽기 전용 서비스임을 확인 - 모든 작업이 쿼리 서비스로 위임")
+        void verifyReadOnlyService_AllOperationsDelegatedToQueryService() {
+            // given
+            SellerOrderDetailResponse detailResponse = SellerOrderDetailResponse.builder()
+                    .orderNumber(testOrderNumber)
+                    .orderStatus(OrderStatus.READY_FOR_SHIPMENT)
+                    .orderDate(testOrder.getCreatedAt())
+                    .build();
+
+            SellerOrderListResponse listResponse = SellerOrderListResponse.builder()
+                    .orders(List.of())
+                    .currentPage(0)
+                    .totalPages(0)
+                    .totalElements(0L)
+                    .pageSize(10)
+                    .hasNext(false)
+                    .hasPrevious(false)
+                    .build();
+
+            given(queryService.getSellerOrderDetail(principal, testOrderNumber))
+                    .willReturn(detailResponse);
+            given(queryService.getSellerOrders(principal, testPageable))
+                    .willReturn(listResponse);
+
+            // when
+            SellerOrderDetailResponse detailResult = sellerOrderService.getSellerOrderDetail(principal, testOrderNumber);
+            SellerOrderListResponse listResult = sellerOrderService.getSellerOrders(principal, testPageable);
+
+            // then
+            assertThat(detailResult).isSameAs(detailResponse);
+            assertThat(listResult).isSameAs(listResponse);
+
+            verify(queryService).getSellerOrderDetail(principal, testOrderNumber);
+            verify(queryService).getSellerOrders(principal, testPageable);
+        }
+
+        @Test
+        @DisplayName("✅ 서비스 계층의 역할 - 단순 위임만 수행")
+        void verifyServiceLayerRole_SimpleDelegationOnly() {
             // given
             SellerOrderDetailResponse mockResponse = SellerOrderDetailResponse.builder()
                     .orderNumber(testOrderNumber)
-                    .orderStatus(OrderStatus.PAYMENT_COMPLETED)
+                    .orderStatus(OrderStatus.READY_FOR_SHIPMENT)
+                    .orderDate(testOrder.getCreatedAt())
                     .build();
 
             given(queryService.getSellerOrderDetail(principal, testOrderNumber))
                     .willReturn(mockResponse);
 
             // when
-            SellerOrderDetailResponse result = sellerOrderService.getSellerOrderDetail(principal, testOrderNumber);
+            long startTime = System.nanoTime();
+            SellerOrderDetailResponse response = sellerOrderService.getSellerOrderDetail(principal, testOrderNumber);
+            long endTime = System.nanoTime();
 
             // then
-            assertThat(result).isEqualTo(mockResponse);
+            // 응답 검증
+            assertThat(response).isSameAs(mockResponse);
+
+            // 성능 검증 - 단순 위임이므로 매우 빨라야 함 (1ms 미만)
+            long executionTimeNanos = endTime - startTime;
+            long executionTimeMillis = executionTimeNanos / 1_000_000;
+            assertThat(executionTimeMillis).isLessThan(1L);
+
+            // 위임 검증
             verify(queryService).getSellerOrderDetail(principal, testOrderNumber);
         }
+    }
+
+    @Nested
+    @DisplayName("성능 테스트")
+    class PerformanceTests {
 
         @Test
-        @DisplayName("✅ 주문 목록 조회가 QueryService에 올바르게 위임됨")
-        void getSellerOrders_ProperlyDelegated() {
+        @DisplayName("✅ 대량 요청 처리 성능")
+        void handleMultipleRequests_Performance() {
             // given
-            SellerOrderListResponse mockResponse = SellerOrderListResponse.builder()
-                    .orders(List.of())
-                    .totalElements(0L)
+            SellerOrderDetailResponse mockResponse = SellerOrderDetailResponse.builder()
+                    .orderNumber(testOrderNumber)
+                    .orderStatus(OrderStatus.READY_FOR_SHIPMENT)
+                    .orderDate(testOrder.getCreatedAt())
                     .build();
 
-            given(queryService.getSellerOrders(principal, testPageable))
+            given(queryService.getSellerOrderDetail(principal, testOrderNumber))
                     .willReturn(mockResponse);
 
             // when
-            SellerOrderListResponse result = sellerOrderService.getSellerOrders(principal, testPageable);
+            long startTime = System.currentTimeMillis();
+
+            for (int i = 0; i < 100; i++) {
+                SellerOrderDetailResponse response = sellerOrderService.getSellerOrderDetail(principal, testOrderNumber);
+                assertThat(response).isNotNull();
+            }
+
+            long endTime = System.currentTimeMillis();
+            long executionTime = endTime - startTime;
 
             // then
-            assertThat(result).isEqualTo(mockResponse);
-            verify(queryService).getSellerOrders(principal, testPageable);
+            // 100번 요청이 1초 이내에 완료되어야 함
+            assertThat(executionTime).isLessThan(1000L);
+
+            verify(queryService, org.mockito.Mockito.times(100))
+                    .getSellerOrderDetail(principal, testOrderNumber);
         }
     }
 }
