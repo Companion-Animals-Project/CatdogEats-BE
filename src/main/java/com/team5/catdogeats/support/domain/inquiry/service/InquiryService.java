@@ -1,10 +1,14 @@
 package com.team5.catdogeats.support.domain.inquiry.service;
 
+import com.team5.catdogeats.support.domain.enums.InquiryStatus;
+import com.team5.catdogeats.support.domain.enums.InquiryType;
 import com.team5.catdogeats.support.domain.enums.InquiryUrgentLevel;
 import com.team5.catdogeats.support.domain.inquiry.dto.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDate;
 
 // 1:1 문의 서비스 인터페이스
 public interface InquiryService {
@@ -60,5 +64,29 @@ public interface InquiryService {
                                                  MultipartFile[] imageFiles,
                                                  MultipartFile[] documentFiles,
                                                  String adminId);
+
+    /**
+     * 관리자용 문의 검색 및 필터링 (동적 쿼리)
+     */
+    Page<InquiryListResponseDTO> searchInquiries(InquirySearchRequestDTO searchRequest, Pageable pageable);
+
+
+    /**
+     * 관리자용 문의 검색 및 필터링 (기존 메서드와 통합)
+     * - 검색 조건이 없으면 전체 조회
+     * - 검색 조건이 있으면 동적 쿼리 실행
+     */
+    Page<InquiryListResponseDTO> getAllInquiriesWithSearchAndPaging(
+            String keyword,
+            InquiryStatus status,
+            InquiryType type,
+            InquiryUrgentLevel urgentLevel,
+            LocalDate startDate,
+            LocalDate endDate,
+            int page,
+            int size,
+            String sort,
+            String direction
+    );
 
 }

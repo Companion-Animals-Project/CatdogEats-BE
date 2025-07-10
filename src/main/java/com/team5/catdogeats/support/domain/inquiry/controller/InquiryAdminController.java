@@ -3,11 +3,10 @@ package com.team5.catdogeats.support.domain.inquiry.controller;
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.storage.service.InquiryFileService;
+import com.team5.catdogeats.support.domain.enums.InquiryStatus;
+import com.team5.catdogeats.support.domain.enums.InquiryType;
 import com.team5.catdogeats.support.domain.enums.InquiryUrgentLevel;
-import com.team5.catdogeats.support.domain.inquiry.dto.InquiryDetailResponseDTO;
-import com.team5.catdogeats.support.domain.inquiry.dto.InquiryListResponseDTO;
-import com.team5.catdogeats.support.domain.inquiry.dto.InquiryRequestDTO;
-import com.team5.catdogeats.support.domain.inquiry.dto.InquiryResponseDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.*;
 import com.team5.catdogeats.support.domain.inquiry.service.InquiryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -24,12 +23,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDate;
 
 @Slf4j
 @RestController
@@ -45,30 +47,61 @@ public class InquiryAdminController {
 
     @GetMapping
     @Operation(
-            summary = "모든 문의 목록 조회 (관리자)",
-            description = "관리자가 모든 사용자의 문의 목록을 페이징으로 조회합니다. 최신순으로 정렬됩니다."
+            summary = "모든 문의 목록 조회 및 검색 (관리자)",
+            description = "관리자가 모든 사용자의 문의 목록을 페이징으로 조회합니다. " +
+                    "검색 및 필터링 조건을 지원합니다.<br/><br/>" +
+                    "**검색 조건:**<br/>" +
+                    "- keyword: 제목 + 내용 검색<br/>" +
+                    "- status: 답변 상태 (PENDING, ANSWERED, FOLLOWUP, CLOSED, FORCE_CLOSED)<br/>" +
+                    "- type: 문의 유형 (PRODUCT, ORDER, PAYMENT, DELIVERY, RETURN, ACCOUNT, ETC)<br/>" +
+                    "- urgentLevel: 긴급도 (HIGH, MIDDLE, LOW)<br/>" +
+                    "- startDate/endDate: 날짜 범위 (yyyy-MM-dd 형식)<br/><br/>" +
+                    "모든 조건은 선택사항이며, 조건이 없으면 전체 조회합니다."
     )
     public ResponseEntity<ApiResponse<Page<InquiryListResponseDTO>>> getAllInquiries(
+            // 검색 조건들
+            @Parameter(description = "검색 키워드 (제목 + 내용)")
+            @RequestParam(required = false) String keyword,
+
+            @Parameter(description = "답변 상태")
+            @RequestParam(required = false) InquiryStatus status,
+
+            @Parameter(description = "문의 유형")
+            @RequestParam(required = false) InquiryType type,
+
+            @Parameter(description = "긴급도")
+            @RequestParam(required = false) InquiryUrgentLevel urgentLevel,
+
+            @Parameter(description = "검색 시작일 (yyyy-MM-dd)")
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
+
+            @Parameter(description = "검색 종료일 (yyyy-MM-dd)")
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
+
+            // 페이징 조건들
             @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
             @RequestParam(defaultValue = "0") int page,
+
             @Parameter(description = "페이지 크기", example = "10")
             @RequestParam(defaultValue = "10") int size,
+
             @Parameter(description = "정렬 기준", example = "createdAt")
             @RequestParam(defaultValue = "createdAt") String sort,
+
             @Parameter(description = "정렬 방향", example = "desc")
             @RequestParam(defaultValue = "desc") String direction) {
 
+
+
         try {
-            Sort.Direction sortDirection = direction.equalsIgnoreCase("asc") ?
-                    Sort.Direction.ASC : Sort.Direction.DESC;
-            Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sort));
-
-            Page<InquiryListResponseDTO> inquiries = inquiryService.getAllInquiries(pageable);
-            log.info("관리자 문의 목록 조회 완료 - page: {}, size: {}, totalElements: {}",
-                    page, size, inquiries.getTotalElements());
-
-            return ResponseEntity.ok(
-                    ApiResponse.success(ResponseCode.SUCCESS, inquiries)
+            Page<InquiryListResponseDTO> inquiries = inquiryService.getAllInquiriesWithSearchAndPaging(
+                    keyword, status, type, urgentLevel, startDate, endDate,
+                    page, size, sort, direction
+            );
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, inquiries));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(
+                    ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
             log.error("관리자 문의 목록 조회 중 서버 오류", e);

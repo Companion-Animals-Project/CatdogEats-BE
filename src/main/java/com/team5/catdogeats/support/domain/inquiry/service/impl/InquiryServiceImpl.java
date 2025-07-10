@@ -7,6 +7,7 @@ import com.team5.catdogeats.storage.service.InquiryFileService;
 import com.team5.catdogeats.support.domain.Inquires;
 import com.team5.catdogeats.support.domain.enums.InquiryMessageType;
 import com.team5.catdogeats.support.domain.enums.InquiryStatus;
+import com.team5.catdogeats.support.domain.enums.InquiryType;
 import com.team5.catdogeats.support.domain.enums.InquiryUrgentLevel;
 import com.team5.catdogeats.support.domain.inquiry.dto.*;
 import com.team5.catdogeats.support.domain.inquiry.repository.InquiryRepository;
@@ -19,14 +20,16 @@ import com.team5.catdogeats.users.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.*;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import com.team5.catdogeats.support.domain.inquiry.dto.InquirySearchRequestDTO;
+import com.team5.catdogeats.support.domain.inquiry.util.InquirySearchUtil;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -54,12 +57,17 @@ public class InquiryServiceImpl implements InquiryService {
     @Override
     @JpaTransactional(readOnly = true)
     public InquiryDetailResponseDTO getUserInquiryDetail(String inquiryId, String providerId) {
-        // 한 번의 쿼리로 문의 조회 + 권한 검증
-        Inquires inquiry = inquiryRepository.findByIdAndUserProviderId(inquiryId, providerId)
+        // 1차 쿼리로 루트 문의 + 모든 답글 + 권한 검증을 한번에
+        Inquires rootInquiry = inquiryRepository.findRootInquiryWithRepliesByIdAndUserProviderId(inquiryId, providerId)
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없거나 접근 권한이 없습니다: " + inquiryId));
 
-        Inquires rootInquiry = findRootInquiry(inquiry);
-        List<InquiryMessageDTO> messages = getInquiryMessages(rootInquiry.getId());
+        // 답글들을 DTO로 변환 (메모리에서 처리, 추가 DB 쿼리 없음)
+        List<InquiryMessageDTO> messages = rootInquiry.getReplies().stream()
+                .sorted((r1, r2) -> r1.getCreatedAt().compareTo(r2.getCreatedAt()))
+                .map(InquiryMessageDTO::from)
+                .collect(Collectors.toList());
+
+        // 2차 쿼리: 첨부파일들만 별도 조회 (개선 예정)
         List<InquiryAttachmentDTO> attachments = inquiryFileService.getInquiryThreadAttachments(rootInquiry.getId());
 
         return InquiryDetailResponseDTO.forUser(rootInquiry, messages, attachments);
@@ -105,19 +113,14 @@ public class InquiryServiceImpl implements InquiryService {
     @Override
     @JpaTransactional
     public InquiryResponseDTO createUserFollowup(String inquiryId, String providerId, String content) {
-        // ✅ 서비스에서 검증 및 DTO 생성 처리
-        if (content == null || content.trim().isEmpty()) {
-            throw new IllegalArgumentException("내용은 필수입니다.");
-        }
 
-        // ✅ DTO 생성을 서비스에서 처리
-        InquiryRequestDTO request = InquiryRequestDTO.forContent(content);
+        InquiryRequestDTO request = createContentRequest(content);
 
-        Inquires targetInquiry = inquiryRepository.findById(inquiryId)
-                .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
+        // 🎯 개선: 권한 검증 + 조회를 한번에
+        Inquires targetInquiry = inquiryRepository.findByIdAndUserProviderId(inquiryId, providerId)
+                .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없거나 접근 권한이 없습니다: " + inquiryId));
 
         Inquires rootInquiry = findRootInquiry(targetInquiry);
-        validateUserAccess(rootInquiry, providerId);
         validateInquiryNotClosed(rootInquiry);
 
         Users user = getUserByProviderId(providerId);
@@ -169,11 +172,11 @@ public class InquiryServiceImpl implements InquiryService {
     @Override
     @JpaTransactional
     public InquiryResponseDTO closeInquiryByUser(String inquiryId, String providerId) {
-        Inquires targetInquiry = inquiryRepository.findById(inquiryId)
-                .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
+        // 🎯 개선: 권한 검증 + 조회를 한번에
+        Inquires targetInquiry = inquiryRepository.findByIdAndUserProviderId(inquiryId, providerId)
+                .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없거나 접근 권한이 없습니다: " + inquiryId));
 
         Inquires rootInquiry = findRootInquiry(targetInquiry);
-        validateUserAccess(rootInquiry, providerId);
 
         if (rootInquiry.getInquiryStatus() == InquiryStatus.CLOSED ||
                 rootInquiry.getInquiryStatus() == InquiryStatus.FORCE_CLOSED) {
@@ -227,26 +230,28 @@ public class InquiryServiceImpl implements InquiryService {
     @Override
     @JpaTransactional(readOnly = true)
     public InquiryDetailResponseDTO getInquiryDetailForAdmin(String inquiryId) {
-        Inquires inquiry = inquiryRepository.findById(inquiryId)
+        // 🎯 핵심: 1차 쿼리로 루트 문의 + 모든 답글을 한번에!
+        Inquires rootInquiry = inquiryRepository.findRootInquiryWithRepliesById(inquiryId)
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
 
-        List<InquiryMessageDTO> messages = getInquiryMessages(inquiry.getId());
+        // 답글들을 DTO로 변환 (메모리에서 처리, 추가 DB 쿼리 없음)
+        List<InquiryMessageDTO> messages = rootInquiry.getReplies().stream()
+                .sorted((r1, r2) -> r1.getCreatedAt().compareTo(r2.getCreatedAt()))
+                .map(InquiryMessageDTO::from)
+                .collect(Collectors.toList());
 
-        List<InquiryAttachmentDTO> attachments = inquiryFileService.getInquiryThreadAttachments(inquiry.getId());
+        // 2차 쿼리: 첨부파일들만 별도 조회 (개선 예정)
+        List<InquiryAttachmentDTO> attachments = inquiryFileService.getInquiryThreadAttachments(rootInquiry.getId());
 
-        return InquiryDetailResponseDTO.forAdmin(inquiry, messages, attachments);
+        return InquiryDetailResponseDTO.forAdmin(rootInquiry, messages, attachments);
     }
 
     @Override
     @JpaTransactional
     public InquiryResponseDTO createAdminReply(String inquiryId, String adminId, String content) {
-        // ✅ 서비스에서 검증 및 DTO 생성 처리
-        if (content == null || content.trim().isEmpty()) {
-            throw new IllegalArgumentException("답변 내용은 필수입니다.");
-        }
 
         // ✅ DTO 생성을 서비스에서 처리
-        InquiryRequestDTO request = InquiryRequestDTO.forContent(content);
+        InquiryRequestDTO request = createAdminContentRequest(content);
 
         Inquires targetInquiry = inquiryRepository.findById(inquiryId)
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
@@ -297,13 +302,9 @@ public class InquiryServiceImpl implements InquiryService {
     @Override
     @JpaTransactional
     public InquiryResponseDTO closeInquiryByAdmin(String inquiryId, String adminId, String reason) {
-        // ✅ 서비스에서 검증 및 DTO 생성 처리
-        if (reason == null || reason.trim().isEmpty()) {
-            throw new IllegalArgumentException("강제 종료 시 사유는 필수입니다.");
-        }
 
         // ✅ DTO 생성을 서비스에서 처리
-        InquiryRequestDTO request = InquiryRequestDTO.forClose(reason);
+        InquiryRequestDTO request = createCloseRequest(reason);
 
         Inquires targetInquiry = inquiryRepository.findById(inquiryId)
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
@@ -340,20 +341,6 @@ public class InquiryServiceImpl implements InquiryService {
         }
     }
 
-
-    private void validateUserAccess(Inquires inquiry, String providerId) {
-        String userId = getUserIdByProviderId(providerId);
-        if (!inquiry.getUsers().getId().equals(userId)) {
-            throw new AccessDeniedException("해당 문의에 대한 접근 권한이 없습니다.");
-        }
-    }
-
-    private List<InquiryMessageDTO> getInquiryMessages(String inquiryId) {
-        List<Inquires> replies = inquiryRepository.findByParentIdOrderByCreatedAtAsc(inquiryId);
-        return replies.stream()
-                .map(InquiryMessageDTO::from)
-                .collect(Collectors.toList());
-    }
 
     private Inquires findRootInquiry(Inquires inquiry) {
         Inquires current = inquiry;
@@ -447,5 +434,144 @@ public class InquiryServiceImpl implements InquiryService {
             log.error("관리자 답변 생성 실패 - inquiryId: {}, adminId: {}", inquiryId, adminId, e);
             throw new IllegalStateException("관리자 답변 생성 중 오류가 발생했습니다.", e);
         }
+    }
+
+
+    @Override
+    @JpaTransactional(readOnly = true)
+    public Page<InquiryListResponseDTO> searchInquiries(InquirySearchRequestDTO searchRequest, Pageable pageable) {
+        log.info("문의 검색 시작 - 조건: {}", searchRequest.getSearchSummary());
+
+        // 동적 쿼리 생성
+        Specification<Inquires> spec = InquirySearchUtil.searchInquiries(searchRequest);
+
+        // 검색 실행
+        Page<Inquires> inquiries = inquiryRepository.findAll(spec, pageable);
+
+        // 🔥 핵심: 긴급도 배치 업데이트
+        updateUrgencyBatch(inquiries.getContent());
+
+        // DTO 변환 (시퀀스 넘버 계산)
+        List<InquiryListResponseDTO> content = new ArrayList<>();
+        for (int i = 0; i < inquiries.getContent().size(); i++) {
+            Inquires inquiry = inquiries.getContent().get(i);
+            int sequenceNumber = (int) (inquiries.getTotalElements() -
+                    (pageable.getPageNumber() * pageable.getPageSize()) - i);
+            content.add(InquiryListResponseDTO.forAdmin(inquiry, sequenceNumber));
+        }
+
+        log.info("문의 검색 완료 - 결과: {}건, 전체: {}건",
+                content.size(), inquiries.getTotalElements());
+
+        return new PageImpl<>(content, pageable, inquiries.getTotalElements());
+    }
+
+    @Override
+    @JpaTransactional(readOnly = true)
+    public Page<InquiryListResponseDTO> getAllInquiriesWithSearchAndPaging(
+            String keyword, InquiryStatus status, InquiryType type, InquiryUrgentLevel urgentLevel,
+            LocalDate startDate, LocalDate endDate, int page, int size, String sort, String direction) {
+
+        // Pageable 객체 생성
+        Sort.Direction sortDirection = direction.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sort));
+
+        // 1. 검색 조건 검증 (Service 책임)
+        validateSearchParameters(keyword, startDate, endDate, pageable);
+
+        // 2. 검색 조건 DTO 생성 (Service 책임)
+        InquirySearchRequestDTO searchRequest = createSearchRequest(
+                keyword, status, type, urgentLevel, startDate, endDate
+        );
+
+        // 3. 로깅 (Service 책임)
+        log.info("관리자 문의 조회 시작 - 검색조건: {}, 페이지: {}/{}",
+                searchRequest.getSearchSummary(), pageable.getPageNumber(), pageable.getPageSize());
+
+        // 4. 검색 조건이 없으면 기존 메서드 사용 (성능 최적화)
+        if (searchRequest == null || !searchRequest.hasSearchConditions()) {
+            log.info("검색 조건 없음 - 전체 조회 실행");
+            return getAllInquiries(pageable);
+        }
+
+        // 5. 검색 조건이 있으면 동적 쿼리 사용
+        return searchInquiries(searchRequest, pageable);
+    }
+
+    /**
+     * 검색 파라미터 검증
+     */
+    private void validateSearchParameters(String keyword, LocalDate startDate, LocalDate endDate, Pageable pageable) {
+        // 키워드 길이 검증
+        if (keyword != null && keyword.trim().length() > 100) {
+            throw new IllegalArgumentException("검색 키워드는 100자를 초과할 수 없습니다.");
+        }
+
+        // 날짜 범위 검증
+        if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
+            throw new IllegalArgumentException("시작일은 종료일보다 이전이어야 합니다.");
+        }
+
+        // 미래 날짜 검증
+        LocalDate today = LocalDate.now();
+        if (startDate != null && startDate.isAfter(today)) {
+            throw new IllegalArgumentException("시작일은 현재 날짜보다 이전이어야 합니다.");
+        }
+
+        // 날짜 범위 제한 (예: 1년 이내)
+        if (startDate != null && endDate != null && startDate.plusYears(1).isBefore(endDate)) {
+            throw new IllegalArgumentException("검색 기간은 1년을 초과할 수 없습니다.");
+        }
+
+        // 페이징 검증
+        if (pageable.getPageSize() > 100) {
+            throw new IllegalArgumentException("페이지 크기는 100을 초과할 수 없습니다.");
+        }
+    }
+
+    /**
+     * 검색 조건 DTO 생성
+     */
+    private InquirySearchRequestDTO createSearchRequest(String keyword, InquiryStatus status,
+                                                        InquiryType type, InquiryUrgentLevel urgentLevel,
+                                                        LocalDate startDate, LocalDate endDate) {
+        // 키워드 정리 (공백 제거, 빈 문자열을 null로 변환)
+        String cleanKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
+
+        return new InquirySearchRequestDTO(
+                cleanKeyword, status, type, urgentLevel, startDate, endDate
+        );
+    }
+
+
+    // 공통 메서드들 추가
+    /**
+     * 내용 검증 및 DTO 생성 (사용자용)
+     */
+    private InquiryRequestDTO createContentRequest(String content) {
+        if (content == null || content.trim().isEmpty()) {
+            throw new IllegalArgumentException("내용은 필수입니다.");
+        }
+        return InquiryRequestDTO.forContent(content);
+    }
+
+    /**
+     * 내용 검증 및 DTO 생성 (관리자용)
+     */
+    private InquiryRequestDTO createAdminContentRequest(String content) {
+        if (content == null || content.trim().isEmpty()) {
+            throw new IllegalArgumentException("답변 내용은 필수입니다.");
+        }
+        return InquiryRequestDTO.forContent(content);
+    }
+
+    /**
+     * 종료 사유 검증 및 DTO 생성
+     */
+    private InquiryRequestDTO createCloseRequest(String reason) {
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new IllegalArgumentException("강제 종료 시 사유는 필수입니다.");
+        }
+        return InquiryRequestDTO.forClose(reason);
     }
 }
