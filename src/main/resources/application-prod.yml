@@ -1,8 +1,13 @@
 batch:
   withdrawn:
-    cron: "${WITHDRAW_CRON:0 30 2 * * ?}"
+    cron: ${WITHDRAW_CRON:0 30 2 * * ?}
     chunk-size: ${WITHDRAW_CHUNK:1000}
 spring:
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 20MB
+      max-request-size: 20MB
   batch:
     jdbc:
       initialize-schema: always
@@ -109,9 +114,9 @@ spring:
           max-active: 8
           max-idle: 8
           min-idle: 0
-      mongodb:
-        uri: ${MONGO_URL}
-        database: ${MONGO_DATABASE}
+    mongodb:
+      uri: ${MONGO_URL}
+      database: ${MONGO_DATABASE}
   rabbitmq:
     host: localhost
     port: 5672
@@ -207,22 +212,5 @@ app:
   admin:
     base-url: ${APP_BASE_URL}  # 이메일 링크용 (운영 도메인)
 
-outbox:
-  processing:
-    mode: cdc
-
-debezium:
-  database:
-    hostname: ${DB_URL}
-    port: 5432
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
-    dbname: catdogeats
-    server-name: catdogeats
-  connector:
-    slot-name: debezium_slot
-    publication-name: debezium_publication
-    plugin-name: pgoutput
-    table-include-list: public.outbox_messages
-  offset:
-    storage-file: ./data/debezium-offsets.dat
+websocket:
+  endpoint: /v1/users/chat
