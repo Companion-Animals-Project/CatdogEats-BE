@@ -169,7 +169,7 @@ public class ReviewSummaryItemProcessor implements ItemProcessor<ProductReviewBa
                 결과는 반드시 JSON 배열만, 추가 설명 없이 출력해라.
                 결과 JSON 배열에서 마지막 항목 뒤에 ,(쉼표) 절대 붙이지 말 것!
                 
-                """ + "\n" + sb.toString();
+                """ + "\n" + sb;
     }
 
     // 리뷰들 검증 및 분류한 응답 결과 파싱하기
@@ -240,7 +240,7 @@ public class ReviewSummaryItemProcessor implements ItemProcessor<ProductReviewBa
                 
                 모든 리뷰들을 읽고 반드시 결과는 결과 포맷에 맞게 summary, mainPoints, keywords로 구성된 하나의 JSON 객체 반환해.
                 
-                """ + "\n" + sb.toString();
+                """ + "\n" + sb;
         return geminiAIService.chatWithGemini(prompt2);
     }
 

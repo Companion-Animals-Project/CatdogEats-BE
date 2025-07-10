@@ -1,7 +1,5 @@
 package com.team5.catdogeats.reviews.domain.dto;
 
-import com.fasterxml.jackson.annotation.JsonRawValue;
-
 import java.util.List;
 
 public record ReviewSummaryResponseDto(

@@ -1,7 +1,6 @@
 package com.team5.catdogeats.reviews.controller;
 
 import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.reviews.domain.dto.ReviewSummaryResponseDto;

@@ -29,7 +29,7 @@ public class ProductReviewBatchDtoItemReader implements ItemReader<ProductReview
                                            ReviewSummaryLLMBatchMapper summaryMapper,
                                            @Value("#{jobParameters['petCategory']}") String petCategory,
                                            @Value("#{jobParameters['productCategory']}") String productCategory) {
-        this.allProducts = productMapper.selectProductsByCategory(petCategory, productCategory);;
+        this.allProducts = productMapper.selectProductsByCategory(petCategory, productCategory);
         this.reviewMapper = reviewMapper;
         this.summaryMapper = summaryMapper;
     }

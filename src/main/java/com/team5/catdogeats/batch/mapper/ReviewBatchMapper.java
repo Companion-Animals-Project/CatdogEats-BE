@@ -8,7 +8,7 @@ import java.util.List;
 @Mapper
 public interface ReviewBatchMapper {
     @Select("""
-        SELECT * FROM reviews 
+        SELECT * FROM reviews
          WHERE product_id = #{productId}
          ORDER BY created_at DESC
          LIMIT 30
