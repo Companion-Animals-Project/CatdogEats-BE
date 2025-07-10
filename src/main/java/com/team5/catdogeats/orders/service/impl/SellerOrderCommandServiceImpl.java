@@ -254,12 +254,12 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
      * 상태 전환 유효성 검증 (상태 변경 API용)
      */
     private void validateStatusTransitionForStatusUpdate(OrderStatus currentStatus, OrderStatus newStatus, OrderStatusUpdateRequest request) {
-        // 허용되는 상태 전환 규칙 정의
+        // 허용되는 상태 전환 규칙 정의 (주문 상태 변경 API는 READY_FOR_SHIPMENT까지만 처리)
         Set<OrderStatus> allowedTransitions = switch (currentStatus) {
             case PAYMENT_COMPLETED -> Set.of(OrderStatus.PREPARING, OrderStatus.CANCELLED);
             case PREPARING -> Set.of(OrderStatus.READY_FOR_SHIPMENT, OrderStatus.CANCELLED);
-            case READY_FOR_SHIPMENT -> Set.of(OrderStatus.IN_DELIVERY, OrderStatus.CANCELLED);
-            case IN_DELIVERY -> Set.of(OrderStatus.DELIVERED, OrderStatus.CANCELLED);
+            case READY_FOR_SHIPMENT -> Set.of(OrderStatus.CANCELLED); // IN_DELIVERY 제거 - 운송장 등록 API에서 처리
+            case IN_DELIVERY -> Set.of(OrderStatus.CANCELLED); // DELIVERED 제거 - 물류 서버에서 처리
             case DELIVERED -> Set.of(); // 배송 완료 후에는 상태 변경 불가
             case CANCELLED -> Set.of(); // 취소 후에는 상태 변경 불가
             case REFUNDED -> Set.of(); // 환불 후에는 상태 변경 불가
@@ -278,8 +278,8 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
         return switch (newStatus) {
             case PREPARING -> "결제 완료 상태에서만 상품 준비 중으로 변경할 수 있습니다.";
             case READY_FOR_SHIPMENT -> "상품 준비 중 상태에서만 배송 준비 완료로 변경할 수 있습니다.";
-            case IN_DELIVERY -> "배송 준비 완료 상태에서만 배송 중으로 변경할 수 있습니다.";
-            case DELIVERED -> "배송 완료 상태는 시스템에서 자동으로 업데이트됩니다.";
+            case IN_DELIVERY -> "배송 중 상태는 운송장 등록 시 자동으로 변경됩니다.";
+            case DELIVERED -> "배송 완료 상태는 물류 서버에서 자동으로 업데이트됩니다.";
             default -> {
                 if (currentStatus == OrderStatus.DELIVERED) {
                     yield "배송 완료된 주문의 상태는 변경할 수 없습니다.";
