@@ -31,4 +31,16 @@ public class ReviewsSummaryLLM extends BaseEntity {
 
     @Column(name = "review_count")
     private int reviewCount;
+
+    @Column(name = "positive_main_points", nullable = false, columnDefinition = "TEXT")
+    private String positiveMainPoints;
+
+    @Column(name = "negative_main_points", nullable = false, columnDefinition = "TEXT")
+    private String negativeMainPoints;
+
+    @Column(name = "positive_keyword", nullable = false, columnDefinition = "TEXT")
+    private String positiveKeyword;
+
+    @Column(name = "negative_keyword", nullable = false, columnDefinition = "TEXT")
+    private String negativeKeyword;
 }
