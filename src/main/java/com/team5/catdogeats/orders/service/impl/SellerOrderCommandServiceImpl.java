@@ -12,7 +12,6 @@ import com.team5.catdogeats.orders.dto.response.OrderStatusUpdateResponse;
 import com.team5.catdogeats.orders.dto.response.TrackingNumberRegisterResponse;
 import com.team5.catdogeats.orders.repository.OrderRepository;
 import com.team5.catdogeats.orders.repository.ShipmentRepository;
-import com.team5.catdogeats.orders.service.DeliveryTrackingService;
 import com.team5.catdogeats.orders.service.SellerOrderCommandService;
 import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
