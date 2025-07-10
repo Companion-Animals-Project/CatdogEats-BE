@@ -11,20 +11,23 @@ import java.util.List;
 public interface DemandForecastMapper {
 
     /**
-     * 수요예측 결과 저장 (타임스탬프 필드 제거 - DB DEFAULT 사용)
+     * 수요예측 결과 저장
      */
     @Insert("""
-        INSERT INTO demand_forecasts (
-            id, seller_id, product_id, forecast_date, 
-            prediction_period_days, predicted_quantity, algorithm_type,
-            confidence_score, historical_data_days
-        ) VALUES (
-            #{id}, #{seller.userId}, #{product.id}, #{forecastDate},
-            #{predictionPeriodDays}, #{predictedQuantity}, #{algorithmType},
-            #{confidenceScore}, #{historicalDataDays}
-        )
-        """)
+    INSERT INTO demand_forecasts (
+        id, seller_id, product_id, forecast_date, 
+        prediction_period_days, predicted_quantity, algorithm_type,
+        confidence_score, historical_data_days,
+        created_at, updated_at
+    ) VALUES (
+        #{id}, #{seller.userId}, #{product.id}, #{forecastDate},
+        #{predictionPeriodDays}, #{predictedQuantity}, #{algorithmType},
+        #{confidenceScore}, #{historicalDataDays},
+        #{createdAt}, #{updatedAt}
+    )
+    """)
     void insertForecast(DemandForecasts forecast);
+
 
     /**
      * 특정 판매자의 최신 수요예측 결과 조회 (재고 부족량 계산용)
@@ -70,18 +73,7 @@ public interface DemandForecastMapper {
     })
     List<DemandForecastResultDTO> findLatestForecastsWithStockBySellerId(@Param("sellerId") String sellerId);
 
-    /**
-     * 특정 상품의 최신 예측 조회
-     */
-    @Select("""
-        SELECT * FROM demand_forecasts 
-        WHERE seller_id = #{sellerId} AND product_id = #{productId}
-        ORDER BY forecast_date DESC
-        LIMIT 1
-        """)
-    DemandForecasts findLatestForecastBySellerAndProduct(
-            @Param("sellerId") String sellerId,
-            @Param("productId") String productId);
+
 
     /**
      * 오래된 예측 데이터 삭제 (성능 관리용)

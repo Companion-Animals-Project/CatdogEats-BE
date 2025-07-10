@@ -1,5 +1,6 @@
 package com.team5.catdogeats.forecast.service;
 
+import com.team5.catdogeats.baseEntity.BaseEntity;
 import com.team5.catdogeats.forecast.domain.DailySalesAggregation;
 import com.team5.catdogeats.forecast.domain.dto.DailySalesDataDTO;
 import com.team5.catdogeats.forecast.mapper.DailySalesAggregationMapper;
@@ -82,11 +83,11 @@ public class DailySalesAggregationService {
     }
 
     /**
-     * 새로운 집계 데이터 저장 (MyBatis 전용)
+     * 새로운 집계 데이터 저장 (타임스탬프 명시적 설정)
      */
     private void saveDailySalesAggregation(DailySalesDataDTO data) {
         try {
-            // MyBatis로 Seller, Product 조회
+
             Sellers seller = dailySalesMapper.findSellerById(data.sellerId());
             Products product = dailySalesMapper.findProductById(data.productId());
 
@@ -100,6 +101,8 @@ public class DailySalesAggregationService {
                 return;
             }
 
+            ZonedDateTime now = ZonedDateTime.now();
+
             DailySalesAggregation aggregation = DailySalesAggregation.builder()
                     .id(UUID.randomUUID().toString())
                     .seller(seller)
@@ -110,7 +113,8 @@ public class DailySalesAggregationService {
                     .orderCount(data.orderCount())
                     .build();
 
-            // 타임스탬프는 DB DEFAULT 값 사용 - 수동 설정 제거
+            // BaseEntity 필드 직접 설정 (reflection으로)
+            setTimestamps(aggregation, now, now);
 
             // MyBatis로 저장
             dailySalesMapper.upsertDailySales(aggregation);
@@ -122,7 +126,7 @@ public class DailySalesAggregationService {
     }
 
     /**
-     * 기존 집계 데이터 업데이트 (MyBatis 전용)
+     * 기존 집계 데이터 업데이트 (타임스탬프 명시적 설정)
      */
     private void updateDailySalesAggregation(DailySalesDataDTO data) {
         try {
@@ -136,6 +140,8 @@ public class DailySalesAggregationService {
                 return;
             }
 
+            ZonedDateTime now = ZonedDateTime.now();
+
             DailySalesAggregation aggregation = DailySalesAggregation.builder()
                     .id(UUID.randomUUID().toString()) // UPSERT에서는 ID가 중요하지 않음
                     .seller(seller)
@@ -146,7 +152,8 @@ public class DailySalesAggregationService {
                     .orderCount(data.orderCount())
                     .build();
 
-            // 타임스탬프는 DB DEFAULT 값 사용 - 수동 설정 제거
+            // BaseEntity 필드 직접 설정 (기존 생성일 유지, 수정일만 업데이트)
+            setTimestamps(aggregation, null, now); // createdAt은 null로 두어 기존값 유지
 
             // MyBatis로 UPSERT (업데이트)
             dailySalesMapper.upsertDailySales(aggregation);
@@ -158,33 +165,28 @@ public class DailySalesAggregationService {
     }
 
     /**
-     * 여러 날짜에 대한 배치 집계 처리
-     * @param startDate 시작일
-     * @param endDate 종료일
-     * @return 총 처리된 레코드 수
+     * BaseEntity의 타임스탬프 필드를 설정하는 헬퍼 메서드
      */
-    public int aggregateDailySalesRange(LocalDate startDate, LocalDate endDate) {
-        log.info("일별 판매 범위 집계 시작 - startDate: {}, endDate: {}", startDate, endDate);
+    private void setTimestamps(DailySalesAggregation aggregation, ZonedDateTime createdAt, ZonedDateTime updatedAt) {
+        try {
+            java.lang.reflect.Field createdAtField = BaseEntity.class.getDeclaredField("createdAt");
+            java.lang.reflect.Field updatedAtField = BaseEntity.class.getDeclaredField("updatedAt");
 
-        int totalProcessed = 0;
-        LocalDate currentDate = startDate;
+            createdAtField.setAccessible(true);
+            updatedAtField.setAccessible(true);
 
-        while (!currentDate.isAfter(endDate)) {
-            try {
-                int dailyProcessed = aggregateDailySales(currentDate);
-                totalProcessed += dailyProcessed;
-
-                log.debug("일별 집계 완료 - date: {}, 처리 건수: {}", currentDate, dailyProcessed);
-
-            } catch (Exception e) {
-                log.error("특정 날짜 집계 실패 - date: {}", currentDate, e);
+            if (createdAt != null) {
+                createdAtField.set(aggregation, createdAt);
             }
 
-            currentDate = currentDate.plusDays(1);
-        }
+            if (updatedAt != null) {
+                updatedAtField.set(aggregation, updatedAt);
+            }
 
-        log.info("일별 판매 범위 집계 완료 - startDate: {}, endDate: {}, 총 처리 건수: {}",
-                startDate, endDate, totalProcessed);
-        return totalProcessed;
+        } catch (Exception e) {
+            log.error("타임스탬프 설정 실패", e);
+            throw new RuntimeException("타임스탬프 설정 중 오류 발생", e);
+        }
     }
+
 }

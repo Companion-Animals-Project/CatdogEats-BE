@@ -1,12 +1,12 @@
 package com.team5.catdogeats.forecast.service.impl;
 
+import com.team5.catdogeats.baseEntity.BaseEntity;
 import com.team5.catdogeats.forecast.domain.DemandForecasts;
 import com.team5.catdogeats.forecast.domain.dto.DailySalesDataDTO;
 import com.team5.catdogeats.forecast.domain.dto.DemandForecastResultDTO;
 import com.team5.catdogeats.forecast.mapper.DailySalesAggregationMapper;
 import com.team5.catdogeats.forecast.mapper.DemandForecastMapper;
 import com.team5.catdogeats.forecast.service.DemandForecastService;
-import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.global.annotation.MybatisTransactional;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.repository.ProductRepository;
@@ -32,8 +32,7 @@ public class DemandForecastServiceImpl implements DemandForecastService {
 
     private final DemandForecastMapper demandForecastMapper;
     private final DailySalesAggregationMapper dailySalesMapper;
-    private final ProductRepository productsRepository;
-    private final SellersRepository sellersRepository;
+
 
     // 예측 설정 상수
     private static final int HISTORICAL_DAYS = 30;      // 30일간 데이터 필요
@@ -42,13 +41,16 @@ public class DemandForecastServiceImpl implements DemandForecastService {
     private static final int MOVING_AVERAGE_WINDOW = 7; // 7일 이동평균
 
     @Override
+    @MybatisTransactional
     public int executeForecasting(String sellerId) {
         log.info("수요예측 실행 시작 - sellerId: {}", sellerId);
 
         try {
-            // 1. 판매자 검증 (JPA)
-            Sellers seller = sellersRepository.findById(sellerId)
-                    .orElseThrow(() -> new IllegalArgumentException("판매자를 찾을 수 없습니다: " + sellerId));
+
+            Sellers seller = dailySalesMapper.findSellerById(sellerId);
+            if (seller == null) {
+                throw new IllegalArgumentException("판매자를 찾을 수 없습니다: " + sellerId);
+            }
 
             // 2. 충분한 판매 데이터가 있는 상품 목록 조회 (MyBatis)
             LocalDate endDate = LocalDate.now().minusDays(1); // 어제까지
@@ -95,9 +97,11 @@ public class DemandForecastServiceImpl implements DemandForecastService {
     private boolean executeForecastingForProduct(Sellers seller, String productId,
                                                  LocalDate startDate, LocalDate endDate) {
         try {
-            // 1. 상품 정보 조회 (JPA)
-            Products product = productsRepository.findById(productId)
-                    .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다: " + productId));
+            // 1. 상품 정보 조회
+            Products product = dailySalesMapper.findProductById(productId);
+            if (product == null) {
+                throw new IllegalArgumentException("상품을 찾을 수 없습니다: " + productId);
+            }
 
             // 2. 판매 데이터 조회 (MyBatis)
             List<DailySalesDataDTO> salesData = dailySalesMapper.findSalesDataForForecast(
@@ -115,7 +119,7 @@ public class DemandForecastServiceImpl implements DemandForecastService {
             // 4. 신뢰도 점수 계산 (판매 일수 기반)
             double confidenceScore = Math.min(salesData.size() / (double) HISTORICAL_DAYS, 1.0);
 
-            // 5. 예측 결과 저장 (MyBatis)
+            // 5. 예측 결과 저장
             saveForecastResult(seller, product, predictedQuantity, confidenceScore, salesData.size());
 
             log.debug("예측 완료 - productId: {}, 예측량: {}, 신뢰도: {:.2f}",
@@ -133,21 +137,35 @@ public class DemandForecastServiceImpl implements DemandForecastService {
      */
     private void saveForecastResult(Sellers seller, Products product, int predictedQuantity,
                                     double confidenceScore, int historicalDataDays) {
-        // DemandForecasts Entity 생성
-        DemandForecasts forecast = DemandForecasts.builder()
-                .id(UUID.randomUUID().toString())
-                .seller(seller)
-                .product(product)
-                .forecastDate(LocalDate.now())
-                .predictionPeriodDays(PREDICTION_DAYS)
-                .predictedQuantity(predictedQuantity)
-                .algorithmType(DemandForecasts.AlgorithmType.MOVING_AVERAGE_7)
-                .confidenceScore(confidenceScore)
-                .historicalDataDays(historicalDataDays)
-                .build();
-        // MyBatis로 저장
-        demandForecastMapper.insertForecast(forecast);
+        try {
+            ZonedDateTime now = ZonedDateTime.now();
+
+            // DemandForecasts Entity 생성
+            DemandForecasts forecast = DemandForecasts.builder()
+                    .id(UUID.randomUUID().toString())
+                    .seller(seller)
+                    .product(product)
+                    .forecastDate(LocalDate.now())
+                    .predictionPeriodDays(PREDICTION_DAYS)
+                    .predictedQuantity(predictedQuantity)
+                    .algorithmType(DemandForecasts.AlgorithmType.MOVING_AVERAGE_7)
+                    .confidenceScore(confidenceScore)
+                    .historicalDataDays(historicalDataDays)
+                    .build();
+
+            // BaseEntity 필드 직접 설정 (reflection으로)
+            setTimestamps(forecast, now, now);
+
+            // MyBatis로 저장
+            demandForecastMapper.insertForecast(forecast);
+
+        } catch (Exception e) {
+            log.error("예측 결과 저장 실패 - sellerId: {}, productId: {}",
+                    seller.getUserId(), product.getId(), e);
+            throw new RuntimeException("예측 결과 저장 중 오류가 발생했습니다", e);
+        }
     }
+
 
     /**
      * 7일 이동평균 계산
@@ -171,7 +189,6 @@ public class DemandForecastServiceImpl implements DemandForecastService {
     }
 
     @Override
-    @MybatisTransactional(readOnly = true) // MyBatis 전용 (읽기만)
     public List<DemandForecastResultDTO> getLatestForecastResults(String sellerId) {
         log.debug("수요예측 결과 조회 - sellerId: {}", sellerId);
 
@@ -189,7 +206,6 @@ public class DemandForecastServiceImpl implements DemandForecastService {
     }
 
     @Override
-    @MybatisTransactional // MyBatis 전용 (삭제)
     public int cleanupOldForecasts(LocalDate cutoffDate) {
         log.info("오래된 수요예측 데이터 정리 시작 - cutoffDate: {}", cutoffDate);
 
@@ -203,4 +219,30 @@ public class DemandForecastServiceImpl implements DemandForecastService {
             throw new RuntimeException("수요예측 데이터 정리 중 오류가 발생했습니다", e);
         }
     }
+
+    /**
+     * BaseEntity의 타임스탬프 필드를 설정하는 헬퍼 메서드
+     */
+    private void setTimestamps(DemandForecasts forecast, ZonedDateTime createdAt, ZonedDateTime updatedAt) {
+        try {
+            java.lang.reflect.Field createdAtField = BaseEntity.class.getDeclaredField("createdAt");
+            java.lang.reflect.Field updatedAtField = BaseEntity.class.getDeclaredField("updatedAt");
+
+            createdAtField.setAccessible(true);
+            updatedAtField.setAccessible(true);
+
+            if (createdAt != null) {
+                createdAtField.set(forecast, createdAt);
+            }
+
+            if (updatedAt != null) {
+                updatedAtField.set(forecast, updatedAt);
+            }
+
+        } catch (Exception e) {
+            log.error("타임스탬프 설정 실패", e);
+            throw new RuntimeException("타임스탬프 설정 중 오류 발생", e);
+        }
+    }
+
 }
