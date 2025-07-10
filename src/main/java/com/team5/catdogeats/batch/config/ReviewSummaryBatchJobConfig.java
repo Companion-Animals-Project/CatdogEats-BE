@@ -6,10 +6,12 @@ import com.team5.catdogeats.batch.mapper.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -50,94 +52,156 @@ public class ReviewSummaryBatchJobConfig {
         this.itemProcessor = itemProcessor;
     }
 
+    // ---- Reader 빈 등록 ----
     @Bean
-    public Step reviewSummaryStepCatHandmade() {
-        ProductReviewBatchDtoItemReader reader = new ProductReviewBatchDtoItemReader(
-                productBatchMapper, reviewBatchMapper, summaryMapper, "CAT", "HANDMADE"
+    @StepScope
+    public ProductReviewBatchDtoItemReader productReviewBatchDtoItemReaderCatHandmade(
+            @Value("#{jobParameters['petCategory']}") String petCategory,
+            @Value("#{jobParameters['productCategory']}") String productCategory
+    ) {
+        return new ProductReviewBatchDtoItemReader(
+                productBatchMapper, reviewBatchMapper, summaryMapper, petCategory, productCategory
         );
-        ReviewSummaryItemWriterCatHandmade writer = new ReviewSummaryItemWriterCatHandmade(
-                summaryMapper, classificationCatHandmadeMapper
+    }
+
+    @Bean
+    @StepScope
+    public ProductReviewBatchDtoItemReader productReviewBatchDtoItemReaderCatFinished(
+            @Value("#{jobParameters['petCategory']}") String petCategory,
+            @Value("#{jobParameters['productCategory']}") String productCategory
+    ) {
+        return new ProductReviewBatchDtoItemReader(
+                productBatchMapper, reviewBatchMapper, summaryMapper, petCategory, productCategory
         );
+    }
+
+    @Bean
+    @StepScope
+    public ProductReviewBatchDtoItemReader productReviewBatchDtoItemReaderDogHandmade(
+            @Value("#{jobParameters['petCategory']}") String petCategory,
+            @Value("#{jobParameters['productCategory']}") String productCategory
+    ) {
+        return new ProductReviewBatchDtoItemReader(
+                productBatchMapper, reviewBatchMapper, summaryMapper, petCategory, productCategory
+        );
+    }
+
+    @Bean
+    @StepScope
+    public ProductReviewBatchDtoItemReader productReviewBatchDtoItemReaderDogFinished(
+            @Value("#{jobParameters['petCategory']}") String petCategory,
+            @Value("#{jobParameters['productCategory']}") String productCategory
+    ) {
+        return new ProductReviewBatchDtoItemReader(
+                productBatchMapper, reviewBatchMapper, summaryMapper, petCategory, productCategory
+        );
+    }
+
+    // ---- Writer 빈 등록 ----
+    @Bean
+    @StepScope
+    public ReviewSummaryItemWriterCatHandmade reviewSummaryItemWriterCatHandmade() {
+        return new ReviewSummaryItemWriterCatHandmade(summaryMapper, classificationCatHandmadeMapper);
+    }
+
+    @Bean
+    @StepScope
+    public ReviewSummaryItemWriterCatFinished reviewSummaryItemWriterCatFinished() {
+        return new ReviewSummaryItemWriterCatFinished(summaryMapper, classificationCatFinishedMapper);
+    }
+
+    @Bean
+    @StepScope
+    public ReviewSummaryItemWriterDogHandmade reviewSummaryItemWriterDogHandmade() {
+        return new ReviewSummaryItemWriterDogHandmade(summaryMapper, classificationDogHandmadeMapper);
+    }
+
+    @Bean
+    @StepScope
+    public ReviewSummaryItemWriterDogFinished reviewSummaryItemWriterDogFinished() {
+        return new ReviewSummaryItemWriterDogFinished(summaryMapper, classificationDogFinishedMapper);
+    }
+
+
+    // ---- Step 정의 ----
+    @Bean
+    public Step reviewSummaryStepCatHandmade(
+            ProductReviewBatchDtoItemReader productReviewBatchDtoItemReaderCatHandmade,
+            ReviewSummaryItemWriterCatHandmade reviewSummaryItemWriterCatHandmade
+    ) {
         return new StepBuilder("reviewSummaryStepCatHandmade", jobRepository)
                 .<ProductReviewBatchDto, ReviewSummaryResult>chunk(1000, batchTransactionManager)
-                .reader(reader)
+                .reader(productReviewBatchDtoItemReaderCatHandmade)
                 .processor(itemProcessor)
-                .writer(writer)
+                .writer(reviewSummaryItemWriterCatHandmade)
                 .build();
     }
 
     @Bean
-    public Step reviewSummaryStepCatFinished() {
-        ProductReviewBatchDtoItemReader reader = new ProductReviewBatchDtoItemReader(
-                productBatchMapper, reviewBatchMapper, summaryMapper, "CAT", "FINISHED"
-        );
-        ReviewSummaryItemWriterCatFinished writer = new ReviewSummaryItemWriterCatFinished(
-                summaryMapper, classificationCatFinishedMapper
-        );
+    public Step reviewSummaryStepCatFinished(
+            ProductReviewBatchDtoItemReader productReviewBatchDtoItemReaderCatFinished,
+            ReviewSummaryItemWriterCatFinished reviewSummaryItemWriterCatFinished
+    ) {
         return new StepBuilder("reviewSummaryStepCatFinished", jobRepository)
                 .<ProductReviewBatchDto, ReviewSummaryResult>chunk(1000, batchTransactionManager)
-                .reader(reader)
+                .reader(productReviewBatchDtoItemReaderCatFinished)
                 .processor(itemProcessor)
-                .writer(writer)
+                .writer(reviewSummaryItemWriterCatFinished)
                 .build();
     }
 
     @Bean
-    public Step reviewSummaryStepDogHandmade() {
-        ProductReviewBatchDtoItemReader reader = new ProductReviewBatchDtoItemReader(
-                productBatchMapper, reviewBatchMapper, summaryMapper, "DOG", "HANDMADE"
-        );
-        ReviewSummaryItemWriterDogHandmade writer = new ReviewSummaryItemWriterDogHandmade(
-                summaryMapper, classificationDogHandmadeMapper
-        );
+    public Step reviewSummaryStepDogHandmade(
+            ProductReviewBatchDtoItemReader productReviewBatchDtoItemReaderDogHandmade,
+            ReviewSummaryItemWriterDogHandmade reviewSummaryItemWriterDogHandmade
+    ) {
         return new StepBuilder("reviewSummaryStepDogHandmade", jobRepository)
                 .<ProductReviewBatchDto, ReviewSummaryResult>chunk(1000, batchTransactionManager)
-                .reader(reader)
+                .reader(productReviewBatchDtoItemReaderDogHandmade)
                 .processor(itemProcessor)
-                .writer(writer)
+                .writer(reviewSummaryItemWriterDogHandmade)
                 .build();
     }
 
     @Bean
-    public Step reviewSummaryStepDogFinished() {
-        ProductReviewBatchDtoItemReader reader = new ProductReviewBatchDtoItemReader(
-                productBatchMapper, reviewBatchMapper, summaryMapper, "DOG", "FINISHED"
-        );
-        ReviewSummaryItemWriterDogFinished writer = new ReviewSummaryItemWriterDogFinished(
-                summaryMapper, classificationDogFinishedMapper
-        );
+    public Step reviewSummaryStepDogFinished(
+            ProductReviewBatchDtoItemReader productReviewBatchDtoItemReaderDogFinished,
+            ReviewSummaryItemWriterDogFinished reviewSummaryItemWriterDogFinished
+    ) {
         return new StepBuilder("reviewSummaryStepDogFinished", jobRepository)
                 .<ProductReviewBatchDto, ReviewSummaryResult>chunk(1000, batchTransactionManager)
-                .reader(reader)
+                .reader(productReviewBatchDtoItemReaderDogFinished)
                 .processor(itemProcessor)
-                .writer(writer)
+                .writer(reviewSummaryItemWriterDogFinished)
                 .build();
     }
 
-    // 각 Job에 해당 Step만 start로 등록
+    // ---- Job 정의 ----
     @Bean
-    public Job reviewSummaryJobCatHandmade() {
+    public Job reviewSummaryJobCatHandmade(Step reviewSummaryStepCatHandmade) {
         return new JobBuilder("reviewSummaryJobCatHandmade", jobRepository)
-                .start(reviewSummaryStepCatHandmade())
-                .build();
-    }
-    @Bean
-    public Job reviewSummaryJobCatFinished() {
-        return new JobBuilder("reviewSummaryJobCatFinished", jobRepository)
-                .start(reviewSummaryStepCatFinished())
-                .build();
-    }
-    @Bean
-    public Job reviewSummaryJobDogHandmade() {
-        return new JobBuilder("reviewSummaryJobDogHandmade", jobRepository)
-                .start(reviewSummaryStepDogHandmade())
-                .build();
-    }
-    @Bean
-    public Job reviewSummaryJobDogFinished() {
-        return new JobBuilder("reviewSummaryJobDogFinished", jobRepository)
-                .start(reviewSummaryStepDogFinished())
+                .start(reviewSummaryStepCatHandmade)
                 .build();
     }
 
+    @Bean
+    public Job reviewSummaryJobCatFinished(Step reviewSummaryStepCatFinished) {
+        return new JobBuilder("reviewSummaryJobCatFinished", jobRepository)
+                .start(reviewSummaryStepCatFinished)
+                .build();
+    }
+
+    @Bean
+    public Job reviewSummaryJobDogHandmade(Step reviewSummaryStepDogHandmade) {
+        return new JobBuilder("reviewSummaryJobDogHandmade", jobRepository)
+                .start(reviewSummaryStepDogHandmade)
+                .build();
+    }
+
+    @Bean
+    public Job reviewSummaryJobDogFinished(Step reviewSummaryStepDogFinished) {
+        return new JobBuilder("reviewSummaryJobDogFinished", jobRepository)
+                .start(reviewSummaryStepDogFinished)
+                .build();
+    }
 }

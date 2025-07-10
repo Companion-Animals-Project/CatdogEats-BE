@@ -19,9 +19,12 @@ import java.util.List;
 @StepScope
 @Slf4j
 public class ProductReviewBatchDtoItemReader implements ItemReader<ProductReviewBatchDto> {
-    private final List<Products> allProducts;
+    private final ProductBatchMapper productMapper;
     private final ReviewBatchMapper reviewMapper;
     private final ReviewSummaryLLMBatchMapper summaryMapper;
+    private final String petCategory;
+    private final String productCategory;
+
     private int index = 0;
 
     public ProductReviewBatchDtoItemReader(ProductBatchMapper productMapper,
@@ -29,18 +32,22 @@ public class ProductReviewBatchDtoItemReader implements ItemReader<ProductReview
                                            ReviewSummaryLLMBatchMapper summaryMapper,
                                            @Value("#{jobParameters['petCategory']}") String petCategory,
                                            @Value("#{jobParameters['productCategory']}") String productCategory) {
-        this.allProducts = productMapper.selectProductsByCategory(petCategory, productCategory);
+        this.productMapper = productMapper;
         this.reviewMapper = reviewMapper;
         this.summaryMapper = summaryMapper;
+        this.petCategory = petCategory;
+        this.productCategory = productCategory;
     }
 
     @Override
     public ProductReviewBatchDto read() {
         try {
-            if (index < allProducts.size()) {
-                Products product = allProducts.get(index++);
+            List<Products> products = productMapper.selectProductsByCategory(petCategory, productCategory);
+            if (index < products.size()) {
+                Products product = products.get(index++);
                 List<Reviews> reviews = reviewMapper.findTop30ByProductIdOrderByCreatedAtDesc(product.getId());
                 ReviewsSummaryLLM summary = summaryMapper.findTopByProductIdOrderByCreatedAtDesc(product.getId());
+                log.info("[Reader] read() - 상품: {}, index={}/{}", product.getTitle(), index, products.size());
                 return new ProductReviewBatchDto(product, reviews, summary);
             }
         } catch (Exception e) {

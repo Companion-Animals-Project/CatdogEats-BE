@@ -21,27 +21,31 @@ public class ReviewSummaryJobScheduler {
 
     @Scheduled(cron = "0 0 0 * * *")
     public void runReviewSummaryBatchCatHandmade() {
-        runJob("CAT+HANDMADE", reviewSummaryJobCatHandmade);
+        runJob("CAT+HANDMADE", reviewSummaryJobCatHandmade, "CAT", "HANDMADE");
     }
     @Scheduled(cron = "0 0 0 * * *")
     public void runReviewSummaryBatchCatFinished() {
-        runJob("CAT+FINISHED", reviewSummaryJobCatFinished);
+        runJob("CAT+FINISHED", reviewSummaryJobCatFinished, "CAT", "FINISHED");
     }
     @Scheduled(cron = "0 0 0 * * *")
     public void runReviewSummaryBatchDogHandmade() {
-        runJob("DOG+HANDMADE", reviewSummaryJobDogHandmade);
+        runJob("DOG+HANDMADE", reviewSummaryJobDogHandmade, "DOG", "HANDMADE");
     }
     @Scheduled(cron = "0 0 0 * * *")
     public void runReviewSummaryBatchDogFinished() {
-        runJob("DOG+FINISHED", reviewSummaryJobDogFinished);
+        runJob("DOG+FINISHED", reviewSummaryJobDogFinished, "DOG", "FINISHED");
     }
 
-    private void runJob(String name, Job job) {
+    private void runJob(String name, Job job, String petCategory, String productCategory) {
         log.info("[배치요약] {} 리뷰요약 배치 시작", name);
         try {
             jobLauncher.run(
                     job,
-                    new JobParametersBuilder().addLong("time", System.currentTimeMillis()).toJobParameters()
+                    new JobParametersBuilder()
+                            .addLong("time", System.currentTimeMillis())
+                            .addString("petCategory", petCategory)
+                            .addString("productCategory", productCategory)
+                            .toJobParameters()
             );
         } catch (Exception e) {
             log.error("[배치요약] {} 배치 에러", name, e);
