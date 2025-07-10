@@ -50,23 +50,24 @@ jobs:
         with:
           driver: docker-container
 
-      - name: Log in to GHCR
+      - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Prepare Tags & Cache Tag
         id: prepare-tags
         run: |
-          REPO_LOWER=${GITHUB_REPOSITORY,,}
-          IMAGE="ghcr.io/${REPO_LOWER}:${GITHUB_SHA}"
-          IMAGE_LATEST="ghcr.io/${REPO_LOWER}:latest"
-          CACHE_TAG="ghcr.io/${REPO_LOWER}:cache"
-          echo "image=${IMAGE}"             >> $GITHUB_OUTPUT
+          REPO_NAME=${GITHUB_REPOSITORY##*/}
+          REPO_LOWER=${REPO_NAME,,}
+          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${REPO_LOWER}:${GITHUB_SHA}"
+          IMAGE_LATEST="${{ secrets.DOCKERHUB_USERNAME }}/${REPO_LOWER}:latest"
+          CACHE_TAG="${{ secrets.DOCKERHUB_USERNAME }}/${REPO_LOWER}:cache"
+          echo "image=${IMAGE}"           >> $GITHUB_OUTPUT
           echo "image_latest=${IMAGE_LATEST}" >> $GITHUB_OUTPUT
-          echo "cache_tag=${CACHE_TAG}"     >> $GITHUB_OUTPUT
+          echo "cache_tag=${CACHE_TAG}"   >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
@@ -92,13 +93,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v20
