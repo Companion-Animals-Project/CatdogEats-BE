@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.ZonedDateTime;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -257,7 +258,7 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
         // 허용되는 상태 전환 규칙 정의 (주문 상태 변경 API는 READY_FOR_SHIPMENT까지만 처리)
         Set<OrderStatus> allowedTransitions = switch (currentStatus) {
             case PAYMENT_COMPLETED -> Set.of(OrderStatus.PREPARING, OrderStatus.CANCELLED);
-            case PREPARING -> Set.of(OrderStatus.READY_FOR_SHIPMENT, OrderStatus.CANCELLED);
+            case PREPARING -> Set.of(OrderStatus.PREPARING, OrderStatus.READY_FOR_SHIPMENT, OrderStatus.CANCELLED); // 동일 상태 전환 허용 (출고 지연 관리용)
             case READY_FOR_SHIPMENT -> Set.of(OrderStatus.CANCELLED); // IN_DELIVERY 제거 - 운송장 등록 API에서 처리
             case IN_DELIVERY -> Set.of(OrderStatus.CANCELLED); // DELIVERED 제거 - 물류 서버에서 처리
             case DELIVERED -> Set.of(); // 배송 완료 후에는 상태 변경 불가
@@ -268,6 +269,31 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
 
         if (!allowedTransitions.contains(newStatus)) {
             throw new IllegalStateException(generateStatusTransitionErrorMessage(currentStatus, newStatus));
+        }
+
+        // 동일 상태 전환 시 특별 검증
+        if (currentStatus == newStatus) {
+            validateSameStatusTransition(currentStatus, request);
+        }
+    }
+
+    /**
+     * 동일 상태 전환 특별 검증
+     * 현재는 PREPARING 상태에서의 출고 지연 상태 변경만 허용
+     */
+    private void validateSameStatusTransition(OrderStatus status, OrderStatusUpdateRequest request) {
+        if (Objects.requireNonNull(status) == OrderStatus.PREPARING) {// PREPARING 상태에서는 출고 지연 상태 변경만 허용
+            if (request.isDelayed() == null || !request.isDelayed()) {
+                throw new IllegalArgumentException("PREPARING 상태에서 동일 상태로의 변경은 출고 지연 설정 시만 가능합니다");
+            }
+            // 출고 지연 시 사유 필수 확인 (이미 Compact Constructor에서 검증되지만 이중 체크)
+            if (request.reason() == null || request.reason().trim().isEmpty()) {
+                throw new IllegalArgumentException("출고 지연 시 지연 사유는 필수입니다");
+            }
+        } else {
+            throw new IllegalArgumentException(
+                    String.format("%s 상태에서 동일 상태로의 변경은 허용되지 않습니다", status)
+            );
         }
     }
 

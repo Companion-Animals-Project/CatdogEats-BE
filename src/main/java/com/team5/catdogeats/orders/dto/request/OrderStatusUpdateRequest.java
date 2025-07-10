@@ -60,6 +60,9 @@ public record OrderStatusUpdateRequest(
             isDelayed = false;
         }
 
+        // 논리적 일관성 검증
+        validateLogicalConsistency(isDelayed, reason);
+
         // 사유 필수 조건 검증
         if (isReasonRequired() && (reason == null || reason.trim().isEmpty())) {
             throw new IllegalArgumentException("해당 상태 변경에는 사유가 필수입니다");
@@ -67,6 +70,24 @@ public record OrderStatusUpdateRequest(
 
         // 지연 요청 시 사유 필수 검증
         if (Boolean.TRUE.equals(isDelayed) && (reason == null || reason.trim().isEmpty())) {
+            throw new IllegalArgumentException("출고 지연 시 지연 사유는 필수입니다");
+        }
+    }
+
+    /**
+     * 논리적 일관성 검증
+     * isDelayed와 reason의 조합이 논리적으로 올바른지 확인
+     */
+    private static void validateLogicalConsistency(Boolean isDelayed, String reason) {
+        boolean hasReason = reason != null && !reason.trim().isEmpty();
+
+        // 출고 지연이 아닌데 사유가 있는 경우
+        if (!Boolean.TRUE.equals(isDelayed) && hasReason) {
+            throw new IllegalArgumentException("출고 지연이 아닌 경우 사유를 입력할 수 없습니다");
+        }
+
+        // 출고 지연인데 사유가 없는 경우
+        if (Boolean.TRUE.equals(isDelayed) && !hasReason) {
             throw new IllegalArgumentException("출고 지연 시 지연 사유는 필수입니다");
         }
     }
