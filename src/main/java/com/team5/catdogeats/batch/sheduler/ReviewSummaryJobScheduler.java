@@ -1,22 +1,31 @@
 package com.team5.catdogeats.batch.sheduler;
 
-import com.team5.catdogeats.reviews.service.ReviewSummaryBatchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ReviewSummaryBatchScheduler {
-    private final ReviewSummaryBatchService reviewSummaryBatchService;
+public class ReviewSummaryJobScheduler {
+
+    private final JobLauncher jobLauncher;
+    private final Job reviewSummaryJob;
 
     @Scheduled(cron = "0 0 0 * * *")
     public void runReviewSummaryBatch() {
         log.info("[배치요약] 전체 상품 리뷰요약 배치 시작");
         try {
-            reviewSummaryBatchService.batchSummarizeAllProducts();
+            jobLauncher.run(
+                    reviewSummaryJob,
+                    new JobParametersBuilder()
+                            .addLong("time", System.currentTimeMillis()) // 매 실행마다 파라미터 달리하여 중복 방지
+                            .toJobParameters()
+            );
         } catch (Exception e) {
             log.error("[배치요약] 전체 배치 에러", e);
         }
