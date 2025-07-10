@@ -59,14 +59,6 @@ public record TrackingNumberRegisterRequest(
         if (startShipmentImmediately == null) {
             startShipmentImmediately = true;
         }
-
-        // 운송장 번호 기본 형식 검증
-        if (trackingNumber != null && courierCompany != null) {
-            if (!isValidTrackingNumberFormat()) {
-                throw new IllegalArgumentException(
-                        String.format("%s의 운송장 번호 형식이 올바르지 않습니다", courierCompany.getDisplayName()));
-            }
-        }
     }
 
     // ===== 접근자 메서드들 =====
@@ -93,28 +85,6 @@ public record TrackingNumberRegisterRequest(
         return courierCompany != null ? courierCompany.getDisplayName() : "알 수 없음";
     }
 
-    /**
-     * 운송장 번호 형식 검증
-     * @return 유효한 형식인지 여부
-     */
-    private boolean isValidTrackingNumberFormat() {
-        if (trackingNumber == null || trackingNumber.trim().isEmpty()) {
-            return false;
-        }
-
-        // 기본 길이 검증
-        if (trackingNumber.length() < 8 || trackingNumber.length() > 50) {
-            return false;
-        }
-
-        // 택배사별 세부 검증
-        return courierCompany.isValidTrackingNumberFormat(trackingNumber);
-    }
-
-    /**
-     * 디버깅용 정보 출력
-     * @return 디버깅 정보 문자열
-     */
     @Override
     public String toString() {
         // 운송장 번호 마스킹 처리
