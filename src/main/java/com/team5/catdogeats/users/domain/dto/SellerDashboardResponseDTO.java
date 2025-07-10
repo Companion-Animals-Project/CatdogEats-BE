@@ -1,5 +1,6 @@
 package com.team5.catdogeats.users.domain.dto;
 
+import com.team5.catdogeats.forecast.domain.dto.DemandForecastResultDTO;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -8,10 +9,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
- * 판매자 대시보드 응답 DTO
+ * 판매자 대시보드 응답 DTO (수요예측 포함)
  * 판매자 대시보드에 표시할 모든 데이터를 포함하는 최종 응답 DTO
  */
-@Schema(description = "판매자 대시보드 응답")
+@Schema(description = "판매자 대시보드 응답 (수요예측 포함)")
 public record SellerDashboardResponseDTO(
         @Schema(description = "오늘 주문 통계")
         TodayStatsDTO todayStats,
@@ -22,23 +23,38 @@ public record SellerDashboardResponseDTO(
         @Schema(description = "이번 달 상품 매출 순위 (최대 10개)", example = "[{\"productId\":\"prod-001\",\"productName\":\"강아지 쿠키\",\"totalQuantity\":150,\"totalSales\":750000}]")
         List<ProductSalesRankingDTO> productRanking,
 
+        @Schema(description = "수요예측 결과 (재고 부족량 포함)", example = "[{\"productName\":\"강아지 쿠키\",\"predictedQuantity\":25,\"currentStock\":10,\"shortageQuantity\":15}]")
+        List<DemandForecastResultDTO> demandForecasts,
+
         @Schema(description = "데이터 조회 시각", example = "2025-01-15T14:30:00")
         String dataRetrievedAt
 ) {
     /**
-     * 현재 시각을 포함하여 SellerDashboardResponseDTO 생성
+     * 현재 시각을 포함하여 SellerDashboardResponseDTO 생성 (수요예측 포함)
+     */
+    public static SellerDashboardResponseDTO of(
+            TodayStatsDTO todayStats,
+            List<WeeklySalesDTO> weeklySales,
+            List<ProductSalesRankingDTO> productRanking,
+            List<DemandForecastResultDTO> demandForecasts) {
+
+        return new SellerDashboardResponseDTO(
+                todayStats != null ? todayStats : TodayStatsDTO.empty(),
+                weeklySales != null ? weeklySales : List.of(),
+                productRanking != null ? productRanking : List.of(),
+                demandForecasts != null ? demandForecasts : List.of(),
+                ZonedDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+        );
+    }
+
+    /**
+     * 기존 호환성을 위한 메서드 (수요예측 없이)
      */
     public static SellerDashboardResponseDTO of(
             TodayStatsDTO todayStats,
             List<WeeklySalesDTO> weeklySales,
             List<ProductSalesRankingDTO> productRanking) {
 
-        return new SellerDashboardResponseDTO(
-                todayStats != null ? todayStats : TodayStatsDTO.empty(),
-                weeklySales != null ? weeklySales : List.of(),
-                productRanking != null ? productRanking : List.of(),
-                ZonedDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-        );
+        return of(todayStats, weeklySales, productRanking, List.of());
     }
-
 }

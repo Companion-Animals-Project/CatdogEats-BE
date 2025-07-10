@@ -565,3 +565,85 @@ CREATE TABLE notice_files (
                               CONSTRAINT fk_notice_files_notice_id FOREIGN KEY (notice_id) REFERENCES notices(id),
                               CONSTRAINT fk_notice_files_file_id FOREIGN KEY (file_id) REFERENCES files(id)  -- 이것도 추가
 );
+
+
+-- ===================================
+-- 수요예측 관련 테이블 DDL
+-- PostgreSQL 기준
+-- ===================================
+
+-- 1. 일별 판매 집계 테이블
+CREATE TABLE public.daily_sales_aggregation
+(
+    id              varchar(36)                 not null
+        primary key,
+    seller_id       varchar(36)                 not null
+        constraint fk_daily_sales_seller_id
+            references public.sellers(user_id),
+    product_id      varchar(36)                 not null
+        constraint fk_daily_sales_product_id
+            references public.products(id),
+    sales_date      date                        not null,
+    daily_quantity  integer                     not null default 0,
+    daily_revenue   bigint                      not null default 0,
+    order_count     integer                     not null default 0,
+    created_at      timestamp(6) with time zone not null,
+    updated_at      timestamp(6) with time zone not null
+);
+
+-- 2. 수요예측 결과 테이블
+CREATE TABLE public.demand_forecasts
+(
+    id                      varchar(36)                 not null
+        primary key,
+    seller_id               varchar(36)                 not null
+        constraint fk_demand_forecast_seller_id
+            references public.sellers(user_id),
+    product_id              varchar(36)                 not null
+        constraint fk_demand_forecast_product_id
+            references public.products(id),
+    forecast_date           date                        not null,
+    prediction_period_days  integer                     not null default 7,
+    predicted_quantity      integer                     not null,
+    algorithm_type          varchar(50)                 not null
+        constraint demand_forecasts_algorithm_type_check
+            check (algorithm_type IN ('MOVING_AVERAGE_7', 'EXPONENTIAL_SMOOTHING', 'SEASONAL_ADJUSTMENT')),
+    confidence_score        decimal(5,4),
+    historical_data_days    integer,
+    created_at              timestamp(6) with time zone not null,
+    updated_at              timestamp(6) with time zone not null
+);
+
+-- ===================================
+-- 인덱스 생성 (성능 최적화)
+-- ===================================
+
+-- daily_sales_aggregation 테이블 인덱스
+CREATE INDEX idx_daily_sales_seller_product_date
+    ON public.daily_sales_aggregation (seller_id, product_id, sales_date);
+
+CREATE INDEX idx_daily_sales_date_range
+    ON public.daily_sales_aggregation (sales_date);
+
+CREATE INDEX idx_daily_sales_seller_date
+    ON public.daily_sales_aggregation (seller_id, sales_date);
+
+-- 중복 방지를 위한 유니크 인덱스
+CREATE UNIQUE INDEX idx_daily_sales_unique
+    ON public.daily_sales_aggregation (seller_id, product_id, sales_date);
+
+-- demand_forecasts 테이블 인덱스
+CREATE INDEX idx_demand_forecast_seller_date
+    ON public.demand_forecasts (seller_id, forecast_date);
+
+CREATE INDEX idx_demand_forecast_product_date
+    ON public.demand_forecasts (product_id, forecast_date);
+
+CREATE INDEX idx_demand_forecast_seller_product
+    ON public.demand_forecasts (seller_id, product_id);
+
+-- 최신 예측 조회 성능 향상
+CREATE INDEX idx_demand_forecast_latest_query
+    ON public.demand_forecasts (seller_id, product_id, forecast_date DESC);
+
+-- ===============================================================================
