@@ -22,4 +22,5 @@ public class LangChain4jConfig {
                 .modelName(geminiModel)
                 .build();
     }
+
 }

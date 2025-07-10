@@ -3,6 +3,10 @@ batch:
     cron: "${WITHDRAW_CRON:0 30 2 * * ?}"
     chunk-size: ${WITHDRAW_CHUNK:1000}
 spring:
+  langchain4j:
+    google-ai-gemini:
+      api-key: ${API_KEY}
+      model-name: gemini-2.0-flash
   batch:
     jdbc:
       initialize-schema: always
