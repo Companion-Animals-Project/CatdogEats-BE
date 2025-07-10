@@ -12,6 +12,7 @@ import com.team5.catdogeats.orders.dto.response.ShipmentSyncResponse;
 import com.team5.catdogeats.orders.dto.response.TrackingNumberRegisterResponse;
 import com.team5.catdogeats.orders.service.SellerOrderCommandService;
 import com.team5.catdogeats.orders.service.SellerOrderService;
+import com.team5.catdogeats.orders.dto.request.OrderDeleteRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -264,26 +265,26 @@ public class SellerOrderController {
     @DeleteMapping
     public ResponseEntity<ApiResponse<String>> deleteOrder(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @RequestParam("orderNumber") String orderNumber) {
+            @RequestBody @Valid OrderDeleteRequest request) {
 
         log.info("주문 삭제 요청 - provider: {}, providerId: {}, orderNumber: {}",
-                userPrincipal.provider(), userPrincipal.providerId(), orderNumber);
+                userPrincipal.provider(), userPrincipal.providerId(), request.orderNumber());
 
         try {
-            boolean result = sellerOrderCommandService.deleteOrder(userPrincipal, orderNumber);
+            boolean result = sellerOrderCommandService.deleteOrder(userPrincipal, request.orderNumber());
 
             if (result) {
-                log.info("주문 삭제 성공 - orderNumber: {}", orderNumber);
+                log.info("주문 삭제 성공 - orderNumber: {}", request.orderNumber());
                 return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, "주문이 성공적으로 삭제되었습니다."));
             } else {
-                log.warn("주문 삭제 실패 - orderNumber: {}, 알 수 없는 오류", orderNumber);
+                log.warn("주문 삭제 실패 - orderNumber: {}, 알 수 없는 오류", request.orderNumber());
                 return ResponseEntity
                         .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
                         .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "주문 삭제에 실패했습니다."));
             }
 
         } catch (NoSuchElementException e) {
-            log.warn("주문 삭제 실패 - orderNumber: {}, reason: {}", orderNumber, e.getMessage());
+            log.warn("주문 삭제 실패 - orderNumber: {}, reason: {}", request.orderNumber(), e.getMessage());
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
                     .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
@@ -295,7 +296,7 @@ public class SellerOrderController {
                     .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
 
         } catch (Exception e) {
-            log.error("주문 삭제 중 서버 오류 - orderNumber: {}", orderNumber, e);
+            log.error("주문 삭제 중 서버 오류 - orderNumber: {}", request.orderNumber(), e);
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
                     .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "주문 삭제 중 서버 오류가 발생했습니다."));
