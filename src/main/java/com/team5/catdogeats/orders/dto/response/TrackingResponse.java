@@ -1,7 +1,5 @@
 package com.team5.catdogeats.orders.dto.response;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-
 import java.time.ZonedDateTime;
 import java.util.List;
 
@@ -14,10 +12,8 @@ public record TrackingResponse(
         String carrierCode,                        // 택배사 코드 (01, 04, 05, 06, 08)
         String currentStatus,                      // 현재 배송 상태 ("PICKED_UP", "AT_SORT_HUB", "DEPARTED_HUB", "OUT_FOR_DELIVERY", "DELIVERED")
 
-        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'")
         ZonedDateTime createdAt,                   // 운송장 생성 시간
 
-        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'")
         ZonedDateTime deliveredAt,                 // 배송 완료 시간 (null일 수 있음)
 
         List<TrackingLogResponse> logs             // 배송 추적 로그 목록
@@ -64,11 +60,10 @@ public record TrackingResponse(
      * 배송 추적 로그 응답 DTO
      */
     public record TrackingLogResponse(
-            Long id,                               // 로그 ID
+            String id,                               // 로그 ID
             String status,                         // 배송 상태
             String description,                    // 상태 설명
 
-            @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'")
             ZonedDateTime timestamp                // 로그 생성 시간
     ) {
 
