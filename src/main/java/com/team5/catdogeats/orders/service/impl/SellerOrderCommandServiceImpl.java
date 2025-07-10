@@ -9,10 +9,12 @@ import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.dto.request.OrderStatusUpdateRequest;
 import com.team5.catdogeats.orders.dto.request.TrackingNumberRegisterRequest;
 import com.team5.catdogeats.orders.dto.response.OrderStatusUpdateResponse;
+import com.team5.catdogeats.orders.dto.response.ShipmentSyncResponse;
 import com.team5.catdogeats.orders.dto.response.TrackingNumberRegisterResponse;
 import com.team5.catdogeats.orders.repository.OrderRepository;
 import com.team5.catdogeats.orders.repository.ShipmentRepository;
 import com.team5.catdogeats.orders.service.SellerOrderCommandService;
+import com.team5.catdogeats.orders.service.ShipmentSyncService;
 import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
 import com.team5.catdogeats.users.repository.SellersRepository;
@@ -39,6 +41,7 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
     private final SellersRepository sellerRepository;
     private final OrderRepository orderRepository;
     private final ShipmentRepository shipmentRepository;
+    private final ShipmentSyncService shipmentSyncService;
 
     /**
      * 주문 상태 변경 (배송 상태 관리)
@@ -95,6 +98,22 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
             log.error("주문 상태 변경 중 오류 - orderNumber={}", request.orderNumber(), e);
             throw new RuntimeException("주문 상태 변경 중 오류가 발생했습니다", e);
         }
+    }
+
+    /**
+     * 전체 배송 상태 동기화
+     */
+    @Override
+    public ShipmentSyncResponse syncAllShipmentStatus(UserPrincipal userPrincipal) {
+        return shipmentSyncService.syncAllShipmentStatus(userPrincipal);
+    }
+
+    /**
+     * 특정 주문 배송 상태 동기화
+     */
+    @Override
+    public ShipmentSyncResponse syncSingleShipmentStatus(UserPrincipal userPrincipal, String orderNumber) {
+        return shipmentSyncService.syncSingleShipmentStatus(userPrincipal, orderNumber);
     }
 
     /**
