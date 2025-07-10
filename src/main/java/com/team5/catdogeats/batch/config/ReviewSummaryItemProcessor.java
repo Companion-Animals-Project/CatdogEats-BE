@@ -28,7 +28,7 @@ public class ReviewSummaryItemProcessor implements ItemProcessor<ProductReviewBa
     }
 
     @Override
-    public ReviewSummaryResult process(ProductReviewBatchDto dto) throws Exception {
+    public ReviewSummaryResult process(ProductReviewBatchDto dto) {
         try {
             Products product = dto.product();
             List<Reviews> reviews = dto.latestReviews();

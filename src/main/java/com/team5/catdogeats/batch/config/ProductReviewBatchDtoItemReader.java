@@ -10,6 +10,7 @@ import com.team5.catdogeats.reviews.domain.mapping.ReviewsSummaryLLM;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.item.ItemReader;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -25,8 +26,10 @@ public class ProductReviewBatchDtoItemReader implements ItemReader<ProductReview
 
     public ProductReviewBatchDtoItemReader(ProductBatchMapper productMapper,
                                            ReviewBatchMapper reviewMapper,
-                                           ReviewSummaryLLMBatchMapper summaryMapper) {
-        this.allProducts = productMapper.selectAllProducts();
+                                           ReviewSummaryLLMBatchMapper summaryMapper,
+                                           @Value("#{jobParameters['petCategory']}") String petCategory,
+                                           @Value("#{jobParameters['productCategory']}") String productCategory) {
+        this.allProducts = productMapper.selectProductsByCategory(petCategory, productCategory);;
         this.reviewMapper = reviewMapper;
         this.summaryMapper = summaryMapper;
     }

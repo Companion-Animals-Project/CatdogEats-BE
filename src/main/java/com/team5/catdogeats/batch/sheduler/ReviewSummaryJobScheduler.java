@@ -14,21 +14,38 @@ import org.springframework.stereotype.Component;
 public class ReviewSummaryJobScheduler {
 
     private final JobLauncher jobLauncher;
-    private final Job reviewSummaryJob;
+    private final Job reviewSummaryJobCatHandmade;
+    private final Job reviewSummaryJobCatFinished;
+    private final Job reviewSummaryJobDogHandmade;
+    private final Job reviewSummaryJobDogFinished;
 
     @Scheduled(cron = "0 0 0 * * *")
-    public void runReviewSummaryBatch() {
-        log.info("[배치요약] 전체 상품 리뷰요약 배치 시작");
+    public void runReviewSummaryBatchCatHandmade() {
+        runJob("CAT+HANDMADE", reviewSummaryJobCatHandmade);
+    }
+    @Scheduled(cron = "0 0 0 * * *")
+    public void runReviewSummaryBatchCatFinished() {
+        runJob("CAT+FINISHED", reviewSummaryJobCatFinished);
+    }
+    @Scheduled(cron = "0 0 0 * * *")
+    public void runReviewSummaryBatchDogHandmade() {
+        runJob("DOG+HANDMADE", reviewSummaryJobDogHandmade);
+    }
+    @Scheduled(cron = "0 0 0 * * *")
+    public void runReviewSummaryBatchDogFinished() {
+        runJob("DOG+FINISHED", reviewSummaryJobDogFinished);
+    }
+
+    private void runJob(String name, Job job) {
+        log.info("[배치요약] {} 리뷰요약 배치 시작", name);
         try {
             jobLauncher.run(
-                    reviewSummaryJob,
-                    new JobParametersBuilder()
-                            .addLong("time", System.currentTimeMillis()) // 매 실행마다 파라미터 달리하여 중복 방지
-                            .toJobParameters()
+                    job,
+                    new JobParametersBuilder().addLong("time", System.currentTimeMillis()).toJobParameters()
             );
         } catch (Exception e) {
-            log.error("[배치요약] 전체 배치 에러", e);
+            log.error("[배치요약] {} 배치 에러", name, e);
         }
-        log.info("[배치요약] 전체 상품 리뷰요약 배치 종료");
+        log.info("[배치요약] {} 리뷰요약 배치 종료", name);
     }
 }

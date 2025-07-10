@@ -7,12 +7,12 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "review_classification_result")
+@Table(name = "review_classification_result_dog_handmade")
 @Getter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
-public class ReviewClassificationLLM extends BaseEntity {
+public class ReviewClassificationLLMDogHandmade extends BaseEntity {
     @Id
     @Column(length = 36)
     @GeneratedValue(strategy = GenerationType.UUID)

@@ -9,9 +9,13 @@ import java.util.List;
 
 @Mapper
 public interface ProductBatchMapper {
-    @Select("SELECT * FROM products WHERE product_number = #{productNumber}")
-    Products findByProductNumber(@Param("productNumber") Long productNumber);
-
-    @Select("SELECT * FROM products")
-    List<Products> selectAllProducts();
+    @Select("""
+        SELECT * FROM products
+        WHERE petcategory = #{petCategory}
+        AND productcategory = #{productCategory}
+    """)
+    List<Products> selectProductsByCategory(
+            @Param("petCategory") String petCategory,
+            @Param("productCategory") String productCategory
+    );
 }

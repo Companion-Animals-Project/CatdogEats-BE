@@ -1,11 +1,11 @@
 package com.team5.catdogeats.batch.config;
 
 import com.team5.catdogeats.batch.dto.ReviewSummaryResult;
-import com.team5.catdogeats.batch.mapper.ReviewClassificationLLMBatchMapper;
+import com.team5.catdogeats.batch.mapper.ReviewClassificationLLMCatHandmadeBatchMapper;
 import com.team5.catdogeats.batch.mapper.ReviewSummaryLLMBatchMapper;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.reviews.domain.dto.ReviewClassificationResultDto;
-import com.team5.catdogeats.reviews.domain.mapping.ReviewClassificationLLM;
+import com.team5.catdogeats.reviews.domain.mapping.ReviewClassificationLLMCatHandmade;
 import com.team5.catdogeats.reviews.domain.mapping.ReviewsSummaryLLM;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.configuration.annotation.StepScope;
@@ -18,12 +18,12 @@ import java.util.UUID;
 @Slf4j
 @Component
 @StepScope
-public class ReviewSummaryItemWriter implements ItemWriter<ReviewSummaryResult> {
+public class ReviewSummaryItemWriterCatHandmade implements ItemWriter<ReviewSummaryResult> {
     private final ReviewSummaryLLMBatchMapper summaryMapper;
-    private final ReviewClassificationLLMBatchMapper classificationMapper;
+    private final ReviewClassificationLLMCatHandmadeBatchMapper classificationMapper;
 
-    public ReviewSummaryItemWriter(ReviewSummaryLLMBatchMapper summaryMapper,
-                                   ReviewClassificationLLMBatchMapper classificationMapper) {
+    public ReviewSummaryItemWriterCatHandmade(ReviewSummaryLLMBatchMapper summaryMapper,
+                                              ReviewClassificationLLMCatHandmadeBatchMapper classificationMapper) {
         this.summaryMapper = summaryMapper;
         this.classificationMapper = classificationMapper;
     }
@@ -50,7 +50,7 @@ public class ReviewSummaryItemWriter implements ItemWriter<ReviewSummaryResult> 
 
                 // 분류결과 새로 저장
                 for (ReviewClassificationResultDto dto : result.classificationResults()) {
-                    ReviewClassificationLLM entity = ReviewClassificationLLM.builder()
+                    ReviewClassificationLLMCatHandmade entity = ReviewClassificationLLMCatHandmade.builder()
                             .id(UUID.randomUUID().toString())
                             .product(product)
                             .review(dto.reviewObj())
