@@ -115,7 +115,7 @@ public interface ProductRepository extends JpaRepository<Products, String> {
         """,
             nativeQuery = true
     )
-    Page<ProductListProjection> findAllByOrderByPriceDesc(
+    Page<ProductListProjection> findAllByOrderByDiscountedPriceDesc(
             @Param("petCategory") String petCategory,
             @Param("productCategory") String productCategory,
             Pageable pageable

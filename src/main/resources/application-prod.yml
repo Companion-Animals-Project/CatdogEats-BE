@@ -214,3 +214,24 @@ app:
 
 websocket:
   endpoint: /v1/users/chat
+
+
+outbox:
+  processing:
+    mode: cdc
+
+debezium:
+  database:
+    hostname: ${DB_HOST}
+    port: 5672
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    dbname: catdogeats
+    server-name: catdogeats
+  connector:
+    slot-name: debezium_slot
+    publication-name: debezium_publication
+    plugin-name: pgoutput
+    table-include-list: public.outbox_messages
+  offset:
+    storage-file: ./data/debezium-offsets.dat

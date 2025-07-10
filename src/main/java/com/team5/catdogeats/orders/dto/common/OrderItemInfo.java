@@ -85,8 +85,8 @@ public record OrderItemInfo(
                 p.getId(),
                 p.getTitle(),
                 qty,
-                p.getPrice(),
-                p.getPrice() * qty,
+                p.getDiscountedPrice(),
+                p.getDiscountedPrice() * qty,
                 p.getSeller().getUserId()
         );
     }

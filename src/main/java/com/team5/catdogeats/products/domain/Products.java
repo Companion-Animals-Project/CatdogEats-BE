@@ -67,8 +67,8 @@ public class Products extends BaseEntity {
     @Column(nullable = false)
     private Long price;
 
-    @Column(name = "discounted_price", columnDefinition = "DECIMAL(10,2)")
-    private Double discountedPrice;
+    @Column(name = "discounted_price")
+    private Long discountedPrice;
 
     @Column(name = "lead_time", nullable = false)
     private Short leadTime;
@@ -111,6 +111,7 @@ public class Products extends BaseEntity {
                 .discounted(dto.isDiscounted())
                 .discountRate(dto.discountRate())
                 .price(dto.price())
+                .discountedPrice(dto.isDiscounted() != true ? (long) (dto.price() * (dto.discountRate() * 0.01)) : dto.price())
                 .leadTime(dto.leadTime())
                 .stock(dto.stock())
                 .safetyStock(dto.stock()/2)

@@ -85,7 +85,7 @@ public class ProductServiceImpl implements ProductService {
 
         return switch (sortBy) {
             case PRICE ->
-                    productRepository.findAllByOrderByPriceDesc(petCategoryStr, productCategoryStr, pageable);
+                    productRepository.findAllByOrderByDiscountedPriceDesc(petCategoryStr, productCategoryStr, pageable);
             case AVERAGE_STAR ->
                     productRepository.findAllByOrderByAverageStarDesc(petCategoryStr, productCategoryStr, pageable);
             default ->
