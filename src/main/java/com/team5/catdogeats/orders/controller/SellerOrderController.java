@@ -6,7 +6,11 @@ import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.dto.request.OrderStatusUpdateRequest;
 import com.team5.catdogeats.orders.dto.request.TrackingNumberRegisterRequest;
-import com.team5.catdogeats.orders.dto.response.*;
+import com.team5.catdogeats.orders.dto.response.OrderStatusUpdateResponse;
+import com.team5.catdogeats.orders.dto.response.SellerOrderDetailResponse;
+import com.team5.catdogeats.orders.dto.response.SellerOrderListResponse;
+import com.team5.catdogeats.orders.dto.response.ShipmentSyncResponse;
+import com.team5.catdogeats.orders.dto.response.TrackingNumberRegisterResponse;
 import com.team5.catdogeats.orders.service.SellerOrderCommandService;
 import com.team5.catdogeats.orders.service.SellerOrderService;
 import jakarta.validation.Valid;
@@ -24,6 +28,14 @@ import java.util.NoSuchElementException;
 /**
  * 판매자용 주문 관리 컨트롤러
  * 판매자가 본인이 판매한 상품의 주문을 관리할 수 있는 기능들을 제공합니다.
+ *
+ * 포함 기능:
+ * - 주문 목록 조회 (페이징)
+ * - 주문 상세 조회 (배송지 정보 포함)
+ * - 주문 상태 변경 (배송 상태 관리)
+ * - 운송장 번호 등록 (배송 운송장 등록)
+ * - 배송 상태 동기화 (물류 서버 연동)
+ * - 주문 내역 삭제 (목록 숨김 처리)
  */
 @Slf4j
 @RestController
@@ -33,6 +45,46 @@ public class SellerOrderController {
 
     private final SellerOrderService sellerOrderService;
     private final SellerOrderCommandService sellerOrderCommandService;
+
+    /**
+     * 배송 관리 (판매자) - 주문 목록 조회
+     * API: GET /v1/sellers/orders/list?page={}&sort={}
+     */
+    @GetMapping("/list")
+    public ResponseEntity<ApiResponse<SellerOrderListResponse>> getSellerOrders(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        log.info("판매자 주문 목록 조회 요청 - provider: {}, providerId: {}, page: {}, size: {}",
+                userPrincipal.provider(), userPrincipal.providerId(), pageable.getPageNumber(), pageable.getPageSize());
+
+        try {
+            SellerOrderListResponse response = sellerOrderService.getSellerOrders(userPrincipal, pageable);
+
+            log.info("판매자 주문 목록 조회 성공 - provider: {}, providerId: {}, 총 주문수: {}",
+                    userPrincipal.provider(), userPrincipal.providerId(), response.totalElements());
+
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+
+        } catch (NoSuchElementException e) {
+            log.warn("판매자 주문 목록 조회 실패 - 사용자 없음: {}", e.getMessage());
+            return ResponseEntity
+                    .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+
+        } catch (IllegalArgumentException e) {
+            log.warn("판매자 주문 목록 조회 실패 - 잘못된 요청: {}", e.getMessage());
+            return ResponseEntity
+                    .status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+
+        } catch (Exception e) {
+            log.error("판매자 주문 목록 조회 중 서버 오류", e);
+            return ResponseEntity
+                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "주문 목록 조회 중 서버 오류가 발생했습니다."));
+        }
+    }
 
     /**
      * 배송 고객 주소 조회 (판매자)
@@ -75,45 +127,7 @@ public class SellerOrderController {
     }
 
     /**
-     * 배송 관리 - 판매자 주문 목록 조회 (단순화된 버전)
-     * API: GET /v1/sellers/orders/list?page={}&sort={}
-     */
-    @GetMapping("/list")
-    public ResponseEntity<ApiResponse<SellerOrderListResponse>> getSellerOrderList(
-            @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-
-        log.info("판매자 주문 목록 조회 요청 - provider: {}, providerId: {}, page: {}",
-                userPrincipal.provider(), userPrincipal.providerId(), pageable.getPageNumber());
-
-        try {
-            SellerOrderListResponse response = sellerOrderService.getSellerOrders(userPrincipal, pageable);
-            log.info("판매자 주문 목록 조회 완료 - 결과수: {}", response.orders().size());
-
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
-
-        } catch (IllegalArgumentException e) {
-            log.warn("판매자 주문 목록 조회 실패 - 잘못된 요청: {}", e.getMessage());
-            return ResponseEntity
-                    .status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
-
-        } catch (NoSuchElementException e) {
-            log.warn("판매자 주문 목록 조회 실패 - 판매자 없음: {}", e.getMessage());
-            return ResponseEntity
-                    .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
-
-        } catch (Exception e) {
-            log.error("판매자 주문 목록 조회 중 서버 오류", e);
-            return ResponseEntity
-                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "주문 목록 조회 중 서버 오류가 발생했습니다."));
-        }
-    }
-
-    /**
-     * 배송 상태 관리 - 주문 상태 변경 (판매자)
+     * 배송 상태 관리 (판매자)
      * API: POST /v1/sellers/orders/status
      */
     @PostMapping("/status")
@@ -128,7 +142,7 @@ public class SellerOrderController {
         try {
             OrderStatusUpdateResponse response = sellerOrderCommandService.updateOrderStatus(userPrincipal, request);
 
-            log.info("주문 상태 변경 성공 - orderNumber: {}, {} → {}",
+            log.info("주문 상태 변경 성공 - orderNumber: {}, {} -> {}",
                     request.orderNumber(), response.previousStatus(), response.currentStatus());
 
             return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
@@ -288,28 +302,28 @@ public class SellerOrderController {
     }
 
     /**
-     * 주문 목록에서 삭제 (숨김 처리)
-     * API: DELETE /v1/sellers/orders/{order-number}
+     * 주문 내역 삭제 (판매자)
+     * API: DELETE /v1/sellers/orders
      */
-    @DeleteMapping("/{order-number}")
-    public ResponseEntity<ApiResponse<Void>> deleteOrder(
+    @DeleteMapping
+    public ResponseEntity<ApiResponse<String>> deleteOrder(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @PathVariable("order-number") String orderNumber) {
+            @RequestParam("orderNumber") String orderNumber) {
 
         log.info("주문 삭제 요청 - provider: {}, providerId: {}, orderNumber: {}",
                 userPrincipal.provider(), userPrincipal.providerId(), orderNumber);
 
         try {
-            boolean deleted = sellerOrderCommandService.deleteOrder(userPrincipal, orderNumber);
+            boolean result = sellerOrderCommandService.deleteOrder(userPrincipal, orderNumber);
 
-            if (deleted) {
+            if (result) {
                 log.info("주문 삭제 성공 - orderNumber: {}", orderNumber);
-                return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS));
+                return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, "주문이 성공적으로 삭제되었습니다."));
             } else {
-                log.warn("주문 삭제 실패 - orderNumber: {}", orderNumber);
+                log.warn("주문 삭제 실패 - orderNumber: {}, 알 수 없는 오류", orderNumber);
                 return ResponseEntity
-                        .status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                        .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, "주문을 삭제할 수 없습니다."));
+                        .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                        .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "주문 삭제에 실패했습니다."));
             }
 
         } catch (NoSuchElementException e) {
@@ -329,6 +343,47 @@ public class SellerOrderController {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
                     .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "주문 삭제 중 서버 오류가 발생했습니다."));
+        }
+    }
+
+    /**
+     * 상태별 주문 목록 조회 (판매자)
+     * API: GET /v1/sellers/orders/list/by-status?status={}&page={}&sort={}
+     */
+    @GetMapping("/list/by-status")
+    public ResponseEntity<ApiResponse<SellerOrderListResponse>> getSellerOrdersByStatus(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestParam("status") OrderStatus orderStatus,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        log.info("판매자 상태별 주문 목록 조회 요청 - provider: {}, providerId: {}, status: {}, page: {}",
+                userPrincipal.provider(), userPrincipal.providerId(), orderStatus, pageable.getPageNumber());
+
+        try {
+            SellerOrderListResponse response = sellerOrderService.getSellerOrdersByStatus(userPrincipal, orderStatus, pageable);
+
+            log.info("판매자 상태별 주문 목록 조회 성공 - provider: {}, providerId: {}, status: {}, 총 주문수: {}",
+                    userPrincipal.provider(), userPrincipal.providerId(), orderStatus, response.totalElements());
+
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+
+        } catch (NoSuchElementException e) {
+            log.warn("상태별 주문 목록 조회 실패 - 사용자 없음: {}", e.getMessage());
+            return ResponseEntity
+                    .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+
+        } catch (IllegalArgumentException e) {
+            log.warn("상태별 주문 목록 조회 실패 - 잘못된 요청: {}", e.getMessage());
+            return ResponseEntity
+                    .status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+
+        } catch (Exception e) {
+            log.error("상태별 주문 목록 조회 중 서버 오류 - status: {}", orderStatus, e);
+            return ResponseEntity
+                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "주문 목록 조회 중 서버 오류가 발생했습니다."));
         }
     }
 }
