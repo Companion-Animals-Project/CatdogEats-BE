@@ -69,11 +69,6 @@ public class SellerDashboardServiceImpl implements SellerDashboardService {
 
     /**
      * UserPrincipal로 판매자 검증 및 ID 조회
-     * 기존 패턴을 따라 SellersRepository의 findSellerDtoByProviderAndProviderId 활용
-     *
-     * @param userPrincipal 인증된 사용자 정보
-     * @return 판매자 ID (userId)
-     * @throws NoSuchElementException 판매자를 찾을 수 없는 경우
      */
     private String validateAndGetSellerId(UserPrincipal userPrincipal) {
         SellerDTO sellerDTO = sellersRepository.findSellerDtoByProviderAndProviderId(
@@ -103,7 +98,6 @@ public class SellerDashboardServiceImpl implements SellerDashboardService {
         try {
             TodayStatsDTO todayStats = sellerDashboardMapper.findTodayStats(sellerId);
 
-            // null 안전성 보장
             if (todayStats == null) {
                 log.debug("오늘 주문 통계 데이터 없음 - sellerId: {}", sellerId);
                 return TodayStatsDTO.empty();
