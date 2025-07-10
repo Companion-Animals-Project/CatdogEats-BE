@@ -1,6 +1,6 @@
-ARG JAR_FILE=build/libs/*.jar
-
 FROM eclipse-temurin:17-jre-alpine
+
+ARG JAR_FILE=build/libs/*.jar
 
 WORKDIR /app
 
