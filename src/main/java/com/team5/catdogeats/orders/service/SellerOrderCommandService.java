@@ -109,14 +109,12 @@ public interface SellerOrderCommandService {
      * 전체 배송 상태 동기화
      * 판매자의 모든 배송 중(IN_DELIVERY) 주문에 대해 테스트 물류 서버에서 상태를 조회하고,
      * DELIVERED 상태인 주문들을 자동으로 배송 완료로 업데이트합니다.
-     *
      * 프로세스:
      * 1. 판매자 권한 확인
      * 2. 판매자의 IN_DELIVERY 상태 주문 목록 조회
      * 3. 각 주문의 trackingNumber로 물류 서버 API 호출 (GET /api/v1/trackings/{trackingNumber})
      * 4. currentStatus가 'DELIVERED'인 주문들을 DB에서 DELIVERED로 업데이트
      * 5. 동기화 결과 반환
-     *
      * 특징:
      * - 수동 새로고침 방식으로 복잡한 스케줄러 없이 단순하고 효율적
      * - 테스트 목적에 부합하는 실용적 접근

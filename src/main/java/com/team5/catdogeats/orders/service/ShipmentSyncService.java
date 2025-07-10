@@ -13,7 +13,6 @@ public interface ShipmentSyncService {
      * 전체 배송 상태 동기화
      * 판매자의 모든 배송 중(IN_DELIVERY) 주문에 대해 물류 서버에서 상태를 조회하고,
      * DELIVERED 상태인 주문들을 자동으로 배송 완료로 업데이트합니다.
-     *
      * 프로세스:
      * 1. 판매자 권한 확인
      * 2. 판매자의 IN_DELIVERY 상태 주문 목록 조회

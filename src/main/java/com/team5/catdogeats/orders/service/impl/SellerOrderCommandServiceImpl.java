@@ -360,10 +360,8 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
                 }
                 shipment.setTrackingUpdatedAt(ZonedDateTime.now());
             }
-            case CANCELLED -> {
-                // 취소 시 취소 시간 설정
-                shipment.setTrackingUpdatedAt(ZonedDateTime.now());
-            }
+            case CANCELLED -> // 취소 시 취소 시간 설정
+                    shipment.setTrackingUpdatedAt(ZonedDateTime.now());
         }
     }
 
@@ -397,7 +395,7 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
         };
 
         // 지연 처리 여부 및 관련 정보 설정
-        Boolean isDelayed = request.isDelayed() != null ? request.isDelayed() : false;
+        boolean isDelayed = request.isDelayed() != null ? request.isDelayed() : false;
         String delayReason = isDelayed ? request.reason() : null;
         ZonedDateTime expectedDeliveryDate = null;
 
