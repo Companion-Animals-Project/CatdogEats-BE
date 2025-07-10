@@ -1,6 +1,6 @@
 batch:
   withdrawn:
-    cron: "${WITHDRAW_CRON:0 30 2 * * ?}"
+    cron: ${WITHDRAW_CRON:0 30 2 * * ?}
     chunk-size: ${WITHDRAW_CHUNK:1000}
 
   forecast:
@@ -26,6 +26,11 @@ batch:
     # 데이터 관리 설정
     cleanup-old-data-days: ${FORECAST_CLEANUP_DAYS:30}            # 오래된 데이터 정리 기간 (일)
 spring:
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 20MB
+      max-request-size: 20MB
   batch:
     jdbc:
       initialize-schema: always
@@ -132,9 +137,9 @@ spring:
           max-active: 8
           max-idle: 8
           min-idle: 0
-      mongodb:
-        uri: ${MONGO_URL}
-        database: ${MONGO_DATABASE}
+    mongodb:
+      uri: ${MONGO_URL}
+      database: ${MONGO_DATABASE}
   rabbitmq:
     host: localhost
     port: 5672
@@ -229,3 +234,6 @@ admin:
 app:
   admin:
     base-url: ${APP_BASE_URL}  # 이메일 링크용 (운영 도메인)
+
+websocket:
+  endpoint: /v1/users/chat
