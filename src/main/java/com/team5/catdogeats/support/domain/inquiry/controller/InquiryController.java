@@ -5,6 +5,7 @@ import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.support.domain.inquiry.dto.request.InquiryCreateRequestDTO;
 import com.team5.catdogeats.support.domain.inquiry.dto.request.InquiryUserCloseRequestDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.request.InquiryUserFollowupRequestDTO;
 import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryDetailResponseDTO;
 import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryListResponseDTO;
 import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryResponseDTO;
@@ -15,8 +16,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -33,7 +32,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @RestController
@@ -149,23 +147,21 @@ public class InquiryController {
                     + "이미지 파일 첨부 가능 (JPG, PNG, WebP, 최대 5MB)"
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> createInquiry(
-            @Parameter(description = "문의 등록 정보")
-            @Valid @ModelAttribute InquiryCreateRequestDTO request,
-            @RequestParam(value = "images", required = false)
-            @Parameter(description = "첨부 이미지 파일들 (선택사항, 최대 5개)")
-            MultipartFile[] imageFiles) {
+            @Parameter(description = "문의 등록 정보 (파일 포함)")
+            @Valid @ModelAttribute InquiryCreateRequestDTO request) {
 
         try {
             // SecurityContextHolder 에서 직접 사용자 정보 추출
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             String providerId = extractProviderIdFromAuth(auth);
 
+            // 확장된 DTO 에서 직접 파일 정보 추출
             InquiryResponseDTO response = inquiryService.createInquiryWithFiles(
-                    request, imageFiles, providerId);
+                    request, request.imageFiles(), providerId);
 
             log.info("문의 등록 완료 - inquiryId: {}, providerId: {}, 파일 수: {}",
                     response.inquiryId(), providerId,
-                    imageFiles != null ? imageFiles.length : 0);
+                    request.imageFiles() != null ? request.imageFiles().length : 0);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
                     ApiResponse.success(ResponseCode.CREATED, response)
@@ -192,24 +188,11 @@ public class InquiryController {
     @Operation(
             summary = "문의 답글 등록",
             description = "사용자가 답글을 등록합니다. 파일 첨부는 선택사항입니다.<br/>" +
-                    "• 텍스트만: inquiryId, content만 전송<br/>" +
-                    "• 파일 포함: inquiryId, content + images 파일 전송"
+                    "이미지 파일 첨부 가능 (JPG, PNG, WebP, 최대 5MB)"
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> createFollowup(
-            @Parameter(description = "문의 ID", required = true)
-            @RequestParam("inquiryId")
-            @NotBlank(message = "문의 ID는 필수입니다")
-            String inquiryId,
-
-            @Parameter(description = "답글 내용", required = true)
-            @RequestParam("content")
-            @NotBlank(message = "내용은 필수입니다")
-            @Size(min = 5, max = 2000, message = "내용은 5자 이상 2,000자 이하로 입력해주세요")
-            String content,
-
-            @Parameter(description = "첨부 이미지 파일들 (선택사항)")
-            @RequestParam(value = "images", required = false)
-            MultipartFile[] imageFiles) {
+            @Parameter(description = "답글 등록 정보 (파일 포함)")
+            @Valid @ModelAttribute InquiryUserFollowupRequestDTO request) {
 
         String providerId = null;
         try {
@@ -217,39 +200,40 @@ public class InquiryController {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             providerId = extractProviderIdFromAuth(auth);
 
+            // 확장된 DTO 에서 직접 파일 정보 추출
             InquiryResponseDTO response = inquiryService.createUserFollowupWithFiles(
-                    inquiryId, content, imageFiles, providerId);
+                    request.inquiryId(), request.content(), request.imageFiles(), providerId);
 
             log.info("사용자 답글 등록 완료 - inquiryId: {}, providerId: {}, 파일 수: {}",
-                    inquiryId, providerId,
-                    imageFiles != null ? imageFiles.length : 0);
+                    request.inquiryId(), providerId,
+                    request.imageFiles() != null ? request.imageFiles().length : 0);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
                     ApiResponse.success(ResponseCode.CREATED, response)
             );
 
         } catch (EntityNotFoundException e) {
-            log.warn("문의를 찾을 수 없음 - inquiryId: {}", inquiryId);
+            log.warn("문의를 찾을 수 없음 - inquiryId: {}", request.inquiryId());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                     ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
             );
         } catch (AccessDeniedException e) {
-            log.warn("접근 권한 없음 - inquiryId: {}, providerId: {}", inquiryId, providerId);
+            log.warn("접근 권한 없음 - inquiryId: {}, providerId: {}", request.inquiryId(), providerId);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
                     ApiResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage())
             );
         } catch (IllegalStateException e) {
-            log.warn("종료된 문의에 답글 시도 - inquiryId: {}", inquiryId);
+            log.warn("종료된 문의에 답글 시도 - inquiryId: {}", request.inquiryId());
             return ResponseEntity.badRequest().body(
                     ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (IllegalArgumentException e) {
-            log.warn("답글 등록 실패 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
+            log.warn("답글 등록 실패 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.badRequest().body(
                     ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
-            log.error("답글 등록 중 서버 오류 - inquiryId: {}", inquiryId, e);
+            log.error("답글 등록 중 서버 오류 - inquiryId: {}", request.inquiryId(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                     ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );

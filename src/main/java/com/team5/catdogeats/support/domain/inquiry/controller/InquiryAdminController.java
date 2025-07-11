@@ -18,8 +18,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -33,7 +31,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @RestController
@@ -151,61 +148,52 @@ public class InquiryAdminController {
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> createReply(
             HttpSession session,
-            @Parameter(description = "문의 ID")
-            @RequestParam("inquiryId")
-            @NotBlank(message = "문의 ID는 필수입니다") String inquiryId,
-
-            @Parameter(description = "답변 내용")
-            @RequestParam("content")
-            @NotBlank(message = "답변 내용은 필수입니다")
-            @Size(max = 2000, message = "답변 내용은 2,000자를 초과할 수 없습니다") String content,
-
-            @RequestParam(value = "images", required = false)
-            @Parameter(description = "첨부 이미지 파일들 (선택사항)")
-            MultipartFile[] imageFiles,
-
-            @RequestParam(value = "documents", required = false)
-            @Parameter(description = "첨부 문서 파일들 (선택사항)")
-            MultipartFile[] documentFiles) {
+            @Parameter(description = "답변 등록 정보 (파일 포함)")
+            @Valid @ModelAttribute InquiryReplyRequestDTO request) {
 
         try {
             // 세션에서 관리자 정보 가져오기
             AdminInfo adminInfo = controllerUtils.requireSessionInfo(session);
             String adminId = adminInfo.adminId();
 
+            // 확장된 DTO 에서 직접 파일 정보 추출
             InquiryResponseDTO response = inquiryService.createAdminReplyWithFiles(
-                    inquiryId, content, imageFiles, documentFiles, adminId);
+                    request.inquiryId(),
+                    request.content(),
+                    request.imageFiles(),
+                    request.documentFiles(),
+                    adminId);
 
             log.info("관리자 답변 등록 완료 - inquiryId: {}, adminId: {}, adminName: {}, 이미지: {}, 문서: {}",
-                    inquiryId, adminId, adminInfo.name(),
-                    imageFiles != null ? imageFiles.length : 0,
-                    documentFiles != null ? documentFiles.length : 0);
+                    request.inquiryId(), adminId, adminInfo.name(),
+                    request.imageFiles() != null ? request.imageFiles().length : 0,
+                    request.documentFiles() != null ? request.documentFiles().length : 0);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
                     ApiResponse.success(ResponseCode.CREATED, response)
             );
         } catch (BadCredentialsException e) {
-            log.warn("관리자 로그인 필요 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
+            log.warn("관리자 로그인 필요 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                     ApiResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
             );
         } catch (EntityNotFoundException e) {
-            log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
+            log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                     ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
             );
         } catch (IllegalStateException e) {
-            log.warn("종료된 문의에 답변 시도 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
+            log.warn("종료된 문의에 답변 시도 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.badRequest().body(
                     ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (IllegalArgumentException e) {
-            log.warn("관리자 답변 등록 실패 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
+            log.warn("관리자 답변 등록 실패 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.badRequest().body(
                     ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
-            log.error("관리자 답변 등록 중 서버 오류 - inquiryId: {}", inquiryId, e);
+            log.error("관리자 답변 등록 중 서버 오류 - inquiryId: {}", request.inquiryId(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                     ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
