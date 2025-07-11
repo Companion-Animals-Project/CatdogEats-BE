@@ -1,42 +1,58 @@
 package com.team5.catdogeats.admins.controller;
 
+import com.team5.catdogeats.admins.domain.dto.AdminInfo;
 import com.team5.catdogeats.admins.domain.dto.ReportDetailResponseDto;
 import com.team5.catdogeats.admins.domain.dto.ReportSearchDto;
 import com.team5.catdogeats.admins.domain.dto.ReportStatusUpdateDto;
 import com.team5.catdogeats.admins.service.AdminReportService;
-import com.team5.catdogeats.auth.dto.UserPrincipal;
+import com.team5.catdogeats.admins.util.AdminControllerUtils;
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.support.domain.dto.PageResponseDto;
 import com.team5.catdogeats.support.domain.dto.ReportListResponseDto;
 import com.team5.catdogeats.support.domain.enums.ReportStatus;
 import com.team5.catdogeats.support.domain.enums.ReportType;
-import com.team5.catdogeats.users.domain.Users;
-import com.team5.catdogeats.users.repository.UserRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.ZonedDateTime;
 
-@RestController
+@Controller
 @RequestMapping("/v1/admin")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "Admin Report", description = "관리자 신고 관리 API")
 public class AdminReportController {
 
     private final AdminReportService adminReportService;
-    private final UserRepository userRepository;
+    private final AdminControllerUtils controllerUtils;
 
-    // 신고 목록 조회
+    // 신고 관리 페이지 표시
+    @GetMapping("/reports")
+    public String showReportsPage(HttpSession session, Model model) {
+        String redirectResult = controllerUtils.checkFirstLoginRedirect(session);
+        if (redirectResult != null) {
+            return redirectResult;
+        }
+
+        AdminInfo sessionInfo = controllerUtils.requireSessionInfo(session);
+        model.addAttribute("admin", sessionInfo);
+        return "thymeleaf/administratorPage_reportManage"; // 신고 관리 페이지 템플릿
+    }
+
+    // 신고 목록 조회 API
     @GetMapping("/reports/list")
-    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseBody
+    @Operation(summary = "신고 목록 조회", description = "관리자가 신고 목록을 조회합니다.")
     public ResponseEntity<ApiResponse<PageResponseDto<ReportListResponseDto>>> getReports(
             @RequestParam(required = false) String reportType,
             @RequestParam(required = false) String status,
@@ -46,21 +62,23 @@ public class AdminReportController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sort,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+            HttpSession session) {
 
         try {
-            String adminId = getUserIdFromPrincipal(userPrincipal);
+            // 세션에서 관리자 정보 조회
+            AdminInfo adminInfo = controllerUtils.requireSessionInfo(session);
+            String adminId = adminInfo.adminId();
 
-            log.info("관리자 신고 목록 조회: adminId={}, page={}, size={}", adminId, page, size);
+            log.info("관리자 신고 목록 조회: adminId={}, email={}, page={}, size={}",
+                    adminId, adminInfo.email(), page, size);
 
             // 검색 조건 DTO 생성
             ReportSearchDto searchDto = ReportSearchDto.builder()
                     .reportType(reportType != null ? ReportType.valueOf(reportType.toUpperCase()) : null)
                     .status(status != null ? ReportStatus.valueOf(status.toUpperCase()) : null)
                     .keyword(keyword)
-                    .startDate(startDate != null ? LocalDate.parse(startDate).atStartOfDay(ZoneId.systemDefault()) : null)
-                    .endDate(endDate != null ? LocalDate.parse(endDate).atTime(23, 59, 59).atZone(ZoneId.systemDefault()) : null)
-                    .page(page)
+                    .startDate(startDate != null ? ZonedDateTime.parse(startDate + "T00:00:00Z") : null)
+                    .endDate(endDate != null ? ZonedDateTime.parse(endDate + "T23:59:59Z") : null).page(page)
                     .size(size)
                     .sort(sort)
                     .build();
@@ -83,17 +101,21 @@ public class AdminReportController {
         }
     }
 
-    // 신고 상세 조회
+    // 신고 상세 조회 API
     @GetMapping("/reports/{report-id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseBody
+    @Operation(summary = "신고 상세 조회", description = "관리자가 특정 신고의 상세 정보를 조회합니다.")
     public ResponseEntity<ApiResponse<ReportDetailResponseDto>> getReportDetail(
             @PathVariable("report-id") String reportId,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+            HttpSession session) {
 
         try {
-            String adminId = getUserIdFromPrincipal(userPrincipal);
+            // 세션에서 관리자 정보 조회
+            AdminInfo adminInfo = controllerUtils.requireSessionInfo(session);
+            String adminId = adminInfo.adminId();
 
-            log.info("신고 상세 조회: reportId={}, adminId={}", reportId, adminId);
+            log.info("신고 상세 조회: reportId={}, adminId={}, email={}",
+                    reportId, adminId, adminInfo.email());
 
             ReportDetailResponseDto report = adminReportService.getReportDetail(reportId);
 
@@ -113,19 +135,22 @@ public class AdminReportController {
         }
     }
 
-    // 신고 상태 처리
+    // 신고 상태 처리 API
     @PostMapping("/reports/status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseBody
+    @Operation(summary = "신고 상태 변경", description = "관리자가 신고의 상태를 변경합니다.")
     public ResponseEntity<ApiResponse<Void>> updateReportStatus(
             @RequestParam String reportId,
             @Valid @RequestBody ReportStatusUpdateDto updateDto,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+            HttpSession session) {
 
         try {
-            String adminId = getUserIdFromPrincipal(userPrincipal);
+            // 세션에서 관리자 정보 조회
+            AdminInfo adminInfo = controllerUtils.requireSessionInfo(session);
+            String adminId = adminInfo.adminId();
 
-            log.info("신고 상태 변경 요청: reportId={}, 상태={}, adminId={}",
-                    reportId, updateDto.reportStatus(), adminId);
+            log.info("신고 상태 변경 요청: reportId={}, 상태={}, adminId={}, email={}",
+                    reportId, updateDto.reportStatus(), adminId, adminInfo.email());
 
             adminReportService.updateReportStatus(reportId, updateDto, adminId);
 
@@ -145,34 +170,5 @@ public class AdminReportController {
             return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
                     .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 상태 변경 중 오류가 발생했습니다."));
         }
-    }
-
-    // === 헬퍼 메서드 ===
-
-    // UserPrincipal에서 실제 사용자 ID 추출
-    // provider + providerId로 Users 테이블에서 사용자 조회
-    private String getUserIdFromPrincipal(UserPrincipal userPrincipal) {
-        if (userPrincipal == null) {
-            throw new IllegalStateException("인증 정보가 없습니다.");
-        }
-
-        log.debug("관리자 조회: provider={}, providerId={}",
-                userPrincipal.provider(), userPrincipal.providerId());
-
-        // provider + providerId로 사용자 조회
-        Users user = userRepository.findByProviderAndProviderId(
-                userPrincipal.provider(),
-                userPrincipal.providerId()
-        ).orElseThrow(() -> {
-            log.warn("관리자를 찾을 수 없음: provider={}, providerId={}",
-                    userPrincipal.provider(), userPrincipal.providerId());
-            return new EntityNotFoundException(
-                    String.format("관리자를 찾을 수 없습니다. (provider: %s, providerId: %s)",
-                            userPrincipal.provider(), userPrincipal.providerId())
-            );
-        });
-
-        log.debug("관리자 조회 성공: userId={}, name={}", user.getId(), user.getName());
-        return user.getId();
     }
 }
