@@ -70,7 +70,7 @@ dependencies {
 	implementation 'org.springframework.retry:spring-retry'
 
 	implementation 'org.springframework.boot:spring-boot-starter-mail'  // 이메일 발송용 추가
-//	implementation 'org.springframework.session:spring-session-data-redis'  // Redis 세션 추가
+	implementation 'org.springframework.session:spring-session-data-redis'  // Redis 세션 추가
 
 }
 

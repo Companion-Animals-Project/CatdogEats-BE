@@ -1,6 +1,6 @@
 package com.team5.catdogeats.storage.service;
 
-import com.team5.catdogeats.support.domain.inquiry.dto.InquiryAttachmentDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryAttachmentDTO;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 

@@ -4,7 +4,7 @@ import com.team5.catdogeats.support.domain.Inquires;
 import com.team5.catdogeats.support.domain.enums.InquiryStatus;
 import com.team5.catdogeats.support.domain.enums.InquiryType;
 import com.team5.catdogeats.support.domain.enums.InquiryUrgentLevel;
-import com.team5.catdogeats.support.domain.inquiry.dto.InquirySearchRequestDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.request.InquirySearchRequestDTO;
 import jakarta.persistence.criteria.JoinType;
 import org.springframework.data.jpa.domain.Specification;
 

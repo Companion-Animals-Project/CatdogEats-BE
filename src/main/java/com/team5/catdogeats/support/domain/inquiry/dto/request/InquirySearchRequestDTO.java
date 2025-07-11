@@ -1,4 +1,4 @@
-package com.team5.catdogeats.support.domain.inquiry.dto;
+package com.team5.catdogeats.support.domain.inquiry.dto.request;
 
 import com.team5.catdogeats.support.domain.enums.InquiryStatus;
 import com.team5.catdogeats.support.domain.enums.InquiryType;
