@@ -3,7 +3,6 @@ package com.team5.catdogeats.users.repository;
 import com.team5.catdogeats.users.domain.dto.BuyerDTO;
 import com.team5.catdogeats.users.domain.mapping.Buyers;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -27,10 +26,4 @@ public interface BuyerRepository extends JpaRepository<Buyers, String> {
             @Param("provider") String provider,
             @Param("providerId") String providerId
     );
-
-    //리뷰작성시 이름 마스킹 여부 상태 변경
-    @Modifying
-    @Query("UPDATE Buyers SET nameMaskingStatus = CASE WHEN nameMaskingStatus = true THEN false ELSE true END WHERE userId = :userId")
-    void changeNameMaskingStatus(@Param("userId") String userId);
-
 }
