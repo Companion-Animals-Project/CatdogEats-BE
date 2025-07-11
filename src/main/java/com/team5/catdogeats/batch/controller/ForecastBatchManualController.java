@@ -2,7 +2,7 @@ package com.team5.catdogeats.batch.controller;
 
 import com.team5.catdogeats.batch.scheduler.ForecastBatchScheduler;
 import com.team5.catdogeats.batch.service.ForecastBatchConcurrencyService;
-import com.team5.catdogeats.batch.service.ForecastBatchExecutionService.BatchExecutionResult;
+import com.team5.catdogeats.batch.service.impl.ForecastBatchExecutionServiceImpl.BatchExecutionResult;
 import com.team5.catdogeats.batch.ForecastBatchExecutionStatus;
 import com.team5.catdogeats.forecast.service.DailySalesAggregationService;
 import io.swagger.v3.oas.annotations.Operation;
