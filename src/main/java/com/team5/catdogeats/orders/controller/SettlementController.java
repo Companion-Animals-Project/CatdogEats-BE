@@ -1,7 +1,7 @@
 package com.team5.catdogeats.orders.controller;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.orders.domain.dto.MonthlySettlementReceiptDto;
 import com.team5.catdogeats.orders.domain.dto.MonthlySettlementStatusDto;
@@ -45,7 +45,7 @@ public class SettlementController {
             summary = "전체 정산 리스트 조회",
             description = "판매자의 전체 정산 내역을 페이징으로 조회합니다. (Settlement 테이블 데이터만, 배송완료 후 7일 지난 데이터)"
     )
-    public ResponseEntity<ApiResponse<SettlementListResponseDto>> getSettlementList(
+    public ResponseEntity<APIResponse<SettlementListResponseDto>> getSettlementList(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @PageableDefault(size = 20) Pageable pageable) {
 
@@ -59,22 +59,22 @@ public class SettlementController {
             log.info("전체 정산 리스트 조회 성공 - 총건수: {}, 현재페이지건수: {}",
                     response.settlements().getTotalElements(), response.settlements().getNumberOfElements());
 
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
 
         } catch (NoSuchElementException e) {
             log.warn("정산 리스트 조회 실패 - 판매자를 찾을 수 없음: {}", e.getMessage());
             return ResponseEntity.status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
 
         } catch (IllegalArgumentException e) {
             log.warn("정산 리스트 조회 실패 - 잘못된 요청: {}", e.getMessage());
             return ResponseEntity.status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
 
         } catch (Exception e) {
             log.error("정산 리스트 조회 중 예상치 못한 오류", e);
             return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "정산 리스트 조회 중 서버 오류가 발생했습니다"));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "정산 리스트 조회 중 서버 오류가 발생했습니다"));
         }
     }
 
@@ -86,7 +86,7 @@ public class SettlementController {
             summary = "기간별 정산 리스트 조회",
             description = "판매자의 지정 기간 정산 내역을 페이징으로 조회합니다. (Settlement 테이블 데이터만)"
     )
-    public ResponseEntity<ApiResponse<SettlementListResponseDto>> getSettlementListByPeriod(
+    public ResponseEntity<APIResponse<SettlementListResponseDto>> getSettlementListByPeriod(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody SettlementPeriodRequestDTO periodRequest,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -103,22 +103,22 @@ public class SettlementController {
             log.info("기간별 정산 리스트 조회 성공 - 총건수: {}, 현재페이지건수: {}",
                     response.settlements().getTotalElements(), response.settlements().getNumberOfElements());
 
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
 
         } catch (NoSuchElementException e) {
             log.warn("기간별 정산 리스트 조회 실패 - 판매자를 찾을 수 없음: {}", e.getMessage());
             return ResponseEntity.status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
 
         } catch (IllegalArgumentException e) {
             log.warn("기간별 정산 리스트 조회 실패 - 잘못된 요청: {}", e.getMessage());
             return ResponseEntity.status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
 
         } catch (Exception e) {
             log.error("기간별 정산 리스트 조회 중 예상치 못한 오류", e);
             return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "기간별 정산 리스트 조회 중 서버 오류가 발생했습니다"));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "기간별 정산 리스트 조회 중 서버 오류가 발생했습니다"));
         }
     }
 
@@ -133,7 +133,7 @@ public class SettlementController {
             summary = "이번달 정산현황 조회",
             description = "판매자의 이번달 정산현황(총금액, 완료금액, 처리중금액)을 조회합니다. (Settlement 테이블 데이터만)"
     )
-    public ResponseEntity<ApiResponse<MonthlySettlementStatusDto>> getMonthlySettlementStatus(
+    public ResponseEntity<APIResponse<MonthlySettlementStatusDto>> getMonthlySettlementStatus(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
         try {
@@ -145,22 +145,22 @@ public class SettlementController {
             log.info("이번달 정산현황 조회 성공 - 총금액: {}, 완료금액: {}, 처리중금액: {}",
                     response.totalMonthlyAmount(), response.completedAmount(), response.inProgressAmount());
 
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
 
         } catch (NoSuchElementException e) {
             log.warn("이번달 정산현황 조회 실패 - 판매자를 찾을 수 없음: {}", e.getMessage());
             return ResponseEntity.status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
 
         } catch (IllegalArgumentException e) {
             log.warn("이번달 정산현황 조회 실패 - 잘못된 요청: {}", e.getMessage());
             return ResponseEntity.status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
 
         } catch (Exception e) {
             log.error("이번달 정산현황 조회 중 예상치 못한 오류", e);
             return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "이번달 정산현황 조회 중 서버 오류가 발생했습니다"));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "이번달 정산현황 조회 중 서버 오류가 발생했습니다"));
         }
     }
 
@@ -172,7 +172,7 @@ public class SettlementController {
             summary = "월별 정산내역 영수증 조회",
             description = "판매자의 특정 월 정산내역 영수증을 조회합니다. (CSV Export용, Settlement 테이블 데이터만)"
     )
-    public ResponseEntity<ApiResponse<MonthlySettlementReceiptDto>> getMonthlySettlementReceipt(
+    public ResponseEntity<APIResponse<MonthlySettlementReceiptDto>> getMonthlySettlementReceipt(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "대상 년월 (YYYY-MM 형식)", example = "2024-12")
             @PathVariable String targetMonth) {
@@ -190,27 +190,27 @@ public class SettlementController {
             log.info("월별 정산내역 영수증 조회 성공 - 대상월: {}, 아이템수: {}",
                     targetMonth, response.items().size());
 
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
 
         } catch (DateTimeParseException e) {
             log.warn("월별 정산내역 영수증 조회 실패 - 잘못된 날짜 형식: {}", targetMonth);
             return ResponseEntity.status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, "날짜 형식이 올바르지 않습니다. YYYY-MM 형식으로 입력해주세요"));
+                    .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, "날짜 형식이 올바르지 않습니다. YYYY-MM 형식으로 입력해주세요"));
 
         } catch (NoSuchElementException e) {
             log.warn("월별 정산내역 영수증 조회 실패 - 판매자를 찾을 수 없음: {}", e.getMessage());
             return ResponseEntity.status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
 
         } catch (IllegalArgumentException e) {
             log.warn("월별 정산내역 영수증 조회 실패 - 잘못된 요청: {}", e.getMessage());
             return ResponseEntity.status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
 
         } catch (Exception e) {
             log.error("월별 정산내역 영수증 조회 중 예상치 못한 오류", e);
             return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "월별 정산내역 영수증 조회 중 서버 오류가 발생했습니다"));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "월별 정산내역 영수증 조회 중 서버 오류가 발생했습니다"));
         }
     }
 }

@@ -5,7 +5,7 @@ import com.team5.catdogeats.batch.domain.SettlementBatchExecutionStatus;
 import com.team5.catdogeats.batch.scheduler.SettlementChunkBatchScheduler;
 import com.team5.catdogeats.batch.service.BatchConcurrencyService;
 import com.team5.catdogeats.batch.service.SettlementBatchExecutionServiceImpl.BatchExecutionResult;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.batch.mapper.SettlementChunkMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,7 +42,7 @@ public class SettlementChunkBatchAdminController {
             summary = "정산 청크 일일 배치 수동 실행",
             description = "정산 데이터 생성 및 상태 갱신 청크 배치를 수동으로 실행합니다. (성능 최적화된 버전)"
     )
-    public ResponseEntity<ApiResponse<Map<String, Object>>> runChunkDailyBatch() {
+    public ResponseEntity<APIResponse<Map<String, Object>>> runChunkDailyBatch() {
         try {
             log.info("관리자 요청 - 정산 청크 일일 배치 수동 실행");
 
@@ -68,16 +68,16 @@ public class SettlementChunkBatchAdminController {
             );
 
             if (result.isSuccess()) {
-                return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+                return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
             } else {
                 return ResponseEntity.internalServerError()
-                        .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, response.toString()));
+                        .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, response.toString()));
             }
 
         } catch (Exception e) {
             log.error("정산 청크 일일 배치 수동 실행 실패", e);
             return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
                             "정산 청크 일일 배치 실행 실패: " + e.getMessage()));
         }
     }
@@ -90,7 +90,7 @@ public class SettlementChunkBatchAdminController {
             summary = "정산 청크 월간 완료 배치 수동 실행",
             description = "처리중인 정산들을 완료 상태로 변경하는 청크 배치를 수동으로 실행합니다."
     )
-    public ResponseEntity<ApiResponse<Map<String, Object>>> runChunkMonthlyBatch() {
+    public ResponseEntity<APIResponse<Map<String, Object>>> runChunkMonthlyBatch() {
         try {
             log.info("관리자 요청 - 정산 청크 월간 완료 배치 수동 실행");
 
@@ -113,16 +113,16 @@ public class SettlementChunkBatchAdminController {
             );
 
             if (result.isSuccess()) {
-                return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+                return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
             } else {
                 return ResponseEntity.internalServerError()
-                        .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, response.toString()));
+                        .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, response.toString()));
             }
 
         } catch (Exception e) {
             log.error("정산 청크 월간 완료 배치 수동 실행 실패", e);
             return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
                             "정산 청크 월간 완료 배치 실행 실패: " + e.getMessage()));
         }
     }
@@ -135,7 +135,7 @@ public class SettlementChunkBatchAdminController {
             summary = "정산 청크 배치 현황 조회",
             description = "정산 청크 배치 처리 대상 건수, 실행 상태 및 성능 정보를 조회합니다."
     )
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getChunkBatchStatus() {
+    public ResponseEntity<APIResponse<Map<String, Object>>> getChunkBatchStatus() {
         try {
             log.info("정산 청크 배치 현황 조회 요청");
 
@@ -182,12 +182,12 @@ public class SettlementChunkBatchAdminController {
                     )
             );
 
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, result));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, result));
 
         } catch (Exception e) {
             log.error("정산 청크 배치 현황 조회 실패", e);
             return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
                             "정산 청크 배치 현황 조회 실패: " + e.getMessage()));
         }
     }
@@ -200,7 +200,7 @@ public class SettlementChunkBatchAdminController {
             summary = "배치 실행 락 강제 해제",
             description = "특정 배치의 실행 락을 강제로 해제합니다. (관리자 전용 - 주의해서 사용)"
     )
-    public ResponseEntity<ApiResponse<Map<String, Object>>> forceReleaseLock(
+    public ResponseEntity<APIResponse<Map<String, Object>>> forceReleaseLock(
             @Parameter(description = "배치 이름", example = "SETTLEMENT_CREATE")
             @PathVariable String batchName) {
         try {
@@ -211,7 +211,7 @@ public class SettlementChunkBatchAdminController {
 
             if (currentStatus.isEmpty()) {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponse.error(ResponseCode.INVALID_TYPE_VALUE,
+                        .body(APIResponse.error(ResponseCode.INVALID_TYPE_VALUE,
                                 "존재하지 않는 배치 이름: " + batchName));
             }
 
@@ -228,12 +228,12 @@ public class SettlementChunkBatchAdminController {
                     "releasedAt", System.currentTimeMillis()
             );
 
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, result));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, result));
 
         } catch (Exception e) {
             log.error("배치 락 강제 해제 실패 - batchName: {}", batchName, e);
             return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
                             "배치 락 강제 해제 실패: " + e.getMessage()));
         }
     }
@@ -246,7 +246,7 @@ public class SettlementChunkBatchAdminController {
             summary = "정산 청크 배치 설정 조회",
             description = "현재 적용된 정산 청크 배치 설정값들을 조회합니다."
     )
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getBatchConfiguration() {
+    public ResponseEntity<APIResponse<Map<String, Object>>> getBatchConfiguration() {
         try {
             Map<String, Object> config = Map.of(
                     "chunkProcessing", Map.of(
@@ -276,12 +276,12 @@ public class SettlementChunkBatchAdminController {
                     )
             );
 
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, config));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, config));
 
         } catch (Exception e) {
             log.error("배치 설정 조회 실패", e);
             return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
                             "배치 설정 조회 실패: " + e.getMessage()));
         }
     }
