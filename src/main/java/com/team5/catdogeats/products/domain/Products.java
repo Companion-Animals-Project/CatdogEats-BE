@@ -111,7 +111,7 @@ public class Products extends BaseEntity {
                 .discounted(dto.isDiscounted())
                 .discountRate(dto.discountRate())
                 .price(dto.price())
-                .discountedPrice(dto.isDiscounted() != true ? (long) (dto.price() * (dto.discountRate() * 0.01)) : dto.price())
+                .discountedPrice(dto.isDiscounted() ? (long) (dto.price() * (1 - dto.discountRate() * 0.01)) : dto.price())
                 .leadTime(dto.leadTime())
                 .stock(dto.stock())
                 .safetyStock(dto.stock()/2)

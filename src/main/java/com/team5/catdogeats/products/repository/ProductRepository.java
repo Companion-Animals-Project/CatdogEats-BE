@@ -3,8 +3,8 @@ package com.team5.catdogeats.products.repository;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.domain.dto.MainProductProjection;
 import com.team5.catdogeats.products.domain.dto.ProductDetailProjection;
+import com.team5.catdogeats.products.domain.dto.ProductInventoryProjection;
 import com.team5.catdogeats.products.domain.dto.ProductListProjection;
-import com.team5.catdogeats.users.domain.mapping.Sellers;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -365,8 +365,8 @@ public interface ProductRepository extends JpaRepository<Products, String> {
     @Modifying(clearAutomatically = true)
     @Query("""
     UPDATE Products p
-    SET p.stock =: stock
-    WHERE p.id =: id
+    SET p.stock =:stock
+    WHERE p.id =:id
     """)
     void updateStock(@Param("id") String id,
                      @Param("stock") int stock);
@@ -383,4 +383,33 @@ public interface ProductRepository extends JpaRepository<Products, String> {
     Optional<Products> findProductsByIdAndProviderId(@Param("id") String id,
                                              @Param("provider") String provider,
                                              @Param("providerId") String providerId);
+
+    @Query("""
+        SELECT p.id AS id,
+               p.title AS title,
+               p.productNumber AS productNumber,
+               p.stock AS stock,
+               p.safetyStock AS safetyStock,
+               p.price AS price,
+               p.discountedPrice AS discountedPrice,
+               p.discounted AS discounted
+        FROM Products p
+        """)
+    Page<ProductInventoryProjection> findProducts(Pageable pageable);
+
+    @Query("""
+    SELECT p.id AS id,
+           p.title AS title,
+           p.productNumber AS productNumber,
+           p.stock AS stock,
+           p.safetyStock AS safetyStock,
+           p.price AS price,
+           p.discountedPrice AS discountedPrice,
+           p.discounted AS discounted
+    FROM Products p
+    WHERE lower(p.title) LIKE lower(concat('%', :keyword, '%'))
+       OR lower(p.subTitle) LIKE lower(concat('%', :keyword, '%'))
+    """)
+    Page<ProductInventoryProjection> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
+
 }

@@ -35,8 +35,8 @@ public class ProductController {
     private final ProductService productService;
     private final InventoryAdjustmentService inventoryAdjustmentService;
 
-    @GetMapping("/sellers/products/inventory")
-    public ResponseEntity<ApiResponse<Page<InventoryAdjustmentProjection>>> list(
+    @GetMapping("/sellers/products/inventory/record")
+    public ResponseEntity<ApiResponse<Page<InventoryAdjustmentProjection>>> updateList(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestParam(defaultValue="0") int page,
             @RequestParam(defaultValue="10") int size) {
@@ -48,6 +48,43 @@ public class ProductController {
         }
         try {
             return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS,inventoryAdjustmentService.adjustment(userPrincipal, page, size)));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(ResponseCode.ACCESS_DENIED));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+        }
+    }
+
+    @PostMapping("/sellers/products/inventory/record")
+    public ResponseEntity<ApiResponse<Void>> updateList(
+            @AuthenticationPrincipal UserPrincipal userPrincipal, @RequestBody @Valid AdjustmentRequestDTO dto) {
+        if (userPrincipal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
+        }
+        try {
+            inventoryAdjustmentService.updateAdjustment(userPrincipal, dto);
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(ResponseCode.ACCESS_DENIED));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+        }
+    }
+
+    @GetMapping("/sellers/products/inventory/List")
+    public ResponseEntity<ApiResponse<Page<ProductInventoryProjection>>> list(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestParam(required = false) String title,
+            @RequestParam(defaultValue="0") int page,
+            @RequestParam(defaultValue="10") int size) {
+        if (userPrincipal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
+        }
+        if (page < 0) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE));
+        }
+        try {
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS,inventoryAdjustmentService.productInventoryList(userPrincipal, page, size, title)));
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(ResponseCode.ACCESS_DENIED));
         } catch (Exception e) {
