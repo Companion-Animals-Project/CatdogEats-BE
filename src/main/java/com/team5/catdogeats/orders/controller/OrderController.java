@@ -9,10 +9,12 @@ import com.team5.catdogeats.orders.dto.response.BuyerOrderListResponse;
 import com.team5.catdogeats.orders.dto.response.OrderCreateResponse;
 import com.team5.catdogeats.orders.dto.response.OrderDeleteResponse;
 import com.team5.catdogeats.orders.dto.response.OrderDetailResponse;
+import com.team5.catdogeats.orders.service.BuyerOrderQueryService;
 import com.team5.catdogeats.orders.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
@@ -34,6 +36,8 @@ import java.util.NoSuchElementException;
 public class OrderController {
 
     private final OrderService orderService;
+    private final BuyerOrderQueryService buyerOrderQueryService;
+
 
     /**
      * 주문 생성 (구매자) - 기존 메서드 유지
