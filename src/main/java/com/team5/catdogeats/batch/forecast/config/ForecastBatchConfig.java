@@ -27,7 +27,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import java.time.LocalDate;
 
 /**
- * 수요예측 Spring Batch 설정 (기존 서비스 로직 통합 버전)
+ * 수요예측 Spring Batch 설정
  * DemandForecastService와 DailySalesAggregationService를 활용
  */
 @Slf4j
