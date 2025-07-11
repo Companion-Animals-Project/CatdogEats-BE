@@ -99,7 +99,6 @@ jobs:
           mkdir -p deploy/.platform/nginx/conf.d
           cp Dockerrun.aws.json deploy/Dockerrun.aws.json
           cp .platform/nginx/conf.d/*.conf deploy/.platform/nginx/conf.d/
-          cp .platform/nginx/nginx.conf deploy/.platform/nginx/
           cd deploy && zip -r deploy.zip .
 
 
