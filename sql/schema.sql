@@ -614,36 +614,3 @@ CREATE TABLE public.demand_forecasts
     updated_at              timestamp(6) with time zone not null
 );
 
--- ===================================
--- 인덱스 생성 (성능 최적화)
--- ===================================
-
--- daily_sales_aggregation 테이블 인덱스
-CREATE INDEX idx_daily_sales_seller_product_date
-    ON public.daily_sales_aggregation (seller_id, product_id, sales_date);
-
-CREATE INDEX idx_daily_sales_date_range
-    ON public.daily_sales_aggregation (sales_date);
-
-CREATE INDEX idx_daily_sales_seller_date
-    ON public.daily_sales_aggregation (seller_id, sales_date);
-
--- 중복 방지를 위한 유니크 인덱스
-CREATE UNIQUE INDEX idx_daily_sales_unique
-    ON public.daily_sales_aggregation (seller_id, product_id, sales_date);
-
--- demand_forecasts 테이블 인덱스
-CREATE INDEX idx_demand_forecast_seller_date
-    ON public.demand_forecasts (seller_id, forecast_date);
-
-CREATE INDEX idx_demand_forecast_product_date
-    ON public.demand_forecasts (product_id, forecast_date);
-
-CREATE INDEX idx_demand_forecast_seller_product
-    ON public.demand_forecasts (seller_id, product_id);
-
--- 최신 예측 조회 성능 향상
-CREATE INDEX idx_demand_forecast_latest_query
-    ON public.demand_forecasts (seller_id, product_id, forecast_date DESC);
-
--- ===============================================================================

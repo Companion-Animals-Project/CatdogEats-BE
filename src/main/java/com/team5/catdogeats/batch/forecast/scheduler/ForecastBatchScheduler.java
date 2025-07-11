@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 
 /**
  * 수요예측 배치 스케줄러
- * 정산 배치와 동일한 패턴으로 구성
  */
 @Slf4j
 @Component
@@ -58,28 +57,13 @@ public class ForecastBatchScheduler {
                 log.info("수요예측 일별 집계 배치 작업 완료 - 실행시간: {}ms", executionTime);
                 log.info("실행 결과: {}", result.getExecutionSummary());
 
-                // 성공 알림 (설정에 따라)
-                if (forecastBatchProperties.getNotification().isSuccessNotificationEnabled()) {
-                    sendSuccessNotification("일별 집계", result.getExecutionSummary());
-                }
-
             } else {
                 log.error("수요예측 일별 집계 배치 작업 실패 - 실행시간: {}ms, 원인: {}",
                         executionTime, result.getMessage());
-
-                // 실패 알림
-                if (forecastBatchProperties.getNotification().isFailureNotificationEnabled()) {
-                    sendFailureNotification("일별 집계", result.getMessage());
-                }
             }
 
         } catch (Exception e) {
             log.error("수요예측 일별 집계 배치 작업 중 예상치 못한 오류 발생", e);
-
-            // 예외 발생시 알림
-            if (forecastBatchProperties.getNotification().isFailureNotificationEnabled()) {
-                sendFailureNotification("일별 집계", "예상치 못한 오류: " + e.getMessage());
-            }
         }
     }
 
@@ -108,28 +92,14 @@ public class ForecastBatchScheduler {
                 log.info("수요예측 실행 배치 작업 완료 - 실행시간: {}ms", executionTime);
                 log.info("실행 결과: {}", result.getExecutionSummary());
 
-                // 성공 알림 (설정에 따라)
-                if (forecastBatchProperties.getNotification().isSuccessNotificationEnabled()) {
-                    sendSuccessNotification("수요예측 실행", result.getExecutionSummary());
-                }
 
             } else {
                 log.error("수요예측 실행 배치 작업 실패 - 실행시간: {}ms, 원인: {}",
                         executionTime, result.getMessage());
-
-                // 실패 알림
-                if (forecastBatchProperties.getNotification().isFailureNotificationEnabled()) {
-                    sendFailureNotification("수요예측 실행", result.getMessage());
-                }
             }
 
         } catch (Exception e) {
             log.error("수요예측 실행 배치 작업 중 예상치 못한 오류 발생", e);
-
-            // 예외 발생시 알림
-            if (forecastBatchProperties.getNotification().isFailureNotificationEnabled()) {
-                sendFailureNotification("수요예측 실행", "예상치 못한 오류: " + e.getMessage());
-            }
         }
     }
 
@@ -161,11 +131,6 @@ public class ForecastBatchScheduler {
             } else {
                 log.error("수요예측 데이터 정리 배치 작업 실패 - 실행시간: {}ms, 원인: {}",
                         executionTime, result.getMessage());
-
-                // 실패 알림
-                if (forecastBatchProperties.getNotification().isFailureNotificationEnabled()) {
-                    sendFailureNotification("데이터 정리", result.getMessage());
-                }
             }
 
         } catch (Exception e) {
@@ -294,21 +259,5 @@ public class ForecastBatchScheduler {
         } catch (Exception e) {
             log.error("비정상 종료된 수요예측 배치 강제 정리 중 오류 발생", e);
         }
-    }
-
-    /**
-     * 성공 알림 전송 (추후 구현)
-     */
-    private void sendSuccessNotification(String batchType, String summary) {
-        // TODO: 이메일, 슬랙 등 알림 서비스 연동
-        log.info("📧 성공 알림 - 배치: {}, 결과: {}", batchType, summary);
-    }
-
-    /**
-     * 실패 알림 전송 (추후 구현)
-     */
-    private void sendFailureNotification(String batchType, String errorMessage) {
-        // TODO: 이메일, 슬랙 등 알림 서비스 연동
-        log.error("🚨 실패 알림 - 배치: {}, 오류: {}", batchType, errorMessage);
     }
 }

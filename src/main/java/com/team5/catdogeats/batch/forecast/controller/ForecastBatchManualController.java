@@ -8,6 +8,7 @@ import com.team5.catdogeats.forecast.service.DailySalesAggregationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -25,7 +26,7 @@ import java.util.Map;
  */
 @Slf4j
 @RestController
-@RequestMapping("/v1/admin/forecast-batch")
+@RequestMapping("/admin/forecast-batch")
 @RequiredArgsConstructor
 @Tag(name = "수요예측 배치 관리", description = "수요예측 배치 수동 실행 및 모니터링 API")
 public class ForecastBatchManualController {
@@ -651,7 +652,9 @@ public class ForecastBatchManualController {
     /**
      * 기간별 집계 결과 클래스
      */
+    @Getter
     private static class RangeAggregationResult {
+        // Getter 메서드들
         private int totalDays = 0;
         private int successDays = 0;
         private int skippedDays = 0;
@@ -695,14 +698,6 @@ public class ForecastBatchManualController {
                     "message", "실패: " + errorMessage
             ));
         }
-
-        // Getter 메서드들
-        public int getTotalDays() { return totalDays; }
-        public int getSuccessDays() { return successDays; }
-        public int getSkippedDays() { return skippedDays; }
-        public int getFailedDays() { return failedDays; }
-        public int getTotalRecords() { return totalRecords; }
-        public List<Map<String, Object>> getDetails() { return details; }
 
     }
 }

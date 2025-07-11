@@ -50,7 +50,7 @@ public class DemandForecastServiceImpl implements DemandForecastService {
                 throw new IllegalArgumentException("판매자를 찾을 수 없습니다: " + sellerId);
             }
 
-            // 2. 충분한 판매 데이터가 있는 상품 목록 조회 (MyBatis)
+            // 2. 충분한 판매 데이터가 있는 상품 목록 조회
             LocalDate endDate = LocalDate.now().minusDays(1); // 어제까지
             LocalDate startDate = endDate.minusDays(HISTORICAL_DAYS);
 

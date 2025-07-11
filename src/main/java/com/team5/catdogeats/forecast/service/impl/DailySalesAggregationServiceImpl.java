@@ -114,7 +114,7 @@ public class DailySalesAggregationServiceImpl implements DailySalesAggregationSe
             // BaseEntity 필드 직접 설정 (reflection으로)
             setTimestamps(aggregation, now, now);
 
-            // MyBatis로 저장
+
             dailySalesMapper.upsertDailySales(aggregation);
 
         } catch (Exception e) {
@@ -128,7 +128,7 @@ public class DailySalesAggregationServiceImpl implements DailySalesAggregationSe
      */
     private void updateDailySalesAggregation(DailySalesDataDTO data) {
         try {
-            // MyBatis로 Seller, Product 조회
+
             Sellers seller = dailySalesMapper.findSellerById(data.sellerId());
             Products product = dailySalesMapper.findProductById(data.productId());
 
@@ -141,7 +141,7 @@ public class DailySalesAggregationServiceImpl implements DailySalesAggregationSe
             ZonedDateTime now = ZonedDateTime.now();
 
             DailySalesAggregation aggregation = DailySalesAggregation.builder()
-                    .id(UUID.randomUUID().toString()) // UPSERT에서는 ID가 중요하지 않음
+                    .id(UUID.randomUUID().toString())
                     .seller(seller)
                     .product(product)
                     .salesDate(data.salesDate())

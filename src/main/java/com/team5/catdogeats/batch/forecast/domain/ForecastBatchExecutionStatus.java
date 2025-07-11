@@ -50,6 +50,7 @@ public class ForecastBatchExecutionStatus extends BaseEntity {
     /**
      * 배치 실행 상태 Enum
      */
+    @Getter
     public enum ExecutionStatus {
         IDLE("대기"),
         RUNNING("실행중"),
@@ -62,9 +63,6 @@ public class ForecastBatchExecutionStatus extends BaseEntity {
             this.description = description;
         }
 
-        public String getDescription() {
-            return description;
-        }
     }
 
     /**
@@ -116,41 +114,6 @@ public class ForecastBatchExecutionStatus extends BaseEntity {
         return ExecutionStatus.FAILED.equals(this.executionStatus);
     }
 
-    /**
-     * 배치 상태를 실행중으로 변경
-     */
-    public void markAsRunning(String executionId, OffsetDateTime startTime) {
-        this.executionStatus = ExecutionStatus.RUNNING;
-        this.lastExecutionId = executionId;
-        this.startedAt = startTime;
-        this.finishedAt = null;
-    }
-
-    /**
-     * 배치 상태를 완료로 변경
-     */
-    public void markAsCompleted(OffsetDateTime finishTime) {
-        this.executionStatus = ExecutionStatus.COMPLETED;
-        this.finishedAt = finishTime;
-    }
-
-    /**
-     * 배치 상태를 실패로 변경
-     */
-    public void markAsFailed(OffsetDateTime finishTime) {
-        this.executionStatus = ExecutionStatus.FAILED;
-        this.finishedAt = finishTime;
-    }
-
-    /**
-     * 배치 상태를 대기로 초기화
-     */
-    public void markAsIdle() {
-        this.executionStatus = ExecutionStatus.IDLE;
-        this.startedAt = null;
-        this.finishedAt = null;
-        this.lastExecutionId = null;
-    }
 
     /**
      * 실행 시간 계산 (초)

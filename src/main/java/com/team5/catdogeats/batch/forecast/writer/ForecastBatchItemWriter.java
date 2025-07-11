@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @RequiredArgsConstructor
 public class ForecastBatchItemWriter implements ItemWriter<ForecastBatchItem> {
 
-    // 배치 통계 (원자적 연산으로 스레드 안전성 보장)
+    // 배치 통계
     private final AtomicInteger totalProcessedCount = new AtomicInteger(0);
     private final AtomicInteger successCount = new AtomicInteger(0);
     private final AtomicInteger failureCount = new AtomicInteger(0);
@@ -94,7 +94,7 @@ public class ForecastBatchItemWriter implements ItemWriter<ForecastBatchItem> {
                                             ForecastBatchItem.ProcessingResult result,
                                             ChunkStatistics chunkStats) {
 
-        log.info("✅ 수요예측 성공 - sellerId: {}, vendorName: {}, 처리상품: {}개, 신뢰도: {:.3f}, 소요시간: {}ms",
+        log.info("수요예측 성공 - sellerId: {}, vendorName: {}, 처리상품: {}개, 신뢰도: {:.3f}, 소요시간: {}ms",
                 item.sellerId(), item.vendorName(), result.processedProductCount(),
                 result.averageConfidenceScore(), result.processingTimeMs());
 
@@ -111,7 +111,7 @@ public class ForecastBatchItemWriter implements ItemWriter<ForecastBatchItem> {
 
         // 재고 부족 경고
         if (result.shortageProductCount() > 0) {
-            log.warn("⚠️ 재고 부족 상품 발견 - sellerId: {}, 부족상품: {}개",
+            log.warn("재고 부족 상품 발견 - sellerId: {}, 부족상품: {}개",
                     item.sellerId(), result.shortageProductCount());
         }
     }
@@ -136,7 +136,7 @@ public class ForecastBatchItemWriter implements ItemWriter<ForecastBatchItem> {
                                         ForecastBatchItem.ProcessingResult result,
                                         ChunkStatistics chunkStats) {
 
-        log.error("❌ 수요예측 실패 - sellerId: {}, vendorName: {}, 오류: {}, 소요시간: {}ms",
+        log.error("수요예측 실패 - sellerId: {}, vendorName: {}, 오류: {}, 소요시간: {}ms",
                 item.sellerId(), item.vendorName(), result.errorMessage(), result.processingTimeMs());
 
         chunkStats.incrementFailure(result.processingTimeMs());
@@ -153,17 +153,17 @@ public class ForecastBatchItemWriter implements ItemWriter<ForecastBatchItem> {
         if (confidence != null) {
             if (confidence >= 0.8) {
                 chunkStats.incrementHighQuality();
-                log.debug("🌟 고품질 예측 - sellerId: {}, 신뢰도: {:.3f}", item.sellerId(), confidence);
+                log.debug("고품질 예측 - sellerId: {}, 신뢰도: {:.3f}", item.sellerId(), confidence);
             } else if (confidence < 0.5) {
                 chunkStats.incrementLowQuality();
-                log.warn("⚠️ 저품질 예측 - sellerId: {}, 신뢰도: {:.3f}", item.sellerId(), confidence);
+                log.warn("저품질 예측 - sellerId: {}, 신뢰도: {:.3f}", item.sellerId(), confidence);
             }
         }
 
         // 높은 재고 부족 경고
         if (result.shortageProductCount() >= 5) {
             chunkStats.incrementHighShortage();
-            log.warn("🚨 높은 재고 부족 - sellerId: {}, 부족상품: {}개",
+            log.warn("높은 재고 부족 - sellerId: {}, 부족상품: {}개",
                     item.sellerId(), result.shortageProductCount());
         }
     }
@@ -212,96 +212,6 @@ public class ForecastBatchItemWriter implements ItemWriter<ForecastBatchItem> {
         }
     }
 
-    /**
-     * 배치 완료 시 최종 통계 출력
-     */
-    public void printFinalStatistics() {
-        int total = totalProcessedCount.get();
-        int success = successCount.get();
-        int failure = failureCount.get();
-        int skipped = skippedCount.get();
-        long totalTime = totalProcessingTime.get();
-        int forecastedProducts = totalForecastedProducts.get();
-        int shortageProducts = totalShortageProducts.get();
-
-        double avgConfidence = confidenceScoreCount.get() > 0 ?
-                confidenceScoreSum.get() / confidenceScoreCount.get() : 0.0;
-
-        log.info("========================================");
-        log.info("🎯 수요예측 배치 최종 통계");
-        log.info("========================================");
-        log.info("총 처리 판매자: {}개", total);
-        log.info("✅ 성공: {}개 ({:.1f}%)", success, getPercentage(success, total));
-        log.info("❌ 실패: {}개 ({:.1f}%)", failure, getPercentage(failure, total));
-        log.info("⏭️ 스킵: {}개 ({:.1f}%)", skipped, getPercentage(skipped, total));
-        log.info("📊 총 예측 상품: {}개", forecastedProducts);
-        log.info("⚠️ 재고 부족 상품: {}개 ({:.1f}%)",
-                shortageProducts,
-                forecastedProducts > 0 ? (shortageProducts * 100.0 / forecastedProducts) : 0.0);
-        log.info("🎖️ 평균 신뢰도: {:.3f}", avgConfidence);
-        log.info("⏱️ 총 처리 시간: {}ms (평균: {}ms/판매자)",
-                totalTime, total > 0 ? totalTime / total : 0);
-
-        // 품질 분석 통계
-        log.info("📈 품질 분석:");
-        log.info("  🌟 고품질 예측: {}개 ({:.1f}%)",
-                highQualityPredictions.get(), getPercentage(highQualityPredictions.get(), success));
-        log.info("  ⚠️ 저품질 예측: {}개 ({:.1f}%)",
-                lowQualityPredictions.get(), getPercentage(lowQualityPredictions.get(), success));
-        log.info("  🚨 높은 재고부족: {}개 ({:.1f}%)",
-                highShortageVendors.get(), getPercentage(highShortageVendors.get(), success));
-
-        log.info("========================================");
-    }
-
-    /**
-     * 백분율 계산
-     */
-    private double getPercentage(int count, int total) {
-        return total > 0 ? (count * 100.0 / total) : 0.0;
-    }
-
-    /**
-     * 현재 통계 조회 (외부에서 호출 가능)
-     */
-    public BatchStatistics getCurrentStatistics() {
-        double avgConfidence = confidenceScoreCount.get() > 0 ?
-                confidenceScoreSum.get() / confidenceScoreCount.get() : 0.0;
-
-        return new BatchStatistics(
-                totalProcessedCount.get(),
-                successCount.get(),
-                failureCount.get(),
-                skippedCount.get(),
-                totalProcessingTime.get(),
-                totalForecastedProducts.get(),
-                totalShortageProducts.get(),
-                avgConfidence,
-                highQualityPredictions.get(),
-                lowQualityPredictions.get(),
-                highShortageVendors.get()
-        );
-    }
-
-    /**
-     * 통계 초기화 (배치 시작 시 호출)
-     */
-    public void resetStatistics() {
-        totalProcessedCount.set(0);
-        successCount.set(0);
-        failureCount.set(0);
-        skippedCount.set(0);
-        totalProcessingTime.set(0);
-        totalForecastedProducts.set(0);
-        totalShortageProducts.set(0);
-        confidenceScoreSum.set(0.0);
-        confidenceScoreCount.set(0);
-        highQualityPredictions.set(0);
-        lowQualityPredictions.set(0);
-        highShortageVendors.set(0);
-
-        log.info("배치 통계 초기화 완료");
-    }
 
     /**
      * 청크별 통계 임시 저장 클래스
@@ -360,71 +270,4 @@ public class ForecastBatchItemWriter implements ItemWriter<ForecastBatchItem> {
         public int getHighShortageCount() { return highShortageCount; }
     }
 
-    /**
-     * 배치 통계 Record (확장 버전)
-     */
-    public record BatchStatistics(
-            int totalProcessedCount,
-            int successCount,
-            int failureCount,
-            int skippedCount,
-            long totalProcessingTime,
-            int totalForecastedProducts,
-            int totalShortageProducts,
-            double averageConfidenceScore,
-            int highQualityPredictions,
-            int lowQualityPredictions,
-            int highShortageVendors
-    ) {
-
-        public double getSuccessRate() {
-            return totalProcessedCount > 0 ? (successCount * 100.0 / totalProcessedCount) : 0.0;
-        }
-
-        public long getAverageProcessingTime() {
-            return totalProcessedCount > 0 ? totalProcessingTime / totalProcessedCount : 0;
-        }
-
-        public double getCompletionRate() {
-            int completed = successCount + failureCount;
-            return totalProcessedCount > 0 ? (completed * 100.0 / totalProcessedCount) : 0.0;
-        }
-
-        public double getSkipRate() {
-            return totalProcessedCount > 0 ? (skippedCount * 100.0 / totalProcessedCount) : 0.0;
-        }
-
-        public double getFailureRate() {
-            return totalProcessedCount > 0 ? (failureCount * 100.0 / totalProcessedCount) : 0.0;
-        }
-
-        public double getAverageForecastedProducts() {
-            return successCount > 0 ? (totalForecastedProducts * 1.0 / successCount) : 0.0;
-        }
-
-        public double getShortageRate() {
-            return totalForecastedProducts > 0 ?
-                    (totalShortageProducts * 100.0 / totalForecastedProducts) : 0.0;
-        }
-
-        public double getHighQualityRate() {
-            return successCount > 0 ? (highQualityPredictions * 100.0 / successCount) : 0.0;
-        }
-
-        public double getLowQualityRate() {
-            return successCount > 0 ? (lowQualityPredictions * 100.0 / successCount) : 0.0;
-        }
-
-        public String getSummary() {
-            return String.format(
-                    "총 %d개 처리 (성공: %d개 %.1f%%, 실패: %d개 %.1f%%, 스킵: %d개 %.1f%%) - " +
-                            "예측상품: %d개, 평균신뢰도: %.3f, 평균처리시간: %dms",
-                    totalProcessedCount,
-                    successCount, getSuccessRate(),
-                    failureCount, getFailureRate(),
-                    skippedCount, getSkipRate(),
-                    totalForecastedProducts, averageConfidenceScore, getAverageProcessingTime()
-            );
-        }
-    }
 }

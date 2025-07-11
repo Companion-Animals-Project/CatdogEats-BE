@@ -129,49 +129,4 @@ public class ForecastBatchItemReader implements ItemReader<ForecastBatchItem> {
         }
     }
 
-    /**
-     * Reader 상태 조회 (모니터링용)
-     */
-    public ReaderStatus getReaderStatus() {
-        return ReaderStatus.builder()
-                .totalItemCount(totalItemCount)
-                .processedItemCount(processedItemCount)
-                .currentOffset(currentOffset)
-                .hasMoreData(hasMoreData)
-                .progressPercentage(totalItemCount > 0 ?
-                        (double) processedItemCount / totalItemCount * 100 : 0.0)
-                .build();
-    }
-
-    /**
-     * Reader 상태 정보
-     */
-    @lombok.Builder
-    @lombok.Getter
-    public static class ReaderStatus {
-        private final long totalItemCount;
-        private final long processedItemCount;
-        private final int currentOffset;
-        private final boolean hasMoreData;
-        private final double progressPercentage;
-
-        @Override
-        public String toString() {
-            return String.format("Reader 상태 - 진행률: %.1f%% (%d/%d), 오프셋: %d, 더보기: %s",
-                    progressPercentage, processedItemCount, totalItemCount, currentOffset, hasMoreData);
-        }
-    }
-
-    /**
-     * Reader 초기화 (Step 재시작시 사용)
-     */
-    public void resetReader() {
-        log.info("ItemReader 상태 초기화");
-
-        currentIterator = null;
-        currentOffset = 0;
-        hasMoreData = true;
-        totalItemCount = 0;
-        processedItemCount = 0;
-    }
 }

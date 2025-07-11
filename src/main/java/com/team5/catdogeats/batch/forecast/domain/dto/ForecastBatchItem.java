@@ -3,7 +3,7 @@ package com.team5.catdogeats.batch.forecast.domain.dto;
 import java.time.LocalDate;
 
 /**
- * 수요예측 배치 처리용 아이템 DTO (Record 버전)
+ * 수요예측 배치 처리용 아이템 DTO
  * Spring Batch의 ItemReader, ItemProcessor, ItemWriter에서 사용
  */
 public record ForecastBatchItem(
@@ -197,12 +197,6 @@ public record ForecastBatchItem(
             );
         }
 
-        /**
-         * 성공 여부와 상관없이 처리 완료 여부
-         */
-        public boolean isProcessed() {
-            return success || (errorMessage != null && !errorMessage.startsWith("SKIPPED:"));
-        }
 
         /**
          * 스킵된 처리인지 확인
