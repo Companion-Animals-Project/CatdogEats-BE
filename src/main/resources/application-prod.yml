@@ -118,10 +118,10 @@ spring:
       uri: ${MONGO_URL}
       database: ${MONGO_DATABASE}
   rabbitmq:
-    host: localhost
+    host: ${RABBITMQ_HOST}
     port: 5672
-    username: guest
-    password: guest
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
     listener:
       simple:
         acknowledge-mode: auto
