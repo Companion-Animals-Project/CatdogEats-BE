@@ -2,6 +2,8 @@ package com.team5.catdogeats.orders.repository;
 
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.users.domain.Users;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -29,4 +31,21 @@ public interface OrderRepository extends JpaRepository<Orders, String> {
     AND o.orderNumber = :orderNumber
     """)
     Optional<Orders> findOrderDetailByUserAndOrderNumber(@Param("user") Users user, @Param("orderNumber") String orderNumber);
+
+    /**
+     * 구매자 주문 목록 조회 (페이징, 연관 데이터 포함)
+     * 숨김 처리되지 않은 주문만 조회하며, OrderItems와 Shipments를 함께 조회
+     * @param user 구매자 사용자 엔티티
+     * @param pageable 페이징 정보
+     * @return 연관 데이터를 포함한 주문 목록 (Page)
+     */
+    @Query("""
+    SELECT DISTINCT o FROM Orders o
+    LEFT JOIN FETCH o.orderItems oi
+    LEFT JOIN FETCH oi.products p
+    LEFT JOIN FETCH o.shipment s
+    WHERE o.user = :user
+    AND o.isHidden = false
+    """)
+    Page<Orders> findBuyerOrdersWithDetails(@Param("user") Users user, Pageable pageable);
 }
