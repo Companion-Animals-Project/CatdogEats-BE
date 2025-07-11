@@ -41,7 +41,7 @@ public class ShipmentSyncServiceImpl implements ShipmentSyncService {
     private final LogisticsTrackingService logisticsTrackingService;
 
     /**
-     * 전체 배송 상태 동기화
+     * 전체 배송 상태 동기화 (판매자용)
      */
     @Override
     @JpaTransactional
@@ -64,29 +64,64 @@ public class ShipmentSyncServiceImpl implements ShipmentSyncService {
             // 3. 각 주문의 배송 상태 확인 및 업데이트
             SyncResult syncResult = processBatchSync(inDeliveryShipments);
 
-            // 4. 동기화 결과 반환
-            ShipmentSyncResponse response = ShipmentSyncResponse.success(
+            // 4. 응답 DTO 생성
+            return ShipmentSyncResponse.success(
                     inDeliveryShipments.size(),
-                    syncResult.updatedOrderList.size(),
-                    syncResult.failedOrderList.size(),
-                    syncResult.updatedOrderList,
-                    syncResult.failedOrderList
+                    syncResult.updatedOrderList().size(),
+                    syncResult.failedOrderList().size(),
+                    syncResult.updatedOrderList(),
+                    syncResult.failedOrderList()
             );
 
-            log.info("배송 상태 동기화 완료 - sellerId: {}, 결과: {}",
-                    seller.getUserId(), response.getSummary());
-
-            return response;
-
-        } catch (NoSuchElementException e) {
-            log.warn("배송 상태 동기화 실패 - 사용자 없음: {}", e.getMessage());
-            throw e;
         } catch (Exception e) {
-            log.error("배송 상태 동기화 중 오류 발생", e);
-            return ShipmentSyncResponse.error("동기화 중 오류가 발생했습니다: " + e.getMessage());
+            log.error("배송 상태 동기화 중 오류", e);
+            throw new RuntimeException("배송 상태 동기화 중 오류가 발생했습니다", e);
         }
     }
 
+    /**
+     * 단일 주문 배송 상태 자동 동기화 (구매자 조회용)
+     */
+    @Override
+    @JpaTransactional
+    public boolean syncSingleOrderDeliveryStatus(String orderNumber) {
+        try {
+            log.debug("단일 주문 배송 상태 동기화 시작 - orderNumber: {}", orderNumber);
+
+            // 1. 주문번호로 배송 정보 조회
+            Shipments shipment = shipmentRepository.findByOrderNumber(orderNumber)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            String.format("주문을 찾을 수 없습니다: %s", orderNumber)));
+
+            // 2. 이미 배송완료 상태면 동기화 불필요
+            if (OrderStatus.DELIVERED.equals(shipment.getOrders().getOrderStatus())) {
+                log.debug("이미 배송완료 상태 - orderNumber: {}", orderNumber);
+                return false;
+            }
+
+            // 3. 운송장 번호가 없으면 동기화 불가
+            if (shipment.getTrackingNumber() == null || shipment.getTrackingNumber().trim().isEmpty()) {
+                log.debug("운송장 번호 없음 - orderNumber: {}", orderNumber);
+                return false;
+            }
+
+            // 4. 개별 배송 정보 동기화 수행 (기존 로직 재활용)
+            boolean isUpdated = processShipmentSync(shipment);
+
+            if (isUpdated) {
+                log.info("자동 동기화 완료 - orderNumber: {}, 배송완료로 상태 변경", orderNumber);
+            }
+
+            return isUpdated;
+
+        } catch (IllegalArgumentException e) {
+            log.warn("단일 주문 동기화 실패 - orderNumber: {}, reason: {}", orderNumber, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("단일 주문 동기화 중 오류 - orderNumber: {}", orderNumber, e);
+            throw new RuntimeException("배송 상태 동기화 중 오류가 발생했습니다", e);
+        }
+    }
     /**
      * 판매자 조회
      */
@@ -98,15 +133,15 @@ public class ShipmentSyncServiceImpl implements ShipmentSyncService {
         return sellerRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new IllegalArgumentException("판매자 권한이 없습니다"));
     }
+
     /**
      * 판매자의 배송 중인 주문 목록 조회
      */
     private List<Shipments> findSellerInDeliveryShipments(Sellers seller) {
-        List<Shipments> allInDeliveryShipments = shipmentRepository
-                .findByOrderStatusAndTrackingNumberIsNotNull(OrderStatus.IN_DELIVERY);
+        List<Shipments> allShipments = shipmentRepository.findAll();
 
-        // 판매자 소유 상품이 포함된 주문만 필터링
-        return allInDeliveryShipments.stream()
+        return allShipments.stream()
+                .filter(shipment -> OrderStatus.IN_DELIVERY.equals(shipment.getOrders().getOrderStatus()))
                 .filter(shipment -> hasSellerProducts(shipment.getOrders(), seller))
                 .toList();
     }
@@ -152,8 +187,9 @@ public class ShipmentSyncServiceImpl implements ShipmentSyncService {
 
         return new SyncResult(updatedList, failedList);
     }
+
     /**
-     * 개별 배송 정보 동기화 처리
+     * 개별 배송 정보 동기화 처리 (기존 로직 유지)
      * @param shipment 동기화할 배송 정보
      * @return 업데이트 여부 (true: 업데이트됨, false: 변경사항 없음)
      */

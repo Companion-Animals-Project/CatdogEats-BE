@@ -12,6 +12,7 @@ import com.team5.catdogeats.orders.repository.OrderRepository;
 import com.team5.catdogeats.orders.repository.ShipmentRepository;
 import com.team5.catdogeats.orders.service.BuyerOrderQueryService;
 import com.team5.catdogeats.orders.service.LogisticsTrackingService;
+import com.team5.catdogeats.orders.service.ShipmentSyncService;
 import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,8 +26,6 @@ import java.util.NoSuchElementException;
 
 /**
  * 구매자용 주문/배송 조회 전용 서비스 구현체
- * 단일 책임: 구매자의 주문 및 배송 정보 조회만 담당
- * CQRS 패턴 적용으로 기존 OrderService와 분리
  */
 @Slf4j
 @Service
@@ -37,6 +36,7 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
     private final ShipmentRepository shipmentRepository;
     private final UserRepository userRepository;
     private final LogisticsTrackingService logisticsTrackingService;
+    private final ShipmentSyncService shipmentSyncService; // 자동 동기화 서비스 추가
 
     /**
      * 구매자 주문 목록 조회 (배송 정보 포함)
@@ -91,7 +91,7 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
     }
 
     /**
-     * 구매자 배송 정보 상세 조회 (물류 서버 연동)
+     * 구매자 배송 정보 상세 조회
      */
     @Override
     @JpaTransactional(readOnly = true)
@@ -111,17 +111,37 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
             Shipments shipment = shipmentRepository.findByOrders(order)
                     .orElseThrow(() -> new IllegalStateException("배송 정보가 없는 주문입니다."));
 
-            // 4. 물류 서버에서 실시간 배송 추적 로그 조회
+            // ===== 4. [신규] 자동 동기화 수행 =====
+            try {
+                boolean isSynced = shipmentSyncService.syncSingleOrderDeliveryStatus(orderNumber);
+                if (isSynced) {
+                    log.info("배송 상태 자동 동기화 완료 - orderNumber: {}, 배송완료로 업데이트됨", orderNumber);
+
+                    // 동기화 후 최신 정보 다시 조회
+                    order = orderRepository.findOrderDetailByUserAndOrderNumber(user, orderNumber)
+                            .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없습니다."));
+                    shipment = shipmentRepository.findByOrders(order)
+                            .orElseThrow(() -> new IllegalStateException("배송 정보가 없습니다."));
+                } else {
+                    log.debug("배송 상태 동기화 불필요 - orderNumber: {}", orderNumber);
+                }
+            } catch (Exception syncError) {
+                // 동기화 실패 시에도 기존 데이터로 계속 진행
+                log.warn("배송 상태 자동 동기화 실패, 기존 데이터로 진행 - orderNumber: {}, error: {}",
+                        orderNumber, syncError.getMessage());
+            }
+
+            // 5. 물류 서버에서 실시간 배송 추적 로그 조회 (기존 방식 유지)
             List<BuyerShipmentDetailResponse.TrackingLog> trackingLogs = getTrackingLogsFromLogisticsServer(shipment.getTrackingNumber());
 
-            // 5. 운송장 정보 생성
+            // 6. 운송장 정보 생성
             BuyerShipmentDetailResponse.TrackingInfo trackingInfo =
                     BuyerShipmentDetailResponse.TrackingInfo.of(
                             shipment.getTrackingNumber(),
                             shipment.getCourier()
                     );
 
-            // 6. 수취인 정보 생성
+            // 7. 수취인 정보 생성
             BuyerShipmentDetailResponse.RecipientInfo recipientInfo =
                     BuyerShipmentDetailResponse.RecipientInfo.of(
                             shipment.getRecipientName(),
@@ -132,7 +152,7 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
                             shipment.getDeliveryRequest()
                     );
 
-            // 7. 배송 상태에 따른 응답 분기
+            // 8. 배송 상태에 따른 응답 분기 (기존 로직 유지)
             BuyerShipmentDetailResponse response;
             if (shipment.getDeliveredAt() != null) {
                 // 배송 완료된 경우 - 도착일 표시
@@ -170,8 +190,6 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
             throw new RuntimeException("배송 정보 상세 조회 중 오류가 발생했습니다", e);
         }
     }
-
-    // ===== Private Helper Methods =====
 
     /**
      * 사용자 조회 - 기존 패턴 활용
@@ -230,7 +248,7 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
     }
 
     /**
-     * 물류 서버에서 배송 추적 로그 조회
+     * 물류 서버에서 배송 추적 로그 조회 (기존 방식 유지)
      */
     private List<BuyerShipmentDetailResponse.TrackingLog> getTrackingLogsFromLogisticsServer(String trackingNumber) {
         if (trackingNumber == null || trackingNumber.trim().isEmpty()) {
@@ -250,7 +268,7 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
     }
 
     /**
-     * 물류 서버 응답을 BuyerShipmentDetailResponse.TrackingLog로 변환
+     * 물류 서버 응답을 BuyerShipmentDetailResponse.TrackingLog로 변환 (기존 방식 유지)
      */
     private List<BuyerShipmentDetailResponse.TrackingLog> convertTrackingLogs(TrackingResponse trackingResponse) {
         return trackingResponse.logs().stream()
@@ -264,7 +282,7 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
     }
 
     /**
-     * 페이징 정보 검증
+     * 페이징 정보 검증 (기존 방식 유지)
      */
     private void validatePageable(Pageable pageable) {
         if (pageable.getPageSize() > 100) {
