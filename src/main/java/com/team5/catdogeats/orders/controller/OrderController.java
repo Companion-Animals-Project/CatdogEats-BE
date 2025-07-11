@@ -5,6 +5,7 @@ import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.orders.dto.request.OrderCreateRequest;
 import com.team5.catdogeats.orders.dto.request.OrderDeleteRequest;
+import com.team5.catdogeats.orders.dto.response.BuyerOrderListResponse;
 import com.team5.catdogeats.orders.dto.response.OrderCreateResponse;
 import com.team5.catdogeats.orders.dto.response.OrderDeleteResponse;
 import com.team5.catdogeats.orders.dto.response.OrderDetailResponse;
@@ -12,6 +13,8 @@ import com.team5.catdogeats.orders.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -76,6 +79,47 @@ public class OrderController {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
                     .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "주문 생성 중 서버 오류가 발생했습니다."));
+        }
+    }
+
+    /**
+     * 구매자 주문 목록 조회 (배송 정보 포함)
+     * API: GET /v1/buyers/orders/list?page={}&size={}
+     */
+    @GetMapping("/list")
+    public ResponseEntity<ApiResponse<BuyerOrderListResponse>> getBuyerOrderList(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        log.info("구매자 주문 목록 조회 요청 - provider: {}, providerId: {}, page: {}, size: {}",
+                userPrincipal.provider(), userPrincipal.providerId(),
+                pageable.getPageNumber(), pageable.getPageSize());
+
+        try {
+            BuyerOrderListResponse response = buyerOrderQueryService.getBuyerOrderList(userPrincipal, pageable);
+
+            log.info("구매자 주문 목록 조회 성공 - provider: {}, providerId: {}, 총 주문수: {}",
+                    userPrincipal.provider(), userPrincipal.providerId(), response.totalElements());
+
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+
+        } catch (IllegalArgumentException e) {
+            log.warn("구매자 주문 목록 조회 실패 - 잘못된 요청: {}", e.getMessage());
+            return ResponseEntity
+                    .status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+
+        } catch (NoSuchElementException e) {
+            log.warn("구매자 주문 목록 조회 실패 - 사용자 없음: {}", e.getMessage());
+            return ResponseEntity
+                    .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+
+        } catch (Exception e) {
+            log.error("구매자 주문 목록 조회 중 서버 오류", e);
+            return ResponseEntity
+                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "주문 목록 조회 중 서버 오류가 발생했습니다."));
         }
     }
 
