@@ -48,7 +48,7 @@ public class Settlements extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "settlement_status", length = 15, nullable = false)
     @Builder.Default
-    private SettlementStatus settlementStatus = SettlementStatus.IN_PROGRESS;
+    private SettlementStatus settlementStatus = SettlementStatus.PENDING;
 
     @Column(name = "settled_at")
     private ZonedDateTime settledAt;

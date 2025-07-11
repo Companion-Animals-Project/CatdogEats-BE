@@ -99,9 +99,8 @@ public class SecurityConfig {
         try {
             http
                     .csrf(AbstractHttpConfigurer::disable)
-                    .sessionManagement(session ->
-                            session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                                    .sessionFixation().none())  // 세션 고정 공격 방어도 비활성화
+                    .sessionManagement(session
+                            -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                     .authorizeHttpRequests(authorize
                             -> authorize
                             .requestMatchers("/").permitAll()
