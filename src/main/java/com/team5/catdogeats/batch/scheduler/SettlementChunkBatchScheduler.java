@@ -3,7 +3,7 @@ package com.team5.catdogeats.batch.scheduler;
 import com.team5.catdogeats.batch.config.SettlementBatchProperties;
 import com.team5.catdogeats.batch.service.BatchConcurrencyService;
 import com.team5.catdogeats.batch.service.SettlementBatchExecutionService;
-import com.team5.catdogeats.batch.service.SettlementBatchExecutionService.BatchExecutionResult;
+import com.team5.catdogeats.batch.service.SettlementBatchExecutionServiceImpl.BatchExecutionResult;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

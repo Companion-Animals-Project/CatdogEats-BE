@@ -4,7 +4,7 @@ import com.team5.catdogeats.batch.config.SettlementBatchProperties;
 import com.team5.catdogeats.batch.domain.SettlementBatchExecutionStatus;
 import com.team5.catdogeats.batch.scheduler.SettlementChunkBatchScheduler;
 import com.team5.catdogeats.batch.service.BatchConcurrencyService;
-import com.team5.catdogeats.batch.service.SettlementBatchExecutionService.BatchExecutionResult;
+import com.team5.catdogeats.batch.service.SettlementBatchExecutionServiceImpl.BatchExecutionResult;
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.batch.mapper.SettlementChunkMapper;

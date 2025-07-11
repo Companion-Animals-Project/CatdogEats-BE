@@ -17,9 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.YearMonth;
+import java.time.*;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -262,6 +260,7 @@ class SettlementServiceImplTest {
 
     // === Helper Methods ===
 
+
     private List<SettlementItemDTO> createMockSettlementItems() {
         return List.of(
                 new SettlementItemDTO(
@@ -270,31 +269,31 @@ class SettlementServiceImplTest {
                         500000L,                                     // orderAmount
                         50000L,                                      // commission
                         450000L,                                     // settlementAmount
-                        LocalDateTime.of(2024, 1, 15, 10, 0),       // orderDate
-                        LocalDateTime.of(2024, 1, 22, 15, 0),       // deliveryDate
-                        LocalDateTime.of(2024, 1, 29, 9, 0),        // settlementCreatedAt
+                        ZonedDateTime.of(2024, 1, 15, 10, 0, 0, 0, ZoneId.of("Asia/Seoul")),       // orderDate
+                        ZonedDateTime.of(2024, 1, 22, 15, 0, 0, 0, ZoneId.of("Asia/Seoul")),       // deliveryDate
+                        ZonedDateTime.of(2024, 1, 29, 9, 0, 0, 0, ZoneId.of("Asia/Seoul")),        // settlementCreatedAt
                         SettlementStatus.COMPLETED                   // status
                 ),
                 new SettlementItemDTO(
-                        "ORD001",                                    // orderNumber
-                        "프리미엄 사료",                              // productName
-                        500000L,                                     // orderAmount
-                        50000L,                                      // commission
-                        450000L,                                     // settlementAmount
-                        LocalDateTime.of(2024, 1, 15, 10, 0),       // orderDate
-                        LocalDateTime.of(2024, 1, 22, 15, 0),       // deliveryDate
-                        LocalDateTime.of(2024, 1, 29, 9, 0),        // settlementCreatedAt
-                        SettlementStatus.IN_PROGRESS                   // status
+                        "ORD002",                                    // orderNumber
+                        "강아지 간식",                                // productName
+                        300000L,                                     // orderAmount
+                        30000L,                                      // commission
+                        270000L,                                     // settlementAmount
+                        ZonedDateTime.of(2024, 1, 20, 14, 30, 0, 0, ZoneId.of("Asia/Seoul")),     // orderDate
+                        ZonedDateTime.of(2024, 1, 27, 11, 15, 0, 0, ZoneId.of("Asia/Seoul")),     // deliveryDate
+                        ZonedDateTime.of(2024, 2, 3, 10, 30, 0, 0, ZoneId.of("Asia/Seoul")),      // settlementCreatedAt
+                        SettlementStatus.IN_PROGRESS                 // status
                 ),
                 new SettlementItemDTO(
-                        "ORD001",                                    // orderNumber
-                        "프리미엄 사료",                              // productName
-                        500000L,                                     // orderAmount
-                        50000L,                                      // commission
-                        450000L,                                     // settlementAmount
-                        LocalDateTime.of(2024, 1, 15, 10, 0),       // orderDate
-                        LocalDateTime.of(2024, 1, 22, 15, 0),       // deliveryDate
-                        LocalDateTime.of(2024, 1, 29, 9, 0),        // settlementCreatedAt
+                        "ORD003",                                    // orderNumber
+                        "고양이 모래",                                // productName
+                        750000L,                                     // orderAmount
+                        75000L,                                      // commission
+                        675000L,                                     // settlementAmount
+                        ZonedDateTime.of(2024, 1, 25, 16, 45, 0, 0, ZoneId.of("Asia/Seoul")),     // orderDate
+                        ZonedDateTime.of(2024, 2, 1, 13, 20, 0, 0, ZoneId.of("Asia/Seoul")),      // deliveryDate
+                        ZonedDateTime.of(2024, 2, 8, 8, 45, 0, 0, ZoneId.of("Asia/Seoul")),       // settlementCreatedAt
                         SettlementStatus.COMPLETED                   // status
                 )
         );

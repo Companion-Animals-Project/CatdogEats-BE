@@ -2,9 +2,9 @@ package com.team5.catdogeats.batch.scheduler;
 
 import com.team5.catdogeats.batch.config.SettlementBatchProperties;
 import com.team5.catdogeats.batch.domain.SettlementBatchExecutionStatus;
-import com.team5.catdogeats.batch.service.BatchConcurrencyService;
-import com.team5.catdogeats.batch.service.SettlementBatchExecutionService;
-import com.team5.catdogeats.batch.service.SettlementBatchExecutionService.BatchExecutionResult;
+import com.team5.catdogeats.batch.service.BatchConcurrencyServiceImpl;
+import com.team5.catdogeats.batch.service.SettlementBatchExecutionServiceImpl;
+import com.team5.catdogeats.batch.service.SettlementBatchExecutionServiceImpl.BatchExecutionResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,10 +25,10 @@ import static org.mockito.BDDMockito.*;
 class SettlementChunkBatchSchedulerTest {
 
     @Mock
-    private SettlementBatchExecutionService batchExecutionService;
+    private SettlementBatchExecutionServiceImpl batchExecutionService;
 
     @Mock
-    private BatchConcurrencyService batchConcurrencyService;
+    private BatchConcurrencyServiceImpl batchConcurrencyServiceImpl;
 
     @Mock
     private SettlementBatchProperties batchProperties;
@@ -42,7 +42,7 @@ class SettlementChunkBatchSchedulerTest {
     void setUp() {
         scheduler = new SettlementChunkBatchScheduler(
                 batchExecutionService,
-                batchConcurrencyService,
+                batchConcurrencyServiceImpl,
                 batchProperties
         );
     }
@@ -243,41 +243,41 @@ class SettlementChunkBatchSchedulerTest {
     @DisplayName("타임아웃 배치 정리 스케줄러 - 정상 실행")
     void cleanupTimeoutBatches_Success() {
         // Given
-        willDoNothing().given(batchConcurrencyService).cleanupTimeoutBatches();
-        given(batchConcurrencyService.getRunningBatches()).willReturn(List.of());
+        willDoNothing().given(batchConcurrencyServiceImpl).cleanupTimeoutBatches();
+        given(batchConcurrencyServiceImpl.getRunningBatches()).willReturn(List.of());
 
         // When
         assertThatNoException().isThrownBy(() -> scheduler.cleanupTimeoutBatches());
 
         // Then
-        verify(batchConcurrencyService).cleanupTimeoutBatches();
-        verify(batchConcurrencyService).getRunningBatches();
+        verify(batchConcurrencyServiceImpl).cleanupTimeoutBatches();
+        verify(batchConcurrencyServiceImpl).getRunningBatches();
     }
 
     @Test
     @DisplayName("타임아웃 배치 정리 스케줄러 - 예외 발생")
     void cleanupTimeoutBatches_Exception() {
         // Given
-        willThrow(new RuntimeException("정리 실패")).given(batchConcurrencyService).cleanupTimeoutBatches();
+        willThrow(new RuntimeException("정리 실패")).given(batchConcurrencyServiceImpl).cleanupTimeoutBatches();
 
         // When
         assertThatNoException().isThrownBy(() -> scheduler.cleanupTimeoutBatches());
 
         // Then
-        verify(batchConcurrencyService).cleanupTimeoutBatches();
+        verify(batchConcurrencyServiceImpl).cleanupTimeoutBatches();
     }
 
     @Test
     @DisplayName("배치 상태 체크 스케줄러 - 실행 중인 배치 없음")
     void checkBatchStatus_NoRunningBatches() {
         // Given
-        given(batchConcurrencyService.getRunningBatches()).willReturn(List.of());
+        given(batchConcurrencyServiceImpl.getRunningBatches()).willReturn(List.of());
 
         // When
         assertThatNoException().isThrownBy(() -> scheduler.checkBatchStatus());
 
         // Then
-        verify(batchConcurrencyService).getRunningBatches();
+        verify(batchConcurrencyServiceImpl).getRunningBatches();
     }
 
     @Test
@@ -285,13 +285,13 @@ class SettlementChunkBatchSchedulerTest {
     void checkBatchStatus_HasRunningBatches() {
         // Given
         List<SettlementBatchExecutionStatus> runningBatches = createRunningBatches();
-        given(batchConcurrencyService.getRunningBatches()).willReturn(runningBatches);
+        given(batchConcurrencyServiceImpl.getRunningBatches()).willReturn(runningBatches);
 
         // When
         assertThatNoException().isThrownBy(() -> scheduler.checkBatchStatus());
 
         // Then
-        verify(batchConcurrencyService).getRunningBatches();
+        verify(batchConcurrencyServiceImpl).getRunningBatches();
     }
 
     @Test
@@ -299,7 +299,7 @@ class SettlementChunkBatchSchedulerTest {
     void checkBatchStatus_SlowProcessingWarning() {
         // Given
         SettlementBatchExecutionStatus slowBatch = createSlowRunningBatch();
-        given(batchConcurrencyService.getRunningBatches()).willReturn(List.of(slowBatch));
+        given(batchConcurrencyServiceImpl.getRunningBatches()).willReturn(List.of(slowBatch));
         given(batchProperties.getNotification()).willReturn(notificationConfig);
         given(notificationConfig.getSlowProcessingThreshold()).willReturn(1800L); // 30분
 
@@ -307,7 +307,7 @@ class SettlementChunkBatchSchedulerTest {
         assertThatNoException().isThrownBy(() -> scheduler.checkBatchStatus());
 
         // Then
-        verify(batchConcurrencyService).getRunningBatches();
+        verify(batchConcurrencyServiceImpl).getRunningBatches();
         verify(batchProperties).getNotification();
         verify(notificationConfig).getSlowProcessingThreshold();
     }
@@ -316,14 +316,14 @@ class SettlementChunkBatchSchedulerTest {
     @DisplayName("배치 상태 체크 스케줄러 - 예외 발생")
     void checkBatchStatus_Exception() {
         // Given
-        given(batchConcurrencyService.getRunningBatches())
+        given(batchConcurrencyServiceImpl.getRunningBatches())
                 .willThrow(new RuntimeException("상태 조회 실패"));
 
         // When
         assertThatNoException().isThrownBy(() -> scheduler.checkBatchStatus());
 
         // Then
-        verify(batchConcurrencyService).getRunningBatches();
+        verify(batchConcurrencyServiceImpl).getRunningBatches();
     }
 
     @Test
@@ -331,15 +331,15 @@ class SettlementChunkBatchSchedulerTest {
     void forceCleanupStuckBatches_StuckBatchExists() {
         // Given
         SettlementBatchExecutionStatus stuckBatch = createStuckBatch();
-        given(batchConcurrencyService.getRunningBatches()).willReturn(List.of(stuckBatch));
-        willDoNothing().given(batchConcurrencyService).forceReleaseLock(anyString());
+        given(batchConcurrencyServiceImpl.getRunningBatches()).willReturn(List.of(stuckBatch));
+        willDoNothing().given(batchConcurrencyServiceImpl).forceReleaseLock(anyString());
 
         // When
         assertThatNoException().isThrownBy(() -> scheduler.cleanupTimeoutBatches());
 
         // Then
-        verify(batchConcurrencyService).getRunningBatches();
-        verify(batchConcurrencyService).forceReleaseLock("SETTLEMENT_CREATE");
+        verify(batchConcurrencyServiceImpl).getRunningBatches();
+        verify(batchConcurrencyServiceImpl).forceReleaseLock("SETTLEMENT_CREATE");
     }
 
     @Test
