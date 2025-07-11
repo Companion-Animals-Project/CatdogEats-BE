@@ -3,6 +3,8 @@ package com.team5.catdogeats.carts.domain.mapping;
 import com.team5.catdogeats.carts.domain.Carts;
 import com.team5.catdogeats.products.domain.Products;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.*;
 
 import java.time.ZonedDateTime;
@@ -31,7 +33,9 @@ public class CartItems {
             foreignKey = @ForeignKey(name = "fk_cart_items_product"))
     private Products product;
 
-    @Column(nullable = false)
+    @Column(name = "quantity", nullable = false)
+    @Min(value = 1, message = "수량은 1개 이상이어야 합니다")
+    @Max(value = 10, message = "수량은 10개 이하여야 합니다")
     private int quantity;
 
     @Column(name = "added_at", insertable = false, updatable = false)

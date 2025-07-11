@@ -7,7 +7,7 @@ import com.team5.catdogeats.auth.service.RotateRefreshTokenService;
 import com.team5.catdogeats.auth.util.CookieUtils;
 import com.team5.catdogeats.auth.util.JwtUtils;
 import com.team5.catdogeats.global.config.CookieProperties;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.users.domain.dto.ModifyRoleRequestDTO;
 import com.team5.catdogeats.users.service.ModifyUserRoleService;
@@ -45,12 +45,12 @@ public class AuthController {
                                                 @CookieValue(value = "token", required = false) String token) {
         try {
             if (refreshTokenId == null || token == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
             }
 
 
             if (!jwtUtils.isTokenExpired(token)) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ResponseCode.INVALID_TOKEN));
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(APIResponse.error(ResponseCode.INVALID_TOKEN));
             }
 
             RotateTokenDTO dto = rotateRefreshTokenService.RotateRefreshToken((refreshTokenId));
@@ -60,17 +60,17 @@ public class AuthController {
             return ResponseEntity.ok()
                     .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
                     .header(HttpHeaders.SET_COOKIE, refreshIdCookie.toString())
-                    .body(ApiResponse.success(ResponseCode.SUCCESS, dto));
+                    .body(APIResponse.success(ResponseCode.SUCCESS, dto));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
     }
 
     @PostMapping("/role")
-    public ResponseEntity<ApiResponse<String>> modifyRole(@AuthenticationPrincipal UserPrincipal userPrincipal,
+    public ResponseEntity<APIResponse<String>> modifyRole(@AuthenticationPrincipal UserPrincipal userPrincipal,
                                                           @RequestBody @Valid ModifyRoleRequestDTO roleRequestDTO) {
         if (userPrincipal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
         }
 
         try {
@@ -87,24 +87,24 @@ public class AuthController {
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
-                    .body(ApiResponse.success(ResponseCode.SUCCESS, "Role updated successfully"));
+                    .body(APIResponse.success(ResponseCode.SUCCESS, "Role updated successfully"));
 
         } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND));
         } catch (IllegalArgumentException | IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(ResponseCode.ACCESS_DENIED));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(APIResponse.error(ResponseCode.ACCESS_DENIED));
         } catch (Exception e) {
             log.error("Error modifying user role", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
     }
 
     @PostMapping("/logout")
     public ResponseEntity<?> logout(@AuthenticationPrincipal UserPrincipal userPrincipal) {
         if (userPrincipal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
         }
 
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS));
     }
 }

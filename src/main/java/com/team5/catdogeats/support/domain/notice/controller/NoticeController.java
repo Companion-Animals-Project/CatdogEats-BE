@@ -1,6 +1,6 @@
 package com.team5.catdogeats.support.domain.notice.controller;
 
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.support.domain.notice.dto.*;
 import com.team5.catdogeats.support.domain.notice.service.NoticeService;
@@ -33,14 +33,14 @@ public class NoticeController {
             description = "모든 사용자(판매자, 구매자, 관리자)가 공지사항 목록을 조회할 수 있습니다. " +
                     "sortBy: latest(최신순, 기본값), oldest(오래된순), views(조회순)"
     )
-    public ResponseEntity<ApiResponse<NoticeListResponseDTO>> getNotices(
+    public ResponseEntity<APIResponse<NoticeListResponseDTO>> getNotices(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "latest") String sortBy) {
 
         NoticeListResponseDTO response = noticeService.getNotices(page, size, search, sortBy);
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
     }
 
     // ========== 공지사항 상세 조회 (공통 기능) ==========
@@ -49,19 +49,19 @@ public class NoticeController {
             summary = "공지사항 상세 조회",
             description = "모든 사용자(판매자, 구매자, 관리자)가 공지사항 상세 내용을 조회할 수 있습니다."
     )
-    public ResponseEntity<ApiResponse<NoticeResponseDTO>> getNotice(@PathVariable String noticeId) {
+    public ResponseEntity<APIResponse<NoticeResponseDTO>> getNotice(@PathVariable String noticeId) {
 
         try {
             NoticeResponseDTO response = noticeService.getNotice(noticeId);
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
         } catch (NoSuchElementException e) {
             log.error("Notice not found: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
         } catch (Exception e) {
             log.error("Unexpected error: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
     }
 
