@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * 수요예측 배치 설정 프로퍼티
- * application.yml에서 배치 관련 설정값들을 관리
+ * application.yml에서 배치 관련 설정값들을 관리 - 여기 있는것은 yml설정 없을때 기본값
  */
 @Getter
 @Setter

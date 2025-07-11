@@ -1,6 +1,7 @@
 package com.team5.catdogeats.forecast.service.impl;
 
 import com.team5.catdogeats.baseEntity.BaseEntity;
+import com.team5.catdogeats.batch.forecast.config.ForecastBatchProperties;
 import com.team5.catdogeats.forecast.domain.DemandForecasts;
 import com.team5.catdogeats.forecast.domain.dto.DailySalesDataDTO;
 import com.team5.catdogeats.forecast.domain.dto.DemandForecastResultDTO;
@@ -22,6 +23,7 @@ import java.util.UUID;
 /**
  * 수요예측 서비스 구현체
  * 7일 이동평균법을 사용한 상품별 수요예측
+ * 설정값은 ForecastBatchProperties를 통해 관리
  */
 @Slf4j
 @Service
@@ -30,13 +32,7 @@ public class DemandForecastServiceImpl implements DemandForecastService {
 
     private final DemandForecastMapper demandForecastMapper;
     private final DailySalesAggregationMapper dailySalesMapper;
-
-
-    // 예측 설정 상수
-    private static final int HISTORICAL_DAYS = 30;      // 30일간 데이터 필요
-    private static final int MIN_SALES_DAYS = 15;       // 최소 15일간 판매 기록
-    private static final int PREDICTION_DAYS = 7;       // 7일간 예측
-    private static final int MOVING_AVERAGE_WINDOW = 7; // 7일 이동평균
+    private final ForecastBatchProperties batchProperties;
 
     @Override
     @MybatisTransactional
@@ -44,7 +40,7 @@ public class DemandForecastServiceImpl implements DemandForecastService {
         log.info("수요예측 실행 시작 - sellerId: {}", sellerId);
 
         try {
-
+            // 1. 판매자 존재 확인
             Sellers seller = dailySalesMapper.findSellerById(sellerId);
             if (seller == null) {
                 throw new IllegalArgumentException("판매자를 찾을 수 없습니다: " + sellerId);
@@ -52,17 +48,20 @@ public class DemandForecastServiceImpl implements DemandForecastService {
 
             // 2. 충분한 판매 데이터가 있는 상품 목록 조회
             LocalDate endDate = LocalDate.now().minusDays(1); // 어제까지
-            LocalDate startDate = endDate.minusDays(HISTORICAL_DAYS);
+            LocalDate startDate = endDate.minusDays(batchProperties.getHistoricalDataDays());
 
             List<String> eligibleProducts = dailySalesMapper.findProductsWithSufficientData(
-                    sellerId, startDate, MIN_SALES_DAYS);
+                    sellerId, startDate, batchProperties.getMinSalesDataDays());
 
             if (eligibleProducts.isEmpty()) {
                 log.info("예측 가능한 상품이 없습니다 - sellerId: {}", sellerId);
                 return 0;
             }
 
-            log.info("예측 대상 상품 수: {} - sellerId: {}", eligibleProducts.size(), sellerId);
+            log.info("예측 대상 상품 수: {} - sellerId: {}, 설정 - 과거데이터: {}일, 최소판매: {}일",
+                    eligibleProducts.size(), sellerId,
+                    batchProperties.getHistoricalDataDays(),
+                    batchProperties.getMinSalesDataDays());
 
             // 3. 기존 오늘자 예측 데이터 삭제
             LocalDate today = LocalDate.now();
@@ -105,23 +104,25 @@ public class DemandForecastServiceImpl implements DemandForecastService {
             List<DailySalesDataDTO> salesData = dailySalesMapper.findSalesDataForForecast(
                     seller.getUserId(), productId, startDate, endDate);
 
-            if (salesData.size() < MIN_SALES_DAYS) {
-                log.debug("판매 데이터 부족 - productId: {}, days: {}", productId, salesData.size());
+            if (salesData.size() < batchProperties.getMinSalesDataDays()) {
+                log.debug("판매 데이터 부족 - productId: {}, days: {}, 필요: {}",
+                        productId, salesData.size(), batchProperties.getMinSalesDataDays());
                 return false;
             }
 
-            // 3. 7일 이동평균법으로 예측
+            // 3. 이동평균법으로 예측 (설정값 사용)
             double predictedAvgDaily = calculateMovingAverage(salesData);
-            int predictedQuantity = (int) Math.ceil(predictedAvgDaily * PREDICTION_DAYS);
+            int predictedQuantity = (int) Math.ceil(predictedAvgDaily * batchProperties.getPredictionPeriodDays());
 
-            // 4. 신뢰도 점수 계산 (판매 일수 기반)
-            double confidenceScore = Math.min(salesData.size() / (double) HISTORICAL_DAYS, 1.0);
+            // 4. 신뢰도 점수 계산 (설정값 사용)
+            double confidenceScore = Math.min(salesData.size() / (double) batchProperties.getHistoricalDataDays(), 1.0);
 
             // 5. 예측 결과 저장
             saveForecastResult(seller, product, predictedQuantity, confidenceScore, salesData.size());
 
-            log.debug("예측 완료 - productId: {}, 예측량: {}, 신뢰도: {:.2f}",
-                    productId, predictedQuantity, confidenceScore);
+            log.debug("예측 완료 - productId: {}, 예측량: {} ({}일간), 신뢰도: {:.2f}, 이동평균윈도우: {}일",
+                    productId, predictedQuantity, batchProperties.getPredictionPeriodDays(),
+                    confidenceScore, batchProperties.getMovingAverageWindow());
             return true;
 
         } catch (Exception e) {
@@ -144,7 +145,7 @@ public class DemandForecastServiceImpl implements DemandForecastService {
                     .seller(seller)
                     .product(product)
                     .forecastDate(LocalDate.now())
-                    .predictionPeriodDays(PREDICTION_DAYS)
+                    .predictionPeriodDays(batchProperties.getPredictionPeriodDays()) // 설정값 사용
                     .predictedQuantity(predictedQuantity)
                     .algorithmType(DemandForecasts.AlgorithmType.MOVING_AVERAGE_7)
                     .confidenceScore(confidenceScore)
@@ -164,26 +165,36 @@ public class DemandForecastServiceImpl implements DemandForecastService {
         }
     }
 
-
     /**
-     * 7일 이동평균 계산
+     * 이동평균 계산 (설정값 기반)
+     * 설정된 윈도우 크기를 사용하여 이동평균을 계산
      */
     private double calculateMovingAverage(List<DailySalesDataDTO> salesData) {
-        if (salesData.size() <= MOVING_AVERAGE_WINDOW) {
-            // 데이터가 적으면 전체 평균
-            return salesData.stream()
+        int windowSize = batchProperties.getMovingAverageWindow();
+
+        if (salesData.size() <= windowSize) {
+            // 데이터가 윈도우 크기보다 적으면 전체 평균
+            double average = salesData.stream()
                     .mapToInt(DailySalesDataDTO::dailyQuantity)
                     .average()
                     .orElse(0.0);
+
+            log.debug("전체 평균 사용 - 데이터 수: {}, 윈도우 크기: {}, 평균: {:.2f}",
+                    salesData.size(), windowSize, average);
+            return average;
         }
 
-        // 최근 7일 이동평균
-        int recentDataCount = Math.min(MOVING_AVERAGE_WINDOW, salesData.size());
-        return salesData.subList(salesData.size() - recentDataCount, salesData.size())
+        // 최근 N일 이동평균 (설정값 사용)
+        int recentDataCount = Math.min(windowSize, salesData.size());
+        double movingAverage = salesData.subList(salesData.size() - recentDataCount, salesData.size())
                 .stream()
                 .mapToInt(DailySalesDataDTO::dailyQuantity)
                 .average()
                 .orElse(0.0);
+
+        log.debug("이동평균 계산 - 윈도우 크기: {}일, 사용 데이터: {}일, 평균: {:.2f}",
+                windowSize, recentDataCount, movingAverage);
+        return movingAverage;
     }
 
     @Override

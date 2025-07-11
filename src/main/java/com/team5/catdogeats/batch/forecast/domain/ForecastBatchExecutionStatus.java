@@ -100,12 +100,6 @@ public class ForecastBatchExecutionStatus extends BaseEntity {
         return ExecutionStatus.RUNNING.equals(this.executionStatus);
     }
 
-    /**
-     * 배치 완료 여부 확인
-     */
-    public boolean isCompleted() {
-        return ExecutionStatus.COMPLETED.equals(this.executionStatus);
-    }
 
     /**
      * 배치 실패 여부 확인

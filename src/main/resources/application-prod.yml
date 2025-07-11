@@ -17,14 +17,15 @@ batch:
     retry-limit: ${FORECAST_RETRY_LIMIT:3}                        # 재시도 한계치
     timeout-minutes: ${FORECAST_TIMEOUT_MINUTES:120}              # 배치 타임아웃 (2시간)
 
-    # 수요예측 알고리즘 설정
+    # 수요예측 알고리즘 설정 - 30일의 데이터를 분석하고, 최소 15일의 주문데이터가 필요하며 ,7일치의 판매량 을 예측합니다
     prediction-period-days: ${FORECAST_PREDICTION_DAYS:7}         # 예측 기간 (일)
-    historical-data-days: ${FORECAST_HISTORICAL_DAYS:30}          # 과거 데이터 분석 기간 (일)
-    min-sales-data-days: ${FORECAST_MIN_SALES_DAYS:15}            # 최소 판매 기록 일수
-    moving-average-window: ${FORECAST_MOVING_AVERAGE:7}           # 이동평균 윈도우
+    historical-data-days: ${FORECAST_HISTORICAL_DAYS:30}          # 과거 데이터 분석 기간 (일) - 검증용
+    min-sales-data-days: ${FORECAST_MIN_SALES_DAYS:15}            # 최소 판매 기록 일수 - 검증용
+    moving-average-window: ${FORECAST_MOVING_AVERAGE:7}           # 이동평균 윈도우 - "실제 계산에 사용할 최근 며칠"
 
     # 데이터 관리 설정
     cleanup-old-data-days: ${FORECAST_CLEANUP_DAYS:30}            # 오래된 데이터 정리 기간 (일)
+
 spring:
   servlet:
     multipart:
