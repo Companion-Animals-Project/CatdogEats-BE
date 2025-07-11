@@ -93,23 +93,19 @@ public class ShipmentSyncServiceImpl implements ShipmentSyncService {
                     .orElseThrow(() -> new IllegalArgumentException(
                             String.format("주문을 찾을 수 없습니다: %s", orderNumber)));
 
-            // 2. 이미 배송완료 상태면 동기화 불필요
-            if (OrderStatus.DELIVERED.equals(shipment.getOrders().getOrderStatus())) {
-                log.debug("이미 배송완료 상태 - orderNumber: {}", orderNumber);
-                return false;
-            }
-
-            // 3. 운송장 번호가 없으면 동기화 불가
+            // 2. 운송장 번호가 없으면 동기화 불가
             if (shipment.getTrackingNumber() == null || shipment.getTrackingNumber().trim().isEmpty()) {
                 log.debug("운송장 번호 없음 - orderNumber: {}", orderNumber);
                 return false;
             }
 
-            // 4. 개별 배송 정보 동기화 수행 (기존 로직 재활용)
+            // 3. 개별 배송 정보 동기화 수행 (개선된 로직 사용)
             boolean isUpdated = processShipmentSync(shipment);
 
             if (isUpdated) {
-                log.info("자동 동기화 완료 - orderNumber: {}, 배송완료로 상태 변경", orderNumber);
+                log.info("자동 동기화 완료 - orderNumber: {}, 상태 업데이트됨", orderNumber);
+            } else {
+                log.debug("자동 동기화 완료 - orderNumber: {}, 상태 변경 없음", orderNumber);
             }
 
             return isUpdated;
@@ -122,6 +118,7 @@ public class ShipmentSyncServiceImpl implements ShipmentSyncService {
             throw new RuntimeException("배송 상태 동기화 중 오류가 발생했습니다", e);
         }
     }
+
     /**
      * 판매자 조회
      */
@@ -189,15 +186,20 @@ public class ShipmentSyncServiceImpl implements ShipmentSyncService {
     }
 
     /**
-     * 개별 배송 정보 동기화 처리 (기존 로직 유지)
+     * 개별 배송 정보 동기화 처리 - 전면 개선
+     * 기존: DELIVERED 상태에서만 업데이트
+     * 개선: 모든 상태 변화를 실시간 반영
+     *
      * @param shipment 동기화할 배송 정보
      * @return 업데이트 여부 (true: 업데이트됨, false: 변경사항 없음)
      */
     private boolean processShipmentSync(Shipments shipment) {
         String trackingNumber = shipment.getTrackingNumber();
+        Orders order = shipment.getOrders();
+        OrderStatus currentDbStatus = order.getOrderStatus();
 
-        log.debug("배송 상태 확인 시작 - orderNumber: {}, trackingNumber: {}",
-                shipment.getOrders().getOrderNumber(), trackingNumber);
+        log.debug("배송 상태 확인 시작 - orderNumber: {}, trackingNumber: {}, currentDbStatus: {}",
+                order.getOrderNumber(), trackingNumber, currentDbStatus);
 
         // 물류 서버에서 배송 상태 조회
         Optional<TrackingResponse> trackingInfo = logisticsTrackingService.getTrackingInfo(trackingNumber);
@@ -207,33 +209,80 @@ public class ShipmentSyncServiceImpl implements ShipmentSyncService {
         }
 
         TrackingResponse response = trackingInfo.get();
+        String logisticsStatus = response.currentStatus();
 
-        // DELIVERED 상태인 경우에만 업데이트
-        if ("DELIVERED".equals(response.currentStatus())) {
-            ZonedDateTime deliveredAt = ZonedDateTime.now();
+        // === 중요: 물류서버 응답 상세 로깅 ===
+        log.info("물류서버 응답 확인 - orderNumber: {}, trackingNumber: {}, logisticsStatus: {}, currentDbStatus: {}",
+                order.getOrderNumber(), trackingNumber, logisticsStatus, currentDbStatus);
 
-            // 주문 상태 업데이트
-            Orders order = shipment.getOrders();
-            order.setOrderStatus(OrderStatus.DELIVERED);
+        // 물류서버 상태를 주문 상태로 매핑
+        OrderStatus targetOrderStatus = mapLogisticsStatusToOrderStatus(logisticsStatus);
 
-            // 배송 정보 업데이트
-            shipment.setDeliveredAt(deliveredAt);
-            shipment.setTrackingUpdatedAt(deliveredAt);
-
-            // 데이터베이스 저장
-            orderRepository.save(order);
-            shipmentRepository.save(shipment);
-
-            log.info("주문 배송완료 업데이트 완료 - orderNumber: {}, trackingNumber: {}",
-                    order.getOrderNumber(), trackingNumber);
-
-            return true; // 업데이트됨
+        if (targetOrderStatus == null) {
+            log.warn("알 수 없는 물류서버 상태 - orderNumber: {}, logisticsStatus: {}",
+                    order.getOrderNumber(), logisticsStatus);
+            return false;
         }
 
-        log.debug("배송 상태 변경 없음 - orderNumber: {}, currentStatus: {}",
-                shipment.getOrders().getOrderNumber(), response.currentStatus());
+        // DB 상태와 비교하여 변경이 필요한지 확인
+        if (currentDbStatus.equals(targetOrderStatus)) {
+            log.debug("상태 변경 불필요 - orderNumber: {}, 현재상태: {}, 물류상태: {}",
+                    order.getOrderNumber(), currentDbStatus, logisticsStatus);
+            return false;
+        }
 
-        return false; // 변경사항 없음
+        // 상태 업데이트 수행
+        ZonedDateTime now = ZonedDateTime.now();
+
+        log.info("주문 상태 업데이트 시작 - orderNumber: {}, {} → {}, logisticsStatus: {}",
+                order.getOrderNumber(), currentDbStatus, targetOrderStatus, logisticsStatus);
+
+        // 주문 상태 업데이트
+        order.setOrderStatus(targetOrderStatus);
+
+        // 상태별 배송 시각 설정
+        if ("DELIVERED".equals(logisticsStatus)) {
+            // 배송완료인 경우 배송완료 시각 설정
+            shipment.setDeliveredAt(now);
+            log.info("배송완료 시각 설정 - orderNumber: {}, deliveredAt: {}",
+                    order.getOrderNumber(), now);
+        } else {
+            // 배송완료가 아닌 경우 배송완료 시각 초기화 (중요!)
+            if (shipment.getDeliveredAt() != null) {
+                shipment.setDeliveredAt(null);
+                log.info("배송완료 시각 초기화 - orderNumber: {}, 상태: {}",
+                        order.getOrderNumber(), logisticsStatus);
+            }
+        }
+
+        // 배송정보 갱신 시각 업데이트
+        shipment.setTrackingUpdatedAt(now);
+
+        // 데이터베이스 저장
+        orderRepository.save(order);
+        shipmentRepository.save(shipment);
+
+        log.info("주문 상태 업데이트 완료 - orderNumber: {}, trackingNumber: {}, 최종상태: {}",
+                order.getOrderNumber(), trackingNumber, targetOrderStatus);
+
+        return true; // 업데이트됨
+    }
+
+    /**
+     * 물류서버 상태를 주문 상태로 매핑
+     * 주문 상태 매핑:
+     * - 배송 중간 단계 → IN_DELIVERY
+     * - 배송 완료 → DELIVERED
+     *
+     * @param logisticsStatus 물류서버에서 받은 배송 상태
+     * @return 매핑된 주문 상태 (매핑 불가시 null)
+     */
+    private OrderStatus mapLogisticsStatusToOrderStatus(String logisticsStatus) {
+        return switch (logisticsStatus) {
+            case "PICKED_UP", "AT_SORT_HUB", "DEPARTED_HUB", "OUT_FOR_DELIVERY" -> OrderStatus.IN_DELIVERY;
+            case "DELIVERED" -> OrderStatus.DELIVERED;
+            default -> null; // 알 수 없는 상태
+        };
     }
 
     /**

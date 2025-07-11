@@ -4,6 +4,7 @@ import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.Shipments;
+import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.domain.mapping.OrderItems;
 import com.team5.catdogeats.orders.dto.response.BuyerOrderListResponse;
 import com.team5.catdogeats.orders.dto.response.BuyerShipmentDetailResponse;
@@ -21,6 +22,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -115,7 +117,7 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
             try {
                 boolean isSynced = shipmentSyncService.syncSingleOrderDeliveryStatus(orderNumber);
                 if (isSynced) {
-                    log.info("배송 상태 자동 동기화 완료 - orderNumber: {}, 배송완료로 업데이트됨", orderNumber);
+                    log.info("배송 상태 자동 동기화 완료 - orderNumber: {}, 상태 업데이트됨", orderNumber);
 
                     // 동기화 후 최신 정보 다시 조회
                     order = orderRepository.findOrderDetailByUserAndOrderNumber(user, orderNumber)
@@ -152,30 +154,45 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
                             shipment.getDeliveryRequest()
                     );
 
-            // 8. 배송 상태에 따른 응답 분기 (기존 로직 유지)
+            // ===== 8. [수정] 배송 상태에 따른 응답 분기 로직 개선 =====
+            // 기존: shipment.getDeliveredAt() != null 조건 (문제 원인)
+            // 개선: order.getOrderStatus() 기준으로 정확한 판단
             BuyerShipmentDetailResponse response;
-            if (shipment.getDeliveredAt() != null) {
-                // 배송 완료된 경우 - 도착일 표시
+            OrderStatus currentOrderStatus = order.getOrderStatus();
+
+            log.info("응답 분기 판단 - orderNumber: {}, orderStatus: {}, deliveredAt: {}",
+                    orderNumber, currentOrderStatus, shipment.getDeliveredAt());
+
+            if (OrderStatus.DELIVERED.equals(currentOrderStatus)) {
+                // 주문 상태가 배송완료인 경우 - 도착일 표시
+                ZonedDateTime arrivalDate = shipment.getDeliveredAt() != null
+                        ? shipment.getDeliveredAt()
+                        : shipment.getTrackingUpdatedAt(); // fallback
+
                 response = BuyerShipmentDetailResponse.withArrivalDate(
                         orderNumber,
-                        shipment.getDeliveredAt(),
+                        arrivalDate,
                         trackingInfo,
                         recipientInfo,
                         trackingLogs
                 );
+
+                log.info("배송완료 응답 생성 - orderNumber: {}, arrivalDate: {}", orderNumber, arrivalDate);
             } else {
                 // 배송 중인 경우 - 현재 배송 상태 표시
                 response = BuyerShipmentDetailResponse.withDeliveryStatus(
                         orderNumber,
-                        order.getOrderStatus(),
+                        currentOrderStatus,
                         trackingInfo,
                         recipientInfo,
                         trackingLogs
                 );
+
+                log.info("배송중 응답 생성 - orderNumber: {}, deliveryStatus: {}", orderNumber, currentOrderStatus);
             }
 
-            log.info("구매자 배송 정보 상세 조회 성공 - orderNumber={}, status={}, logsCount={}",
-                    orderNumber, order.getOrderStatus(), trackingLogs.size());
+            log.info("구매자 배송 정보 상세 조회 성공 - orderNumber={}, finalStatus={}, logsCount={}",
+                    orderNumber, currentOrderStatus, trackingLogs.size());
 
             return response;
 
@@ -190,6 +207,7 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
             throw new RuntimeException("배송 정보 상세 조회 중 오류가 발생했습니다", e);
         }
     }
+
 
     /**
      * 사용자 조회 - 기존 패턴 활용
