@@ -1,7 +1,10 @@
 package com.team5.catdogeats.support.domain.inquiry.service;
 
 import com.team5.catdogeats.support.domain.enums.InquiryUrgentLevel;
-import com.team5.catdogeats.support.domain.inquiry.dto.*;
+import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryDetailResponseDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryListResponseDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryResponseDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.request.InquiryCreateRequestDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

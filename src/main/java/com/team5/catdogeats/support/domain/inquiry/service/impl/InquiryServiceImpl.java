@@ -1,5 +1,7 @@
 package com.team5.catdogeats.support.domain.inquiry.service.impl;
 
+import com.team5.catdogeats.admins.domain.Admins;
+import com.team5.catdogeats.admins.repository.AdminRepository;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.repository.OrderRepository;
@@ -7,7 +9,11 @@ import com.team5.catdogeats.support.domain.Inquires;
 import com.team5.catdogeats.support.domain.enums.InquiryMessageType;
 import com.team5.catdogeats.support.domain.enums.InquiryStatus;
 import com.team5.catdogeats.support.domain.enums.InquiryUrgentLevel;
-import com.team5.catdogeats.support.domain.inquiry.dto.*;
+import com.team5.catdogeats.support.domain.inquiry.dto.request.InquiryCreateRequestDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryDetailResponseDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryListResponseDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryMessageDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryResponseDTO;
 import com.team5.catdogeats.support.domain.inquiry.repository.InquiryRepository;
 import com.team5.catdogeats.support.domain.inquiry.service.InquiryEscalationService;
 import com.team5.catdogeats.support.domain.inquiry.service.InquiryService;
@@ -37,6 +43,7 @@ public class InquiryServiceImpl implements InquiryService {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final InquiryEscalationService escalationService;
+    private final AdminRepository adminRepository;
 
     @Override
     @JpaTransactional(readOnly = true)
@@ -93,13 +100,10 @@ public class InquiryServiceImpl implements InquiryService {
     @Override
     @JpaTransactional
     public InquiryResponseDTO createUserFollowup(String inquiryId, String providerId, String content) {
-        // ✅ 서비스에서 검증 및 DTO 생성 처리
+        // 입력 검증
         if (content == null || content.trim().isEmpty()) {
             throw new IllegalArgumentException("내용은 필수입니다.");
         }
-
-        // ✅ DTO 생성을 서비스에서 처리
-        InquiryRequestDTO request = InquiryRequestDTO.forContent(content);
 
         Inquires targetInquiry = inquiryRepository.findById(inquiryId)
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
@@ -139,7 +143,7 @@ public class InquiryServiceImpl implements InquiryService {
                 .users(user)
                 .admins(null)
                 .title("Re: " + rootInquiry.getTitle())
-                .content(request.content())
+                .content(content.trim()) // 직접 content 사용
                 .inquiryType(rootInquiry.getInquiryType())
                 .inquiryReceiveMethod(rootInquiry.getInquiryReceiveMethod())
                 .inquiryStatus(newStatus)
@@ -178,7 +182,7 @@ public class InquiryServiceImpl implements InquiryService {
     public Page<InquiryListResponseDTO> getAllInquiries(Pageable pageable) {
         Page<Inquires> inquiries = inquiryRepository.findAllInquiriesOrderByCreatedAtDesc(pageable);
 
-        // 🔥 핵심: 간단한 배치 처리
+        // 간단한 배치 처리
         updateUrgencyBatch(inquiries.getContent());
 
         List<InquiryListResponseDTO> content = new ArrayList<>();
@@ -225,13 +229,14 @@ public class InquiryServiceImpl implements InquiryService {
     @Override
     @JpaTransactional
     public InquiryResponseDTO createAdminReply(String inquiryId, String adminId, String content) {
-        // ✅ 서비스에서 검증 및 DTO 생성 처리
+        // 입력 검증
         if (content == null || content.trim().isEmpty()) {
             throw new IllegalArgumentException("답변 내용은 필수입니다.");
         }
 
-        // ✅ DTO 생성을 서비스에서 처리
-        InquiryRequestDTO request = InquiryRequestDTO.forContent(content);
+        // adminId로 Admin 엔티티 조회
+        Admins admin = adminRepository.findById(adminId)
+                .orElseThrow(() -> new EntityNotFoundException("관리자를 찾을 수 없습니다: " + adminId));
 
         Inquires targetInquiry = inquiryRepository.findById(inquiryId)
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
@@ -262,9 +267,9 @@ public class InquiryServiceImpl implements InquiryService {
         Inquires reply = Inquires.builder()
                 .parent(rootInquiry)
                 .users(rootInquiry.getUsers())
-                .admins(null) // Todo: admin쪽 엔티티 연결 필요
+                .admins(admin)
                 .title("Re: " + rootInquiry.getTitle())
-                .content(request.content())
+                .content(content.trim()) // 직접 content 사용
                 .inquiryType(rootInquiry.getInquiryType())
                 .inquiryReceiveMethod(rootInquiry.getInquiryReceiveMethod())
                 .inquiryStatus(newStatus)
@@ -282,13 +287,14 @@ public class InquiryServiceImpl implements InquiryService {
     @Override
     @JpaTransactional
     public InquiryResponseDTO closeInquiryByAdmin(String inquiryId, String adminId, String reason) {
-        // ✅ 서비스에서 검증 및 DTO 생성 처리
+        // 입력 검증
         if (reason == null || reason.trim().isEmpty()) {
             throw new IllegalArgumentException("강제 종료 시 사유는 필수입니다.");
         }
 
-        // ✅ DTO 생성을 서비스에서 처리
-        InquiryRequestDTO request = InquiryRequestDTO.forClose(reason);
+        // adminId로 Admin 엔티티 조회
+        Admins admin = adminRepository.findById(adminId)
+                .orElseThrow(() -> new EntityNotFoundException("관리자를 찾을 수 없습니다: " + adminId));
 
         Inquires targetInquiry = inquiryRepository.findById(inquiryId)
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
@@ -301,10 +307,16 @@ public class InquiryServiceImpl implements InquiryService {
         }
 
         rootInquiry.setInquiryStatus(InquiryStatus.FORCE_CLOSED);
+        rootInquiry.setAdmins(admin);
+
+        // 강제 종료 사유는 별도 로깅 또는 필요시 엔티티에 추가 필드로 저장
+        log.info("문의 강제 종료 - inquiryId: {}, adminId: {}, reason: {}",
+                inquiryId, adminId, reason);
+
+        inquiryRepository.save(rootInquiry);
 
         return InquiryResponseDTO.closed(rootInquiry);
     }
-
 
     @Override
     @JpaTransactional
@@ -317,14 +329,12 @@ public class InquiryServiceImpl implements InquiryService {
         return InquiryResponseDTO.from(inquiry, "긴급도가 성공적으로 수정되었습니다.");
     }
 
-
     private void validateInquiryNotClosed(Inquires inquiry) {
         if (inquiry.getInquiryStatus() == InquiryStatus.CLOSED ||
                 inquiry.getInquiryStatus() == InquiryStatus.FORCE_CLOSED) {
             throw new IllegalStateException("종료된 문의에는 답글을 등록할 수 없습니다.");
         }
     }
-
 
     private void validateUserAccess(Inquires inquiry, String providerId) {
         String userId = getUserIdByProviderId(providerId);

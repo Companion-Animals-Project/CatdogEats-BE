@@ -1,21 +1,22 @@
 package com.team5.catdogeats.support.domain.inquiry.controller;
 
+import com.team5.catdogeats.admins.domain.dto.AdminInfo;
+import com.team5.catdogeats.admins.util.AdminControllerUtils;
 import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
-import com.team5.catdogeats.support.domain.enums.InquiryUrgentLevel;
-import com.team5.catdogeats.support.domain.inquiry.dto.InquiryDetailResponseDTO;
-import com.team5.catdogeats.support.domain.inquiry.dto.InquiryListResponseDTO;
-import com.team5.catdogeats.support.domain.inquiry.dto.InquiryRequestDTO;
-import com.team5.catdogeats.support.domain.inquiry.dto.InquiryResponseDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.request.InquiryCloseRequestDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.request.InquiryReplyRequestDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.request.InquiryUrgentLevelRequestDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryDetailResponseDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryListResponseDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryResponseDTO;
 import com.team5.catdogeats.support.domain.inquiry.service.InquiryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -24,7 +25,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -36,6 +37,7 @@ import org.springframework.web.bind.annotation.*;
 public class InquiryAdminController {
 
     private final InquiryService inquiryService;
+    private final AdminControllerUtils controllerUtils;
 
     @GetMapping
     @Operation(
@@ -108,10 +110,12 @@ public class InquiryAdminController {
                     + "긴급도 레벨: HIGH, MIDDLE, LOW"
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> updateUrgentLevel(
-            @Parameter(description = "긴급도 수정 요청") @Valid @RequestBody UrgentLevelRequestWrapper request) {
+            @Parameter(description = "긴급도 수정 요청")
+            @Valid @RequestBody InquiryUrgentLevelRequestDTO request) {
 
         try {
-            InquiryResponseDTO response = inquiryService.updateUrgentLevel(request.inquiryId(), request.urgentLevel());
+            InquiryResponseDTO response = inquiryService.updateUrgentLevel(
+                    request.inquiryId(), request.urgentLevel());
 
             return ResponseEntity.ok(
                     ApiResponse.success(ResponseCode.SUCCESS, response)
@@ -135,21 +139,28 @@ public class InquiryAdminController {
                     + "내용은 최소 5자 이상 작성해야 합니다."
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> createReply(
-            @Parameter(hidden = true) @AuthenticationPrincipal Object adminPrincipal,
-            @Parameter(description = "답변 등록 정보") @Valid @RequestBody ReplyRequestWrapper request) {
+            HttpSession session,
+            @Parameter(description = "답변 등록 정보")
+            @Valid @RequestBody InquiryReplyRequestDTO request) {
 
         try {
-            String adminId = adminPrincipal != null ? adminPrincipal.toString() : "SYSTEM";
+            // 세션에서 관리자 정보 가져오기
+            AdminInfo adminInfo = controllerUtils.requireSessionInfo(session);
+            String adminId = adminInfo.adminId();
 
-            // ✅ 컨트롤러에서는 단순히 파라미터만 전달
             InquiryResponseDTO response = inquiryService.createAdminReply(
                     request.inquiryId(), adminId, request.content());
 
-            log.info("관리자 답변 등록 완료 - inquiryId: {}, adminId: {}, replyId: {}",
-                    request.inquiryId(), adminId, response.inquiryId());
+            log.info("관리자 답변 등록 완료 - inquiryId: {}, adminId: {}, adminName: {}, replyId: {}",
+                    request.inquiryId(), adminId, adminInfo.name(), response.inquiryId());
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
                     ApiResponse.success(ResponseCode.CREATED, response)
+            );
+        } catch (BadCredentialsException e) {
+            log.warn("관리자 로그인 필요 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
             );
         } catch (EntityNotFoundException e) {
             log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
@@ -183,22 +194,28 @@ public class InquiryAdminController {
                     + "종료 사유는 필수입니다."
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> forceCloseInquiry(
-            @Parameter(hidden = true) @AuthenticationPrincipal Object adminPrincipal,
-            @Parameter(description = "종료 사유 (필수)")
-            @Valid @RequestBody CloseRequestWrapper request) {
+            HttpSession session,
+            @Parameter(description = "강제 종료 요청")
+            @Valid @RequestBody InquiryCloseRequestDTO request) {
 
         try {
-            String adminId = adminPrincipal != null ? adminPrincipal.toString() : "SYSTEM";
+            // 세션에서 관리자 정보 가져오기
+            AdminInfo adminInfo = controllerUtils.requireSessionInfo(session);
+            String adminId = adminInfo.adminId();
 
-            // ✅ 컨트롤러에서는 단순히 파라미터만 전달
             InquiryResponseDTO response = inquiryService.closeInquiryByAdmin(
                     request.inquiryId(), adminId, request.reason());
 
-            log.info("관리자 문의 강제 종료 완료 - inquiryId: {}, adminId: {}, reason: {}",
-                    request.inquiryId(), adminId, request.reason());
+            log.info("관리자 문의 강제 종료 완료 - inquiryId: {}, adminId: {}, adminName: {}, reason: {}",
+                    request.inquiryId(), adminId, adminInfo.name(), request.reason());
 
             return ResponseEntity.ok(
                     ApiResponse.success(ResponseCode.SUCCESS, response)
+            );
+        } catch (BadCredentialsException e) {
+            log.warn("관리자 로그인 필요 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
             );
         } catch (EntityNotFoundException e) {
             log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
@@ -218,31 +235,4 @@ public class InquiryAdminController {
             );
         }
     }
-
-    // 컨트롤러 전용 래퍼 클래스들
-    public record ReplyRequestWrapper(
-            @NotBlank(message = "문의 ID는 필수입니다")
-            String inquiryId,
-
-            @NotBlank(message = "답변 내용은 필수입니다")
-            @Size(max = 2000, message = "답변 내용은 2,000자를 초과할 수 없습니다")
-            String content
-    ) {}
-
-    public record CloseRequestWrapper(
-            @NotBlank(message = "문의 ID는 필수입니다")
-            String inquiryId,
-
-            @NotBlank(message = "강제 종료 시, 사유는 필수입니다.")
-            @Size(max = 200, message = "종료 사유는 200자 이내로 입력해주세요.")
-            String reason
-    ) {}
-
-    public record UrgentLevelRequestWrapper(
-            @NotBlank(message = "문의 ID는 필수입니다")
-            String inquiryId,
-
-            @NotNull(message = "긴급도는 필수입니다")
-            InquiryUrgentLevel urgentLevel
-    ) {}
 }
