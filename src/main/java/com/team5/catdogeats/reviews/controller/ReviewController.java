@@ -1,7 +1,7 @@
 package com.team5.catdogeats.reviews.controller;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.global.dto.APIResponse;
+import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.dto.PageResponseDto;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.reviews.domain.dto.*;
@@ -29,47 +29,47 @@ public class ReviewController {
 
     @Operation(summary = "리뷰 등록", description = "구매자가 상품에 대한 리뷰를 등록합니다.")
     @PostMapping
-    public ResponseEntity<APIResponse<Void>> createReview(@AuthenticationPrincipal UserPrincipal userPrincipal, @RequestBody @Valid @Parameter(description = "등록할 리뷰 정보", required = true) ReviewCreateRequestDto dto) {
+    public ResponseEntity<ApiResponse<Void>> createReview(@AuthenticationPrincipal UserPrincipal userPrincipal, @RequestBody @Valid @Parameter(description = "등록할 리뷰 정보", required = true) ReviewCreateRequestDto dto) {
         try {
             String reviewId = reviewService.registerReview(userPrincipal, dto);
             return ResponseEntity
                     .created(URI.create("/v1/buyers/reviews/" + reviewId))
-                    .body(APIResponse.success(ResponseCode.CREATED));
+                    .body(ApiResponse.success(ResponseCode.CREATED));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
 
     @Operation(summary = "내가 작성한 리뷰 목록 조회 (페이징)", description = "로그인한 구매자가 직접 작성한 리뷰 목록을 조회합니다.")
     @GetMapping("/list")
-    public ResponseEntity<APIResponse<PageResponseDto<MyReviewResponseDto>>> getReviewsByBuyer(
+    public ResponseEntity<ApiResponse<PageResponseDto<MyReviewResponseDto>>> getReviewsByBuyer(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         try {
             Page<MyReviewResponseDto> reviews = reviewService.getReviewsByBuyer(userPrincipal, page, size);
 
-            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, PageResponseDto.from(reviews)));
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, PageResponseDto.from(reviews)));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
 
     @Operation(summary = "상품에 대한 리뷰 목록 조회 (페이징)", description = "특정 상품에 대한 모든 리뷰 목록을 조회합니다.")
     @GetMapping("/{productNumber}/list")
-    public ResponseEntity<APIResponse<PageResponseDto<ProductReviewResponseDto>>> getReviewsByProduct(
+    public ResponseEntity<ApiResponse<PageResponseDto<ProductReviewResponseDto>>> getReviewsByProduct(
             @Parameter(description = "조회할 상품 Number", required = true)
             @PathVariable Long productNumber,
             @RequestParam(defaultValue = "0") int page,
@@ -77,50 +77,50 @@ public class ReviewController {
         try {
             Page<ProductReviewResponseDto> reviews = reviewService.getReviewsByProductNumber(productNumber, page, size);
 
-            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, PageResponseDto.from(reviews)));
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, PageResponseDto.from(reviews)));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
 
     @Operation(summary = "리뷰 수정", description = "구매자가 자신의 리뷰를 수정합니다.")
     @PatchMapping
-    public ResponseEntity<APIResponse<Void>> updateReview(@RequestBody @Valid @Parameter(description = "수정할 리뷰 내용", required = true) ReviewUpdateRequestDto dto) {
+    public ResponseEntity<ApiResponse<Void>> updateReview(@RequestBody @Valid @Parameter(description = "수정할 리뷰 내용", required = true) ReviewUpdateRequestDto dto) {
         try {
             reviewService.updateReview(dto);
-            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS));
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
 
     @Operation(summary = "리뷰 삭제", description = "구매자가 자신의 리뷰(리뷰, 이미지, 매핑 테이블 모두) 삭제합니다.")
     @DeleteMapping
-    public ResponseEntity<APIResponse<Void>> deleteReview(
+    public ResponseEntity<ApiResponse<Void>> deleteReview(
             @RequestBody @Valid @Parameter(description = "삭제할 리뷰 id", required = true) ReviewDeleteRequestDto dto) {
         try {
             reviewService.deleteReview(dto);
-            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS));
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
 }

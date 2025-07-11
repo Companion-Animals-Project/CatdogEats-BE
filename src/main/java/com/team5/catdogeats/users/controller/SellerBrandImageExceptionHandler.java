@@ -1,11 +1,12 @@
 package com.team5.catdogeats.users.controller;
 
-import com.team5.catdogeats.global.dto.APIResponse;
+import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import jakarta.persistence.EntityNotFoundException;
 
@@ -22,11 +23,11 @@ public class SellerBrandImageExceptionHandler {
      * Service의 findUserByPrincipal(), findSellerByUserId()에서 발생
      */
     @ExceptionHandler(EntityNotFoundException.class)
-    public ResponseEntity<APIResponse<Object>> handleEntityNotFound(EntityNotFoundException e) {
+    public ResponseEntity<ApiResponse<Object>> handleEntityNotFound(EntityNotFoundException e) {
         log.warn("사용자/판매자 정보 조회 실패 - Message: {}", e.getMessage());
 
         return ResponseEntity.status(ResponseCode.USER_NOT_FOUND.getStatus())
-                .body(APIResponse.error(ResponseCode.USER_NOT_FOUND, e.getMessage()));
+                .body(ApiResponse.error(ResponseCode.USER_NOT_FOUND, e.getMessage()));
     }
 
     /**
@@ -38,11 +39,11 @@ public class SellerBrandImageExceptionHandler {
      * - Content-Type 오류 등
      */
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<APIResponse<Object>> handleIllegalArgument(IllegalArgumentException e) {
+    public ResponseEntity<ApiResponse<Object>> handleIllegalArgument(IllegalArgumentException e) {
         log.warn("파일 업로드 파라미터 오류 - Message: {}", e.getMessage());
 
         return ResponseEntity.status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+                .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
     }
 
     /**
@@ -53,11 +54,11 @@ public class SellerBrandImageExceptionHandler {
      * - "브랜드 이미지 삭제에 실패했습니다."
      */
     @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<APIResponse<Object>> handleRuntimeException(RuntimeException e) {
+    public ResponseEntity<ApiResponse<Object>> handleRuntimeException(RuntimeException e) {
         log.error("브랜드 이미지 처리 중 런타임 오류 - Message: {}", e.getMessage(), e);
 
         return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+                .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
     }
 
 
@@ -65,10 +66,10 @@ public class SellerBrandImageExceptionHandler {
      * 기타 예상치 못한 예외 처리
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<APIResponse<Object>> handleGeneral(Exception e) {
+    public ResponseEntity<ApiResponse<Object>> handleGeneral(Exception e) {
         log.error("브랜드 이미지 처리 중 예상치 못한 오류", e);
 
         return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+                .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
     }
 }

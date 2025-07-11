@@ -1,6 +1,6 @@
 package com.team5.catdogeats.users.controller;
 
-import com.team5.catdogeats.global.dto.APIResponse;
+import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.pets.domain.enums.PetCategory;
 import com.team5.catdogeats.products.domain.enums.ProductCategory;
@@ -62,7 +62,7 @@ public class SellerStoreController {
                     """
     )
     @GetMapping("/{vendor-name}")
-    public ResponseEntity<APIResponse<SellerStorePageResponse>> getSellerStorePage(
+    public ResponseEntity<ApiResponse<SellerStorePageResponse>> getSellerStorePage(
             @Parameter(description = "판매자 상점명", example = "멍멍이네수제간식")
             @PathVariable("vendor-name") String vendorName,
 
@@ -94,7 +94,7 @@ public class SellerStoreController {
                 vendorName, filter, response.products().content().size());
 
         return ResponseEntity.ok(
-                APIResponse.success(ResponseCode.SELLER_STORE_SUCCESS, response)
+                ApiResponse.success(ResponseCode.SELLER_STORE_SUCCESS, response)
         );
     }
 }

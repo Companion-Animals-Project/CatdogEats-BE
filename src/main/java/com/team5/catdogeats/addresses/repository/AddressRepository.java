@@ -8,10 +8,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 
+@Repository
 public interface AddressRepository extends JpaRepository<Addresses, String> {
 
     // 사용자별 주소 타입에 따른 주소 목록 조회 (페이징) - 커스텀 쿼리로 변경

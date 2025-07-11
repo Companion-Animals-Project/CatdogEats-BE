@@ -1,7 +1,7 @@
 package com.team5.catdogeats.pets.controller;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.global.dto.APIResponse;
+import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.dto.PageResponseDto;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.pets.domain.dto.*;
@@ -30,26 +30,26 @@ public class PetController {
 
     @Operation(summary = "펫 등록", description = "새로운 펫 정보를 등록합니다.")
     @PostMapping("/pet")
-    public ResponseEntity<APIResponse<Void>> registerPet(@AuthenticationPrincipal UserPrincipal userPrincipal, @RequestBody @Valid @Parameter(description = "등록할 펫 정보", required = true) PetCreateRequestDto dto) {
+    public ResponseEntity<ApiResponse<Void>> registerPet(@AuthenticationPrincipal UserPrincipal userPrincipal, @RequestBody @Valid @Parameter(description = "등록할 펫 정보", required = true) PetCreateRequestDto dto) {
         try {
             String petId = petService.registerPet(userPrincipal, dto);
             return ResponseEntity
                     .created(URI.create("/v1/buyers/pet/" + petId))
-                    .body(APIResponse.success(ResponseCode.CREATED));
+                    .body(ApiResponse.success(ResponseCode.CREATED));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
 
     @Operation(summary = "내 펫 목록 조회 (페이징)", description = "로그인한 사용자의 펫 목록을 조회합니다.")
     @GetMapping("/pet")
-    public ResponseEntity<APIResponse<PageResponseDto<PetResponseDto>>> getMyPets(
+    public ResponseEntity<ApiResponse<PageResponseDto<PetResponseDto>>> getMyPets(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "4") int size) {
@@ -65,21 +65,21 @@ public class PetController {
                     pets.getTotalPages(),
                     pets.isLast()
             );
-            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, petPageResponse));
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, petPageResponse));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
 
     @Operation(summary = "내 펫 목록 조회 (스크롤)", description = "프론트에서 응답의 nextCursor값을 다음 요청의 cursorCreatedAt으로 사용하는 로직 추가하기")
     @GetMapping("/pet/curost")
-    public ResponseEntity<APIResponse<CursorPetResponseDto>> getMyPetsWithCursor(
+    public ResponseEntity<ApiResponse<CursorPetResponseDto>> getMyPetsWithCursor(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestParam(required = false) ZonedDateTime cursorUpdatedAt,
             @RequestParam(defaultValue = "4") int size) {
@@ -95,49 +95,49 @@ public class PetController {
             CursorPetResponseDto response = new CursorPetResponseDto(page.getContent(), nextCursor, hasNext);
 
 
-            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
 
     @Operation(summary = "펫 정보 수정", description = "기존 펫 정보를 수정합니다.")
     @PatchMapping("/pet")
-    public ResponseEntity<APIResponse<Void>> updatePet(@RequestBody @Valid @Parameter(description = "수정할 펫 정보", required = true) PetUpdateRequestDto dto) {
+    public ResponseEntity<ApiResponse<Void>> updatePet(@RequestBody @Valid @Parameter(description = "수정할 펫 정보", required = true) PetUpdateRequestDto dto) {
         try {
             petService.updatePet(dto);
-            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS));
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
 
     @Operation(summary = "펫 삭제", description = "펫 정보를 삭제합니다.")
     @DeleteMapping("/pet")
-    public ResponseEntity<APIResponse<Void>> deletePet(@RequestBody @Valid @Parameter(description = "삭제할 펫 id", required = true) PetDeleteRequestDto dto) {
+    public ResponseEntity<ApiResponse<Void>> deletePet(@RequestBody @Valid @Parameter(description = "삭제할 펫 id", required = true) PetDeleteRequestDto dto) {
         try {
             petService.deletePet(dto);
-            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS));
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
 }

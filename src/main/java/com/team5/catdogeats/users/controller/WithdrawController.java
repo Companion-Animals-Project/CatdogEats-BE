@@ -2,7 +2,7 @@ package com.team5.catdogeats.users.controller;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.auth.util.CookieUtils;
-import com.team5.catdogeats.global.dto.APIResponse;
+import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.users.service.WithdrawService;
 import lombok.RequiredArgsConstructor;
@@ -25,10 +25,10 @@ public class WithdrawController {
     private final CookieUtils cookieUtils;
 
     @PostMapping("/withdraw")
-    public ResponseEntity<APIResponse<?>> withdraw(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+    public ResponseEntity<ApiResponse<?>> withdraw(@AuthenticationPrincipal UserPrincipal userPrincipal) {
 
         if (userPrincipal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
         }
 
        try {
@@ -37,11 +37,11 @@ public class WithdrawController {
            ResponseCookie refreshIdCookie = cookieUtils.createCookie("refreshTokenId", 0, null);
            return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString())
                    .header(HttpHeaders.SET_COOKIE, refreshIdCookie.toString())
-                   .body(APIResponse.success(ResponseCode.USER_SOFT_DELETE_SUCCESS));
+                   .body(ApiResponse.success(ResponseCode.USER_SOFT_DELETE_SUCCESS));
        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(APIResponse.error(ResponseCode.ACCESS_DENIED));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(ResponseCode.ACCESS_DENIED));
        } catch (Exception e) {
-           return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+           return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
        }
     }
 }

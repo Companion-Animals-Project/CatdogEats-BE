@@ -1,7 +1,7 @@
 package com.team5.catdogeats.users.controller;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.global.dto.APIResponse;
+import com.team5.catdogeats.global.dto.ApiResponse;
 import com.team5.catdogeats.global.dto.PageResponseDto;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.products.domain.dto.MyProductResponseDto;
@@ -36,7 +36,7 @@ public class SellerRatingController {
             description = "판매자가 등록한 상품 목록(정렬/페이징)과 전체 리뷰 통계(개수, 평균 별점, 구간별 별점)를 한번에 조회"
     )
     @GetMapping("/list")
-    public ResponseEntity<APIResponse<SellerProductListWithReviewSummaryResponseDto>> getSellerProductsOverview(
+    public ResponseEntity<ApiResponse<SellerProductListWithReviewSummaryResponseDto>> getSellerProductsOverview(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -53,15 +53,15 @@ public class SellerRatingController {
                             reviewSummary
                     );
 
-            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
 
@@ -70,7 +70,7 @@ public class SellerRatingController {
     @Operation(summary = "특정 상품에 대한 리뷰 목록 조회",
             description = "리뷰 작성자, 작성자의 펫 정보, 별점, 내용, 등록/수정 날짜, 리뷰에 첨부된 이미지들 제공합니다.")
     @GetMapping("/{productNumber}/list")
-    public ResponseEntity<APIResponse<PageResponseDto<ProductReviewResponseDto>>> getReviewsByProduct(
+    public ResponseEntity<ApiResponse<PageResponseDto<ProductReviewResponseDto>>> getReviewsByProduct(
             @Parameter(description = "조회할 상품 Number", required = true)
             @PathVariable Long productNumber,
             @RequestParam(defaultValue = "0") int page,
@@ -78,15 +78,15 @@ public class SellerRatingController {
         try {
             Page<ProductReviewResponseDto> reviews = reviewService.getReviewsByProductNumber(productNumber, page, size);
 
-            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, PageResponseDto.from(reviews)));
+            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, PageResponseDto.from(reviews)));
         } catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity
                     .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
 }

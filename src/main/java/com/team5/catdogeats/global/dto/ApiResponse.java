@@ -10,7 +10,7 @@ import java.util.List;
  * 전역 API 응답 포맷
  * 모든 REST API 응답에서 사용하는 공통 응답 구조
  */
-public record APIResponse<T>(
+public record ApiResponse<T>(
         boolean success,
         String message,
         T data,
@@ -23,8 +23,8 @@ public record APIResponse<T>(
     /**
      * 성공 응답 생성
      */
-    public static <T> APIResponse<T> success(ResponseCode responseCode, T data) {
-        return new APIResponse<>(
+    public static <T> ApiResponse<T> success(ResponseCode responseCode, T data) {
+        return new ApiResponse<>(
                 true,
                 responseCode.getMessage(),
                 data,
@@ -37,8 +37,8 @@ public record APIResponse<T>(
     /**
      * 성공 응답 생성 (데이터 없음)
      */
-    public static <T> APIResponse<T> success(ResponseCode responseCode) {
-        return new APIResponse<>(
+    public static <T> ApiResponse<T> success(ResponseCode responseCode) {
+        return new ApiResponse<>(
                 true,
                 responseCode.getMessage(),
                 null,
@@ -51,8 +51,8 @@ public record APIResponse<T>(
     /**
      * 실패 응답 생성
      */
-    public static <T> APIResponse<T> error(ResponseCode responseCode) {
-        return new APIResponse<>(
+    public static <T> ApiResponse<T> error(ResponseCode responseCode) {
+        return new ApiResponse<>(
                 false,
                 responseCode.getMessage(),
                 null,
@@ -65,8 +65,8 @@ public record APIResponse<T>(
     /**
      * 실패 응답 생성 (커스텀 메시지)
      */
-    public static <T> APIResponse<T> error(ResponseCode responseCode, String customMessage) {
-        return new APIResponse<>(
+    public static <T> ApiResponse<T> error(ResponseCode responseCode, String customMessage) {
+        return new ApiResponse<>(
                 false,
                 customMessage,
                 null,
@@ -79,8 +79,8 @@ public record APIResponse<T>(
     /**
      * 실패 응답 생성 (path)
      */
-    public static <T> APIResponse<T> error(ResponseCode responseCode, String path, List<FieldError> errors) {
-        return new APIResponse<>(
+    public static <T> ApiResponse<T> error(ResponseCode responseCode, String path, List<FieldError> errors) {
+        return new ApiResponse<>(
                 false,
                 responseCode.getMessage(),
                 null,
