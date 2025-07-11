@@ -1,4 +1,4 @@
-package com.team5.catdogeats.support.domain.inquiry.dto;
+package com.team5.catdogeats.support.domain.inquiry.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

@@ -11,7 +11,7 @@ import com.team5.catdogeats.storage.service.ObjectStorageService;
 import com.team5.catdogeats.storage.util.DocumentValidationUtil;
 import com.team5.catdogeats.storage.util.ImageValidationUtil;
 import com.team5.catdogeats.support.domain.Inquires;
-import com.team5.catdogeats.support.domain.inquiry.dto.InquiryAttachmentDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryAttachmentDTO;
 import com.team5.catdogeats.support.domain.inquiry.repository.InquiryRepository;
 import com.team5.catdogeats.storage.service.InquiryFileService;
 import com.team5.catdogeats.users.domain.Users;

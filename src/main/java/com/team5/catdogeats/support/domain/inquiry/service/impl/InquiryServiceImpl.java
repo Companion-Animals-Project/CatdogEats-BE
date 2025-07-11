@@ -1,5 +1,7 @@
 package com.team5.catdogeats.support.domain.inquiry.service.impl;
 
+import com.team5.catdogeats.admins.domain.Admins;
+import com.team5.catdogeats.admins.repository.AdminRepository;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.repository.OrderRepository;
@@ -8,7 +10,12 @@ import com.team5.catdogeats.support.domain.Inquires;
 import com.team5.catdogeats.support.domain.enums.InquiryMessageType;
 import com.team5.catdogeats.support.domain.enums.InquiryStatus;
 import com.team5.catdogeats.support.domain.enums.InquiryUrgentLevel;
-import com.team5.catdogeats.support.domain.inquiry.dto.*;
+import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryAttachmentDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.request.InquiryCreateRequestDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryDetailResponseDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryListResponseDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryMessageDTO;
+import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryResponseDTO;
 import com.team5.catdogeats.support.domain.inquiry.repository.InquiryRepository;
 import com.team5.catdogeats.support.domain.inquiry.service.InquiryEscalationService;
 import com.team5.catdogeats.support.domain.inquiry.service.InquiryService;
@@ -26,7 +33,6 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -40,8 +46,8 @@ public class InquiryServiceImpl implements InquiryService {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final InquiryEscalationService escalationService;
+    private final AdminRepository adminRepository;
     private final InquiryFileService inquiryFileService;
-
 
     @Override
     @JpaTransactional(readOnly = true)
@@ -50,7 +56,6 @@ public class InquiryServiceImpl implements InquiryService {
         return inquiries.map(InquiryListResponseDTO::forUser);
     }
 
-    // 사용자용 상세 조회
     @Override
     @JpaTransactional(readOnly = true)
     public InquiryDetailResponseDTO getUserInquiryDetail(String inquiryId, String providerId) {
@@ -65,12 +70,9 @@ public class InquiryServiceImpl implements InquiryService {
         return InquiryDetailResponseDTO.forUser(rootInquiry, messages, attachments);
     }
 
-
-
     @Override
     @JpaTransactional
     public InquiryResponseDTO createInquiry(String providerId, InquiryCreateRequestDTO request) {
-
         // providerId로 사용자 조회 (provider + providerId 조합)
         Users user = getUserByProviderId(providerId);
 
@@ -105,13 +107,10 @@ public class InquiryServiceImpl implements InquiryService {
     @Override
     @JpaTransactional
     public InquiryResponseDTO createUserFollowup(String inquiryId, String providerId, String content) {
-        // ✅ 서비스에서 검증 및 DTO 생성 처리
+        // 입력 검증
         if (content == null || content.trim().isEmpty()) {
             throw new IllegalArgumentException("내용은 필수입니다.");
         }
-
-        // ✅ DTO 생성을 서비스에서 처리
-        InquiryRequestDTO request = InquiryRequestDTO.forContent(content);
 
         Inquires targetInquiry = inquiryRepository.findById(inquiryId)
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
@@ -151,7 +150,7 @@ public class InquiryServiceImpl implements InquiryService {
                 .users(user)
                 .admins(null)
                 .title("Re: " + rootInquiry.getTitle())
-                .content(request.content())
+                .content(content.trim()) // 직접 content 사용
                 .inquiryType(rootInquiry.getInquiryType())
                 .inquiryReceiveMethod(rootInquiry.getInquiryReceiveMethod())
                 .inquiryStatus(newStatus)
@@ -181,7 +180,6 @@ public class InquiryServiceImpl implements InquiryService {
         }
 
         rootInquiry.setInquiryStatus(InquiryStatus.CLOSED);
-
         return InquiryResponseDTO.closed(rootInquiry);
     }
 
@@ -190,7 +188,7 @@ public class InquiryServiceImpl implements InquiryService {
     public Page<InquiryListResponseDTO> getAllInquiries(Pageable pageable) {
         Page<Inquires> inquiries = inquiryRepository.findAllInquiriesOrderByCreatedAtDesc(pageable);
 
-        // 🔥 핵심: 간단한 배치 처리
+        // 간단한 배치 처리
         updateUrgencyBatch(inquiries.getContent());
 
         List<InquiryListResponseDTO> content = new ArrayList<>();
@@ -231,7 +229,6 @@ public class InquiryServiceImpl implements InquiryService {
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
 
         List<InquiryMessageDTO> messages = getInquiryMessages(inquiry.getId());
-
         List<InquiryAttachmentDTO> attachments = inquiryFileService.getInquiryThreadAttachments(inquiry.getId());
 
         return InquiryDetailResponseDTO.forAdmin(inquiry, messages, attachments);
@@ -240,13 +237,14 @@ public class InquiryServiceImpl implements InquiryService {
     @Override
     @JpaTransactional
     public InquiryResponseDTO createAdminReply(String inquiryId, String adminId, String content) {
-        // ✅ 서비스에서 검증 및 DTO 생성 처리
+        // 입력 검증
         if (content == null || content.trim().isEmpty()) {
             throw new IllegalArgumentException("답변 내용은 필수입니다.");
         }
 
-        // ✅ DTO 생성을 서비스에서 처리
-        InquiryRequestDTO request = InquiryRequestDTO.forContent(content);
+        // adminId로 Admin 엔티티 조회
+        Admins admin = adminRepository.findById(adminId)
+                .orElseThrow(() -> new EntityNotFoundException("관리자를 찾을 수 없습니다: " + adminId));
 
         Inquires targetInquiry = inquiryRepository.findById(inquiryId)
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
@@ -277,9 +275,9 @@ public class InquiryServiceImpl implements InquiryService {
         Inquires reply = Inquires.builder()
                 .parent(rootInquiry)
                 .users(rootInquiry.getUsers())
-                .admins(null) // Todo: admin쪽 엔티티 연결 필요
+                .admins(admin)
                 .title("Re: " + rootInquiry.getTitle())
-                .content(request.content())
+                .content(content.trim()) // 직접 content 사용
                 .inquiryType(rootInquiry.getInquiryType())
                 .inquiryReceiveMethod(rootInquiry.getInquiryReceiveMethod())
                 .inquiryStatus(newStatus)
@@ -297,13 +295,14 @@ public class InquiryServiceImpl implements InquiryService {
     @Override
     @JpaTransactional
     public InquiryResponseDTO closeInquiryByAdmin(String inquiryId, String adminId, String reason) {
-        // ✅ 서비스에서 검증 및 DTO 생성 처리
+        // 입력 검증
         if (reason == null || reason.trim().isEmpty()) {
             throw new IllegalArgumentException("강제 종료 시 사유는 필수입니다.");
         }
 
-        // ✅ DTO 생성을 서비스에서 처리
-        InquiryRequestDTO request = InquiryRequestDTO.forClose(reason);
+        // adminId로 Admin 엔티티 조회
+        Admins admin = adminRepository.findById(adminId)
+                .orElseThrow(() -> new EntityNotFoundException("관리자를 찾을 수 없습니다: " + adminId));
 
         Inquires targetInquiry = inquiryRepository.findById(inquiryId)
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
@@ -316,10 +315,15 @@ public class InquiryServiceImpl implements InquiryService {
         }
 
         rootInquiry.setInquiryStatus(InquiryStatus.FORCE_CLOSED);
+        rootInquiry.setAdmins(admin);
 
+        // 강제 종료 사유는 별도 로깅 또는 필요시 엔티티에 추가 필드로 저장
+        log.info("문의 강제 종료 - inquiryId: {}, adminId: {}, reason: {}",
+                inquiryId, adminId, reason);
+
+        inquiryRepository.save(rootInquiry);
         return InquiryResponseDTO.closed(rootInquiry);
     }
-
 
     @Override
     @JpaTransactional
@@ -328,10 +332,81 @@ public class InquiryServiceImpl implements InquiryService {
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
 
         inquiry.setInquiryUrgentLevel(urgentLevel);
-
         return InquiryResponseDTO.from(inquiry, "긴급도가 성공적으로 수정되었습니다.");
     }
 
+    // 파일과 함께 문의 생성
+    @Override
+    @JpaTransactional
+    public InquiryResponseDTO createInquiryWithFiles(InquiryCreateRequestDTO request,
+                                                     MultipartFile[] imageFiles,
+                                                     String providerId) {
+        try {
+            // 1. 기본 문의 생성
+            InquiryResponseDTO response = createInquiry(providerId, request);
+
+            // 2. 파일 업로드 (같은 트랜잭션 내에서)
+            if (imageFiles != null && imageFiles.length > 0) {
+                inquiryFileService.uploadUserImages(response.inquiryId(), imageFiles);
+            }
+
+            return response;
+        } catch (EntityNotFoundException | IllegalArgumentException e) {
+            throw e; // 그대로 전파
+        } catch (RuntimeException e) {
+            log.error("문의 생성 실패 - providerId: {}", providerId, e);
+            throw new IllegalStateException("문의 생성 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    // 파일과 함께 사용자 답글 생성
+    @Override
+    @JpaTransactional
+    public InquiryResponseDTO createUserFollowupWithFiles(String inquiryId,
+                                                          String content,
+                                                          MultipartFile[] imageFiles,
+                                                          String providerId) {
+        try {
+            // 기존 메서드 호출 (직접 content 전달)
+            InquiryResponseDTO response = createUserFollowup(inquiryId, providerId, content);
+
+            if (imageFiles != null && imageFiles.length > 0) {
+                inquiryFileService.uploadUserImages(response.inquiryId(), imageFiles);
+            }
+
+            return response;
+        } catch (EntityNotFoundException | AccessDeniedException | IllegalArgumentException | IllegalStateException e) {
+            throw e; // 그대로 전파
+        } catch (RuntimeException e) {
+            log.error("파일과 함께 답글 생성 실패 - inquiryId: {}, providerId: {}", inquiryId, providerId, e);
+            throw new IllegalStateException("답글 생성 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    // 파일과 함께 관리자 답변 생성
+    @Override
+    @JpaTransactional
+    public InquiryResponseDTO createAdminReplyWithFiles(String inquiryId,
+                                                        String content,
+                                                        MultipartFile[] imageFiles,
+                                                        MultipartFile[] documentFiles,
+                                                        String adminId) {
+        try {
+            // 기존 메서드 호출 (직접 content 전달)
+            InquiryResponseDTO response = createAdminReply(inquiryId, adminId, content);
+
+            // 파일 업로드 처리
+            if ((imageFiles != null && imageFiles.length > 0) ||
+                    (documentFiles != null && documentFiles.length > 0)) {
+                inquiryFileService.uploadAdminFiles(response.inquiryId(), imageFiles, documentFiles);
+            }
+
+            return response;
+        } catch (RuntimeException e) {
+            log.error("관리자 답변 생성 실패 - inquiryId: {}, adminId: {}", inquiryId, adminId, e);
+            throw new IllegalStateException("관리자 답변 생성 중 오류가 발생했습니다.", e);
+        }
+    }
 
     private void validateInquiryNotClosed(Inquires inquiry) {
         if (inquiry.getInquiryStatus() == InquiryStatus.CLOSED ||
@@ -339,7 +414,6 @@ public class InquiryServiceImpl implements InquiryService {
             throw new IllegalStateException("종료된 문의에는 답글을 등록할 수 없습니다.");
         }
     }
-
 
     private void validateUserAccess(Inquires inquiry, String providerId) {
         String userId = getUserIdByProviderId(providerId);
@@ -375,77 +449,5 @@ public class InquiryServiceImpl implements InquiryService {
     // providerId로 사용자의 실제 ID(PK) 조회
     private String getUserIdByProviderId(String providerId) {
         return getUserByProviderId(providerId).getId();
-    }
-
-
-    // 🆕 추가할 메서드 1: 파일과 함께 문의 생성
-    public InquiryResponseDTO createInquiryWithFiles(InquiryCreateRequestDTO request,
-                                                     MultipartFile[] imageFiles,
-                                                     String providerId) {
-        try {
-            // 1. 기본 문의 생성
-            InquiryResponseDTO response = createInquiry(providerId, request);
-
-            // 2. 파일 업로드 (같은 트랜잭션 내에서)
-            if (imageFiles != null && imageFiles.length > 0) {
-                inquiryFileService.uploadUserImages(response.inquiryId(), imageFiles);
-            }
-
-            return response;
-        } catch (EntityNotFoundException | IllegalArgumentException e) {
-            throw e; // 그대로 전파
-        } catch (RuntimeException e) {
-            log.error("문의 생성 실패 - providerId: {}", providerId, e);
-            throw new IllegalStateException("문의 생성 중 오류가 발생했습니다.", e);
-        }
-    }
-
-    // 🆕 추가할 메서드 2: 파일과 함께 사용자 답글 생성
-    @Override
-    @JpaTransactional
-    public InquiryResponseDTO createUserFollowupWithFiles(String inquiryId,
-                                                          String content,
-                                                          MultipartFile[] imageFiles,
-                                                          String providerId) {
-        try {
-            InquiryRequestDTO request = InquiryRequestDTO.forContent(content);
-            InquiryResponseDTO response = createUserFollowup(inquiryId, providerId, request.content());
-
-            if (imageFiles != null && imageFiles.length > 0) {
-                inquiryFileService.uploadUserImages(response.inquiryId(), imageFiles);
-            }
-
-            return response;
-        } catch (EntityNotFoundException | AccessDeniedException | IllegalArgumentException | IllegalStateException e) {
-            throw e; // 그대로 전파
-        } catch (RuntimeException e) {
-            log.error("파일과 함께 답글 생성 실패 - inquiryId: {}, providerId: {}", inquiryId, providerId, e);
-            throw new IllegalStateException("답글 생성 중 오류가 발생했습니다.", e);
-        }
-    }
-
-    // 🆕 추가할 메서드 3: 파일과 함께 관리자 답변 생성
-    @Override
-    @JpaTransactional
-    public InquiryResponseDTO createAdminReplyWithFiles(String inquiryId,
-                                                        String content,
-                                                        MultipartFile[] imageFiles,
-                                                        MultipartFile[] documentFiles,
-                                                        String adminId) {
-        try {
-            InquiryRequestDTO inquiryRequest = InquiryRequestDTO.forContent(content);
-            InquiryResponseDTO response = createAdminReply(inquiryId, adminId, inquiryRequest.content());
-
-            // 파일 업로드 처리
-            if ((imageFiles != null && imageFiles.length > 0) ||
-                    (documentFiles != null && documentFiles.length > 0)) {
-                inquiryFileService.uploadAdminFiles(response.inquiryId(), imageFiles, documentFiles);
-            }
-
-            return response;
-        } catch (RuntimeException e) {
-            log.error("관리자 답변 생성 실패 - inquiryId: {}, adminId: {}", inquiryId, adminId, e);
-            throw new IllegalStateException("관리자 답변 생성 중 오류가 발생했습니다.", e);
-        }
     }
 }
