@@ -1,6 +1,6 @@
-package com.team5.catdogeats.batch.forecast.service;
+package com.team5.catdogeats.batch.service;
 
-import com.team5.catdogeats.batch.forecast.domain.ForecastBatchExecutionStatus;
+import com.team5.catdogeats.batch.ForecastBatchExecutionStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.*;

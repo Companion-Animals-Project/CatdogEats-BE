@@ -1,6 +1,6 @@
-package com.team5.catdogeats.batch.forecast.writer;
+package com.team5.catdogeats.batch.writer;
 
-import com.team5.catdogeats.batch.forecast.domain.dto.ForecastBatchItem;
+import com.team5.catdogeats.batch.dto.ForecastBatchItem;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.Chunk;

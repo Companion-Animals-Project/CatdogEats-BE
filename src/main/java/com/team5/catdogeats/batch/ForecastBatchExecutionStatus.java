@@ -1,4 +1,4 @@
-package com.team5.catdogeats.batch.forecast.domain;
+package com.team5.catdogeats.batch;
 
 import com.team5.catdogeats.baseEntity.BaseEntity;
 import jakarta.persistence.*;

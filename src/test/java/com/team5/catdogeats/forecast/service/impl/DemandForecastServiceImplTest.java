@@ -1,9 +1,8 @@
 package com.team5.catdogeats.forecast.service.impl;
 
-import com.team5.catdogeats.batch.forecast.config.ForecastBatchProperties;
+import com.team5.catdogeats.batch.config.ForecastBatchProperties;
 import com.team5.catdogeats.forecast.domain.DemandForecasts;
 import com.team5.catdogeats.forecast.domain.dto.DailySalesDataDTO;
-import com.team5.catdogeats.forecast.domain.dto.DemandForecastResultDTO;
 import com.team5.catdogeats.forecast.mapper.DailySalesAggregationMapper;
 import com.team5.catdogeats.forecast.mapper.DemandForecastMapper;
 import com.team5.catdogeats.products.domain.Products;
@@ -16,7 +15,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collections;

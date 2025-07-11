@@ -1,4 +1,4 @@
-package com.team5.catdogeats.batch.forecast.domain.dto;
+package com.team5.catdogeats.batch.dto;
 
 import java.time.LocalDate;
 

@@ -1,6 +1,6 @@
-package com.team5.catdogeats.batch.forecast.reader;
+package com.team5.catdogeats.batch.reader;
 
-import com.team5.catdogeats.batch.forecast.domain.dto.ForecastBatchItem;
+import com.team5.catdogeats.batch.dto.ForecastBatchItem;
 import com.team5.catdogeats.batch.mapper.ForecastBatchMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

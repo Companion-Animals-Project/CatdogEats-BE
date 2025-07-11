@@ -1,10 +1,10 @@
-package com.team5.catdogeats.batch.forecast.config;
+package com.team5.catdogeats.batch.config;
 
-import com.team5.catdogeats.batch.forecast.domain.dto.ForecastBatchItem;
+import com.team5.catdogeats.batch.dto.ForecastBatchItem;
 import com.team5.catdogeats.batch.mapper.ForecastBatchMapper;
-import com.team5.catdogeats.batch.forecast.processor.ForecastBatchItemProcessor;
-import com.team5.catdogeats.batch.forecast.reader.ForecastBatchItemReader;
-import com.team5.catdogeats.batch.forecast.writer.ForecastBatchItemWriter;
+import com.team5.catdogeats.batch.processor.ForecastBatchItemProcessor;
+import com.team5.catdogeats.batch.reader.ForecastBatchItemReader;
+import com.team5.catdogeats.batch.writer.ForecastBatchItemWriter;
 import com.team5.catdogeats.forecast.service.DailySalesAggregationService;
 import com.team5.catdogeats.forecast.service.DemandForecastService;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +33,7 @@ import java.time.LocalDate;
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
-public class ForecastBatchConfig {
+public class ForecastBatchJobConfig {
 
     private final JobRepository jobRepository;
     private final ForecastBatchMapper forecastBatchMapper;

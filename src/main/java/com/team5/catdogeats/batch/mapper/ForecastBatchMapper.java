@@ -1,7 +1,7 @@
 package com.team5.catdogeats.batch.mapper;
 
-import com.team5.catdogeats.batch.forecast.domain.ForecastBatchExecutionStatus;
-import com.team5.catdogeats.batch.forecast.domain.dto.ForecastBatchItem;
+import com.team5.catdogeats.batch.ForecastBatchExecutionStatus;
+import com.team5.catdogeats.batch.dto.ForecastBatchItem;
 import org.apache.ibatis.annotations.*;
 
 import java.time.LocalDate;

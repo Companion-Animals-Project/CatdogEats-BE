@@ -1,4 +1,4 @@
-package com.team5.catdogeats.batch.forecast.config;
+package com.team5.catdogeats.batch.config;
 
 import lombok.Getter;
 import lombok.Setter;

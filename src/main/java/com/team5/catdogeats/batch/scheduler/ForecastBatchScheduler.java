@@ -1,9 +1,9 @@
-package com.team5.catdogeats.batch.forecast.scheduler;
+package com.team5.catdogeats.batch.scheduler;
 
-import com.team5.catdogeats.batch.forecast.config.ForecastBatchProperties;
-import com.team5.catdogeats.batch.forecast.service.ForecastBatchConcurrencyService;
-import com.team5.catdogeats.batch.forecast.service.ForecastBatchExecutionService;
-import com.team5.catdogeats.batch.forecast.service.ForecastBatchExecutionService.BatchExecutionResult;
+import com.team5.catdogeats.batch.config.ForecastBatchProperties;
+import com.team5.catdogeats.batch.service.ForecastBatchConcurrencyService;
+import com.team5.catdogeats.batch.service.ForecastBatchExecutionService;
+import com.team5.catdogeats.batch.service.ForecastBatchExecutionService.BatchExecutionResult;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

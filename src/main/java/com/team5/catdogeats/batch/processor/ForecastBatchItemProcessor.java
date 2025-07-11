@@ -1,7 +1,7 @@
-package com.team5.catdogeats.batch.forecast.processor;
+package com.team5.catdogeats.batch.processor;
 
-import com.team5.catdogeats.batch.forecast.config.ForecastBatchProperties;
-import com.team5.catdogeats.batch.forecast.domain.dto.ForecastBatchItem;
+import com.team5.catdogeats.batch.config.ForecastBatchProperties;
+import com.team5.catdogeats.batch.dto.ForecastBatchItem;
 import com.team5.catdogeats.forecast.domain.dto.DemandForecastResultDTO;
 import com.team5.catdogeats.forecast.service.DemandForecastService;
 import lombok.RequiredArgsConstructor;

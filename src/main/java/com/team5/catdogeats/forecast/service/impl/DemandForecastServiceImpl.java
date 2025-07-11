@@ -1,7 +1,7 @@
 package com.team5.catdogeats.forecast.service.impl;
 
 import com.team5.catdogeats.baseEntity.BaseEntity;
-import com.team5.catdogeats.batch.forecast.config.ForecastBatchProperties;
+import com.team5.catdogeats.batch.config.ForecastBatchProperties;
 import com.team5.catdogeats.forecast.domain.DemandForecasts;
 import com.team5.catdogeats.forecast.domain.dto.DailySalesDataDTO;
 import com.team5.catdogeats.forecast.domain.dto.DemandForecastResultDTO;

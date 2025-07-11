@@ -1,6 +1,7 @@
 package com.team5.catdogeats.batch.forecast.writer;
 
-import com.team5.catdogeats.batch.forecast.domain.dto.ForecastBatchItem;
+import com.team5.catdogeats.batch.writer.ForecastBatchItemWriter;
+import com.team5.catdogeats.batch.dto.ForecastBatchItem;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

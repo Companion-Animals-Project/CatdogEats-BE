@@ -1,7 +1,7 @@
-package com.team5.catdogeats.batch.forecast.service;
+package com.team5.catdogeats.batch.service;
 
-import com.team5.catdogeats.batch.forecast.config.ForecastBatchProperties;
-import com.team5.catdogeats.batch.forecast.domain.ForecastBatchExecutionStatus;
+import com.team5.catdogeats.batch.config.ForecastBatchProperties;
+import com.team5.catdogeats.batch.ForecastBatchExecutionStatus;
 import com.team5.catdogeats.batch.mapper.ForecastBatchMapper;
 import com.team5.catdogeats.global.annotation.MybatisTransactional;
 import lombok.RequiredArgsConstructor;
