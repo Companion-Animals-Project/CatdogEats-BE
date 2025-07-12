@@ -9,7 +9,7 @@ import com.team5.catdogeats.coupons.exception.DuplicateCouponException;
 import com.team5.catdogeats.coupons.service.SellerCouponListService;
 import com.team5.catdogeats.coupons.service.SellerCouponService;
 import com.team5.catdogeats.coupons.service.SellerUpdateCouponService;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -33,39 +33,39 @@ public class SellerCouponController {
 
 
     @GetMapping("/{vendorName}")
-    public ResponseEntity<ApiResponse<List<SellerCouponListResponseDTO>>> getCoupons(@AuthenticationPrincipal UserPrincipal userPrincipal,
+    public ResponseEntity<APIResponse<List<SellerCouponListResponseDTO>>> getCoupons(@AuthenticationPrincipal UserPrincipal userPrincipal,
                                                                                      @PathVariable String vendorName,
                                                                                      @RequestParam(defaultValue = "0") int page) {
         if (userPrincipal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
         }
 
         try {
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, sellerCouponListService.getSellerCouponsWithVendorName(vendorName, page, 10)));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, sellerCouponListService.getSellerCouponsWithVendorName(vendorName, page, 10)));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
 
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<SellerCouponListResponseDTO>>> getCoupons(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                                                               @RequestParam(defaultValue = "0") int page,
-                                                                               @RequestParam(defaultValue = "10") int size) {
+    public ResponseEntity<APIResponse<List<SellerCouponListResponseDTO>>> getCoupons(@AuthenticationPrincipal UserPrincipal userPrincipal,
+                                                                                     @RequestParam(defaultValue = "0") int page,
+                                                                                     @RequestParam(defaultValue = "10") int size) {
         if (userPrincipal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
         }
         try {
 
             List<SellerCouponListResponseDTO> coupons = sellerCouponListService.getSellerCoupons(userPrincipal, page, size);
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, coupons));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, coupons));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<Void>> createCoupon(@AuthenticationPrincipal UserPrincipal userPrincipal,
+    public ResponseEntity<APIResponse<Void>> createCoupon(@AuthenticationPrincipal UserPrincipal userPrincipal,
                                                           @Valid @RequestBody SellerCreateCouponRequestDTO dto) {
         if (userPrincipal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -73,48 +73,48 @@ public class SellerCouponController {
 
         try {
             sellerCouponService.createCoupon(userPrincipal, dto);
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS));
         } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
 
         } catch (DuplicateCouponException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ResponseCode.DUPLICATE_COUPON_CODE));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(APIResponse.error(ResponseCode.DUPLICATE_COUPON_CODE));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
 
     }
 
     @PatchMapping
-    public ResponseEntity<ApiResponse<Void>> updateCoupon(@AuthenticationPrincipal UserPrincipal userPrincipal,
+    public ResponseEntity<APIResponse<Void>> updateCoupon(@AuthenticationPrincipal UserPrincipal userPrincipal,
                                                           @Valid @RequestBody SellerModifyCouponRequestDTO dto) {
         if (userPrincipal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
         }
 
         try {
             sellerUpdateCouponService.modifierCoupon(userPrincipal, dto);
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS));
         } catch (IllegalArgumentException | IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
     }
 
     @DeleteMapping
-    public ResponseEntity<ApiResponse<Void>> deleteCoupon(@AuthenticationPrincipal UserPrincipal userPrincipal,
+    public ResponseEntity<APIResponse<Void>> deleteCoupon(@AuthenticationPrincipal UserPrincipal userPrincipal,
                                                           @Valid @RequestBody SellerDeleteCouponRequestDTO dto) {
         if (userPrincipal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
         }
         try {
             sellerUpdateCouponService.deleteCoupon(userPrincipal, dto);
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
     }
 
