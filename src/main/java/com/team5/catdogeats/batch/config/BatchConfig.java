@@ -14,7 +14,7 @@ import javax.sql.DataSource;
 public class BatchConfig {
 
     // 순환 참조 오류 발생으로 반드시 필요한 설정 절대 지우면 안됩니다
-    @Bean
+    @Bean(name = "customJobRepository")
     public JobRepository jobRepository(
             DataSource dataSource,
             @Qualifier("batchTransactionManager") PlatformTransactionManager transactionManager // 반드시 MyBatis용!

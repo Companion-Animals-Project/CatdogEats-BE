@@ -39,7 +39,7 @@ public class    WithdrawnJobConfig {
 
 
     // Lombok은 @Qualifier와 같은 Spring 어노테이션을 자동으로 생성자에 복사하지않아 명시적으로 생성자 선언
-    public WithdrawnJobConfig(JobRepository jobRepo,
+    public WithdrawnJobConfig(@Qualifier("customJobRepository") JobRepository jobRepo,
                               UserWithdrawMapper userWithdrawMapper,
                               RedisTemplate<String, String> redisTemplate,
                               ObjectMapper objectMapper,
@@ -66,7 +66,7 @@ public class    WithdrawnJobConfig {
 
     // Step 1: 탈퇴 대상 users를 redis 저장
     @Bean
-    public Step readTargetUserStep(JobRepository jobRepo,
+    public Step readTargetUserStep(@Qualifier("customJobRepository") JobRepository jobRepo,
                                    PlatformTransactionManager batchTransactionManager) {
         try {
             return new StepBuilder("readTargetUserStep", jobRepo)
@@ -92,7 +92,7 @@ public class    WithdrawnJobConfig {
 
     // Step 2: 임시 테이블에서 읽어서 탈퇴 처리
     @Bean
-    public Step withdrawUserStep(JobRepository jobRepo, PlatformTransactionManager batchTransactionManager) {
+    public Step withdrawUserStep(@Qualifier("customJobRepository") JobRepository jobRepo, PlatformTransactionManager batchTransactionManager) {
         try {
             return new StepBuilder("withdrawUserStep", jobRepo)
                     .<WithdrawBatchTargetRow, WithdrawBatchTargetRow>chunk(props.getChunkSize(), batchTransactionManager)
@@ -114,7 +114,7 @@ public class    WithdrawnJobConfig {
     }
 
     @Bean
-    public Step cleanupRedisStep(JobRepository jobRepo, PlatformTransactionManager batchTransactionManager) {
+    public Step cleanupRedisStep(@Qualifier("customJobRepository") JobRepository jobRepo, PlatformTransactionManager batchTransactionManager) {
         return new StepBuilder("cleanupRedisStep", jobRepo)
                 .tasklet((contribution, context) -> {
                     redisTemplate.delete("withdrawBatchTargets");
