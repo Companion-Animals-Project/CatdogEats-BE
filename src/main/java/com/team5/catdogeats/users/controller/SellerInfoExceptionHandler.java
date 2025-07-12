@@ -1,6 +1,6 @@
 package com.team5.catdogeats.users.controller;
 
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -23,10 +23,10 @@ public class SellerInfoExceptionHandler {
      * 사용자 조회 실패
      */
     @ExceptionHandler(EntityNotFoundException.class)
-    public ResponseEntity<ApiResponse<Object>> handleEntityNotFound(EntityNotFoundException e) {
+    public ResponseEntity<APIResponse<Object>> handleEntityNotFound(EntityNotFoundException e) {
         log.warn("엔티티 없음 - Message: {}", e.getMessage());
         return ResponseEntity.status(ResponseCode.USER_NOT_FOUND.getStatus())
-                .body(ApiResponse.error(ResponseCode.USER_NOT_FOUND));
+                .body(APIResponse.error(ResponseCode.USER_NOT_FOUND));
     }
 
     /**
@@ -34,32 +34,32 @@ public class SellerInfoExceptionHandler {
      * - 사업자 등록번호 중복 등
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ApiResponse<Object>> handleDataIntegrityViolation(DataIntegrityViolationException e) {
+    public ResponseEntity<APIResponse<Object>> handleDataIntegrityViolation(DataIntegrityViolationException e) {
         log.warn("데이터 무결성 위반 - Message: {}", e.getMessage());
 
 
         // 벤더명 중복인지 확인
         if (e.getMessage() != null && e.getMessage().contains("상점명")) {
             return ResponseEntity.status(ResponseCode.VENDOR_NAME_DUPLICATE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.VENDOR_NAME_DUPLICATE));
+                    .body(APIResponse.error(ResponseCode.VENDOR_NAME_DUPLICATE));
         }
 
         // 사업자 등록번호 중복인지 확인
         if (e.getMessage() != null && e.getMessage().contains("사업자 등록번호")) {
             return ResponseEntity.status(ResponseCode.BUSINESS_NUMBER_DUPLICATE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.BUSINESS_NUMBER_DUPLICATE));
+                    .body(APIResponse.error(ResponseCode.BUSINESS_NUMBER_DUPLICATE));
         }
 
         // 일반적인 데이터 무결성 위반
         return ResponseEntity.status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, "데이터 무결성 위반입니다"));
+                .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, "데이터 무결성 위반입니다"));
     }
 
     /**
      * Bean Validation 예외 처리 (@Valid 어노테이션 검증 실패)
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<Object>> handleValidation(MethodArgumentNotValidException e) {
+    public ResponseEntity<APIResponse<Object>> handleValidation(MethodArgumentNotValidException e) {
         log.warn("입력값 검증 실패 - 필드 오류 개수: {}", e.getBindingResult().getFieldErrorCount());
 
         List<FieldError> fieldErrors = e.getBindingResult().getFieldErrors();
@@ -70,34 +70,34 @@ public class SellerInfoExceptionHandler {
         log.warn("검증 실패 상세 - {}", errorMessage);
 
         return ResponseEntity.status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, errorMessage));
+                .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, errorMessage));
     }
 
     /**
      * IllegalArgumentException 처리 (Java 표준)
      */
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiResponse<Object>> handleIllegalArgument(IllegalArgumentException e) {
+    public ResponseEntity<APIResponse<Object>> handleIllegalArgument(IllegalArgumentException e) {
         log.warn("잘못된 요청 - Message: {}", e.getMessage());
 
         // 운영시간 관련 예외인지 확인
         if (e.getMessage() != null && e.getMessage().contains("운영")) {
             return ResponseEntity.status(ResponseCode.INVALID_OPERATING_HOURS.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INVALID_OPERATING_HOURS, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.INVALID_OPERATING_HOURS, e.getMessage()));
         }
 
         // 일반적인 잘못된 입력
         return ResponseEntity.status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+                .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
     }
 
     /**
      * 기타 예상치 못한 예외 처리
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Object>> handleGeneral(Exception e) {
+    public ResponseEntity<APIResponse<Object>> handleGeneral(Exception e) {
         log.error("예상치 못한 오류", e);
         return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+                .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
     }
 }

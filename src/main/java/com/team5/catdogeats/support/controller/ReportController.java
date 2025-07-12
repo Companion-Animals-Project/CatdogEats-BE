@@ -1,7 +1,7 @@
 package com.team5.catdogeats.support.controller;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.support.domain.dto.PageResponseDto;
 import com.team5.catdogeats.support.domain.dto.ReportCreateRequestDto;
@@ -31,7 +31,7 @@ public class ReportController {
     // 신고하기
     @PostMapping("/reports")
     @PreAuthorize("hasRole('BUYER')")
-    public ResponseEntity<ApiResponse<String>> createReport(
+    public ResponseEntity<APIResponse<String>> createReport(
             @Valid @RequestBody ReportCreateRequestDto request,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
@@ -46,30 +46,30 @@ public class ReportController {
             log.info("신고 생성 완료: reportId={}", reportId);
 
             return ResponseEntity.ok(
-                    ApiResponse.success(ResponseCode.REPORT_CREATE_SUCCESS, reportId)
+                    APIResponse.success(ResponseCode.REPORT_CREATE_SUCCESS, reportId)
             );
 
         } catch (EntityNotFoundException e) {
             log.warn("신고 생성 실패 - 엔티티 없음: {}", e.getMessage());
             return ResponseEntity.status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
 
         } catch (IllegalStateException e) {
             log.warn("신고 생성 실패 - 중복 신고: {}", e.getMessage());
             return ResponseEntity.status(ResponseCode.REPORT_ALREADY_EXISTS.getStatus())
-                    .body(ApiResponse.error(ResponseCode.REPORT_ALREADY_EXISTS, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.REPORT_ALREADY_EXISTS, e.getMessage()));
 
         } catch (Exception e) {
             log.error("신고 생성 중 오류 발생", e);
             return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 처리 중 오류가 발생했습니다."));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 처리 중 오류가 발생했습니다."));
         }
     }
 
     // 사용자별 신고 목록 조회 (구매자용)
     @GetMapping("/reports")
     @PreAuthorize("hasRole('BUYER')")
-    public ResponseEntity<ApiResponse<PageResponseDto<ReportListResponseDto>>> getUserReports(
+    public ResponseEntity<APIResponse<PageResponseDto<ReportListResponseDto>>> getUserReports(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
@@ -83,13 +83,13 @@ public class ReportController {
                     reportService.getUserReports(userId, page, size);
 
             return ResponseEntity.ok(
-                    ApiResponse.success(ResponseCode.REPORT_LIST_SUCCESS, reports)
+                    APIResponse.success(ResponseCode.REPORT_LIST_SUCCESS, reports)
             );
 
         } catch (Exception e) {
             log.error("사용자 신고 목록 조회 중 오류 발생", e);
             return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 목록 조회 중 오류가 발생했습니다."));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 목록 조회 중 오류가 발생했습니다."));
         }
     }
 

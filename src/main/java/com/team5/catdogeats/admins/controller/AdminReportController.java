@@ -6,7 +6,7 @@ import com.team5.catdogeats.admins.domain.dto.ReportSearchDto;
 import com.team5.catdogeats.admins.domain.dto.ReportStatusUpdateDto;
 import com.team5.catdogeats.admins.service.AdminReportService;
 import com.team5.catdogeats.admins.util.AdminControllerUtils;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.support.domain.dto.PageResponseDto;
 import com.team5.catdogeats.support.domain.dto.ReportListResponseDto;
@@ -53,7 +53,7 @@ public class AdminReportController {
     @GetMapping("/reports/list")
     @ResponseBody
     @Operation(summary = "신고 목록 조회", description = "관리자가 신고 목록을 조회합니다.")
-    public ResponseEntity<ApiResponse<PageResponseDto<ReportListResponseDto>>> getReports(
+    public ResponseEntity<APIResponse<PageResponseDto<ReportListResponseDto>>> getReports(
             @RequestParam(required = false) String reportType,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword,
@@ -86,18 +86,18 @@ public class AdminReportController {
             PageResponseDto<ReportListResponseDto> reports = adminReportService.getReports(searchDto);
 
             return ResponseEntity.ok(
-                    ApiResponse.success(ResponseCode.REPORT_LIST_SUCCESS, reports)
+                    APIResponse.success(ResponseCode.REPORT_LIST_SUCCESS, reports)
             );
 
         } catch (IllegalArgumentException e) {
             log.warn("잘못된 검색 조건: {}", e.getMessage());
             return ResponseEntity.status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
 
         } catch (Exception e) {
             log.error("관리자 신고 목록 조회 중 오류 발생", e);
             return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 목록 조회 중 오류가 발생했습니다."));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 목록 조회 중 오류가 발생했습니다."));
         }
     }
 
@@ -105,7 +105,7 @@ public class AdminReportController {
     @GetMapping("/reports/{report-id}")
     @ResponseBody
     @Operation(summary = "신고 상세 조회", description = "관리자가 특정 신고의 상세 정보를 조회합니다.")
-    public ResponseEntity<ApiResponse<ReportDetailResponseDto>> getReportDetail(
+    public ResponseEntity<APIResponse<ReportDetailResponseDto>> getReportDetail(
             @PathVariable("report-id") String reportId,
             HttpSession session) {
 
@@ -120,18 +120,18 @@ public class AdminReportController {
             ReportDetailResponseDto report = adminReportService.getReportDetail(reportId);
 
             return ResponseEntity.ok(
-                    ApiResponse.success(ResponseCode.REPORT_DETAIL_SUCCESS, report)
+                    APIResponse.success(ResponseCode.REPORT_DETAIL_SUCCESS, report)
             );
 
         } catch (EntityNotFoundException e) {
             log.warn("신고 상세 조회 실패 - 신고 없음: reportId={}", reportId);
             return ResponseEntity.status(ResponseCode.REPORT_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.REPORT_NOT_FOUND, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.REPORT_NOT_FOUND, e.getMessage()));
 
         } catch (Exception e) {
             log.error("신고 상세 조회 중 오류 발생: reportId={}", reportId, e);
             return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 상세 조회 중 오류가 발생했습니다."));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 상세 조회 중 오류가 발생했습니다."));
         }
     }
 
@@ -139,7 +139,7 @@ public class AdminReportController {
     @PostMapping("/reports/status")
     @ResponseBody
     @Operation(summary = "신고 상태 변경", description = "관리자가 신고의 상태를 변경합니다.")
-    public ResponseEntity<ApiResponse<Void>> updateReportStatus(
+    public ResponseEntity<APIResponse<Void>> updateReportStatus(
             @RequestParam String reportId,
             @Valid @RequestBody ReportStatusUpdateDto updateDto,
             HttpSession session) {
@@ -157,18 +157,18 @@ public class AdminReportController {
             log.info("신고 상태 변경 완료: reportId={}, 새 상태={}", reportId, updateDto.reportStatus());
 
             return ResponseEntity.ok(
-                    ApiResponse.success(ResponseCode.REPORT_STATUS_UPDATE_SUCCESS)
+                    APIResponse.success(ResponseCode.REPORT_STATUS_UPDATE_SUCCESS)
             );
 
         } catch (EntityNotFoundException e) {
             log.warn("신고 상태 변경 실패 - 신고 없음: reportId={}", reportId);
             return ResponseEntity.status(ResponseCode.REPORT_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.REPORT_NOT_FOUND, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.REPORT_NOT_FOUND, e.getMessage()));
 
         } catch (Exception e) {
             log.error("신고 상태 변경 중 오류 발생: reportId={}", reportId, e);
             return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 상태 변경 중 오류가 발생했습니다."));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "신고 상태 변경 중 오류가 발생했습니다."));
         }
     }
 }
