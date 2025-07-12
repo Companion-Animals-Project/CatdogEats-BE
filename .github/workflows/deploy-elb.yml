@@ -1,0 +1,107 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - feat/cicd/91
+      - develop
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    outputs:
+      IMAGE: ${{ steps.prepare-tags.outputs.image }}
+      IMAGE_LATEST: ${{ steps.prepare-tags.outputs.image_latest }}
+      CACHE_TAG: ${{ steps.prepare-tags.outputs.cache_tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Build JAR
+        run: ./gradlew clean bootJar
+
+      - name: Set up QEMU (optional, for multi-arch)
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          driver: docker-container
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Prepare Tags & Cache Tag
+        id: prepare-tags
+        run: |
+          REPO_NAME=${GITHUB_REPOSITORY##*/}
+          REPO_LOWER=${REPO_NAME,,}
+          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${REPO_LOWER}:${GITHUB_SHA}"
+          IMAGE_LATEST="${{ secrets.DOCKERHUB_USERNAME }}/${REPO_LOWER}:latest"
+          CACHE_TAG="${{ secrets.DOCKERHUB_USERNAME }}/${REPO_LOWER}:cache"
+          echo "image=${IMAGE}"           >> $GITHUB_OUTPUT
+          echo "image_latest=${IMAGE_LATEST}" >> $GITHUB_OUTPUT
+          echo "cache_tag=${CACHE_TAG}"   >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ steps.prepare-tags.outputs.image }}
+            ${{ steps.prepare-tags.outputs.image_latest }}
+          build-args: |
+            JAR_FILE=build/libs/*.jar
+          cache-from: type=registry,ref=${{ steps.prepare-tags.outputs.cache_tag }}
+          cache-to:   type=registry,ref=${{ steps.prepare-tags.outputs.cache_tag }},mode=max
+
+  deploy-to-eb:
+    needs: build-and-publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy to Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v20
+        with:
+          aws_access_key:    ${{ secrets.AWS_ACTION_ACCESS_KEY_ID }}
+          aws_secret_key:    ${{ secrets.AWS_ACTION_SECRET_ACCESS_KEY }}
+          region:            ap-northeast-2
+          application_name:  aibe1-team05-final
+          environment_name:  aibe1-team05-final-env
+          version_label:     deploy-${{ github.run_number }}
+          deployment_package: Dockerrun.aws.json
+          wait_for_environment_recovery: false

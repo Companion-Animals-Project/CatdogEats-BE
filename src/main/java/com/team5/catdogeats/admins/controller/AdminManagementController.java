@@ -4,7 +4,7 @@ import com.team5.catdogeats.admins.domain.dto.*;
 import com.team5.catdogeats.admins.domain.enums.Department;
 import com.team5.catdogeats.admins.service.*;
 import com.team5.catdogeats.admins.util.AdminControllerUtils;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -62,7 +62,7 @@ public class AdminManagementController {
     @GetMapping("/accounts")
     @ResponseBody
     @Operation(summary = "관리자 목록 조회", description = "페이지네이션과 필터링이 적용된 관리자 목록을 조회합니다.")
-    public ResponseEntity<ApiResponse<AdminListResponseDTO>> getAdminList(
+    public ResponseEntity<APIResponse<AdminListResponseDTO>> getAdminList(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String status,
@@ -72,7 +72,7 @@ public class AdminManagementController {
 
         controllerUtils.requireAdminDepartment(session);
         AdminListResponseDTO response = managementService.getAdminList(page, size, status, search, department);
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
     }
 
     /**
@@ -94,7 +94,7 @@ public class AdminManagementController {
     @PostMapping("/invite")
     @ResponseBody
     @Operation(summary = "관리자 추가", description = "새로운 관리자를 초대합니다.")
-    public ResponseEntity<ApiResponse<AdminInvitationResponseDTO>> inviteAdmin(
+    public ResponseEntity<APIResponse<AdminInvitationResponseDTO>> inviteAdmin(
             @Valid @RequestBody AdminInvitationRequestDTO request,
             HttpSession session) {
 
@@ -104,7 +104,7 @@ public class AdminManagementController {
         log.info("관리자 추가 성공: 추가자={}, 피추가자={}",
                 controllerUtils.getSessionUserInfo(session), request.email());
 
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.CREATED, response));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.CREATED, response));
     }
 
     /**
@@ -122,11 +122,11 @@ public class AdminManagementController {
     @PostMapping("/verify")
     @ResponseBody
     @Operation(summary = "계정 인증", description = "인증코드를 통해 관리자 계정을 활성화합니다.")
-    public ResponseEntity<ApiResponse<AdminVerificationResponseDTO>> verifyAdmin(
+    public ResponseEntity<APIResponse<AdminVerificationResponseDTO>> verifyAdmin(
             @Valid @RequestBody AdminVerificationRequestDTO request) {
 
         AdminVerificationResponseDTO response = verificationService.verifyAdmin(request);
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
     }
 
     /**
@@ -135,16 +135,16 @@ public class AdminManagementController {
     @PostMapping("/resend-code")
     @ResponseBody
     @Operation(summary = "인증코드 재발송", description = "만료된 인증코드를 재발송합니다.")
-    public ResponseEntity<ApiResponse<String>> resendVerificationCode(@RequestParam String email) {
+    public ResponseEntity<APIResponse<String>> resendVerificationCode(@RequestParam String email) {
         verificationService.resendVerificationCode(email);
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, "인증코드가 재발송되었습니다."));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, "인증코드가 재발송되었습니다."));
     }
 
     /**
      * 관리자 비밀번호 초기화 요청
      */
     @PostMapping("/reset-password")
-    public ResponseEntity<ApiResponse<AdminPasswordResetResponseDTO>> resetAdminPassword(
+    public ResponseEntity<APIResponse<AdminPasswordResetResponseDTO>> resetAdminPassword(
             @Valid @RequestBody AdminPasswordResetRequestDTO request,
             HttpSession session) {
 
@@ -162,7 +162,7 @@ public class AdminManagementController {
         log.info("비밀번호 초기화 요청 성공: target={}, requestedBy={}",
                 request.email(), request.requestedBy());
 
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
     }
 
     /**
@@ -171,11 +171,11 @@ public class AdminManagementController {
     @PostMapping("/verify-reset-password")
     @ResponseBody
     @Operation(summary = "비밀번호 재설정", description = "인증코드 확인 후 새 비밀번호를 설정합니다.")
-    public ResponseEntity<ApiResponse<AdminVerificationResponseDTO>> verifyAndResetPassword(
+    public ResponseEntity<APIResponse<AdminVerificationResponseDTO>> verifyAndResetPassword(
             @Valid @RequestBody AdminPasswordResetVerificationDTO request) {
 
         AdminVerificationResponseDTO response = passwordResetService.verifyAndResetPassword(request);
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
     }
 
 
@@ -185,7 +185,7 @@ public class AdminManagementController {
     @PostMapping("/accounts/soft-delete")
     @ResponseBody
     @Operation(summary = "관리자 퇴사 처리", description = "관리자를 소프트 딜리트 처리합니다.")
-    public ResponseEntity<ApiResponse<AdminSoftDeleteResponseDTO>> softDeleteAdmin(
+    public ResponseEntity<APIResponse<AdminSoftDeleteResponseDTO>> softDeleteAdmin(
             @Valid @RequestBody AdminSoftDeleteRequestDTO request,
             HttpSession session) {
 
@@ -204,7 +204,7 @@ public class AdminManagementController {
         log.info("관리자 퇴사 처리 요청: target={}, requestedBy={}",
                 request.targetEmail(), sessionInfo.email());
 
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
     }
 
     /**
@@ -213,7 +213,7 @@ public class AdminManagementController {
     @PostMapping("/restore")
     @ResponseBody
     @Operation(summary = "관리자 퇴사 취소", description = "퇴사 처리된 관리자를 복구합니다.")
-    public ResponseEntity<ApiResponse<AdminSoftDeleteResponseDTO>> restoreAdmin(
+    public ResponseEntity<APIResponse<AdminSoftDeleteResponseDTO>> restoreAdmin(
             @Valid @RequestBody AdminRestoreRequestDTO request,  // 새로운 DTO
             HttpSession session) {
 
@@ -224,7 +224,7 @@ public class AdminManagementController {
         log.info("관리자 퇴사 취소 요청: target={}, requestedBy={}",
                 request.email(), sessionInfo.email());
 
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
     }
 
 
