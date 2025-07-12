@@ -27,9 +27,9 @@ public interface SettlementMapper {
             st.item_price as order_amount,
             st.commission_amount as commission,
             st.settlement_amount,
-            o.created_at::timestamp as order_date,
-            s.delivered_at::timestamp as delivery_date,
-            st.created_at::timestamp as settlement_created_at,
+            o.created_at as order_date,
+            s.delivered_at as delivery_date,
+            st.created_at as settlement_created_at,
             st.settlement_status
         FROM settlements st
         INNER JOIN order_items oi ON st.order_item_id = oi.id
@@ -48,9 +48,12 @@ public interface SettlementMapper {
             @Arg(column = "order_amount", javaType = Long.class),
             @Arg(column = "commission", javaType = Long.class),
             @Arg(column = "settlement_amount", javaType = Long.class),
-            @Arg(column = "order_date", javaType = java.time.LocalDateTime.class),
-            @Arg(column = "delivery_date", javaType = java.time.LocalDateTime.class),
-            @Arg(column = "settlement_created_at", javaType = java.time.LocalDateTime.class),
+            @Arg(column = "order_date", javaType = java.time.ZonedDateTime.class,
+                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+            @Arg(column = "delivery_date", javaType = java.time.ZonedDateTime.class,
+                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+            @Arg(column = "settlement_created_at", javaType = java.time.ZonedDateTime.class,
+                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
             @Arg(column = "settlement_status", javaType = com.team5.catdogeats.orders.domain.enums.SettlementStatus.class)
     })
     List<SettlementItemDTO> findSettlementsBySellerId(
@@ -115,9 +118,9 @@ public interface SettlementMapper {
             st.item_price as order_amount,
             st.commission_amount as commission,
             st.settlement_amount,
-            o.created_at::timestamp as order_date,
-            s.delivered_at::timestamp as delivery_date,
-            st.created_at::timestamp as settlement_created_at,
+            o.created_at as order_date,
+            s.delivered_at as delivery_date,
+            st.created_at as settlement_created_at,
             st.settlement_status
         FROM settlements st
         INNER JOIN order_items oi ON st.order_item_id = oi.id
@@ -137,9 +140,12 @@ public interface SettlementMapper {
             @Arg(column = "order_amount", javaType = Long.class),
             @Arg(column = "commission", javaType = Long.class),
             @Arg(column = "settlement_amount", javaType = Long.class),
-            @Arg(column = "order_date", javaType = java.time.LocalDateTime.class),
-            @Arg(column = "delivery_date", javaType = java.time.LocalDateTime.class),
-            @Arg(column = "settlement_created_at", javaType = java.time.LocalDateTime.class),
+            @Arg(column = "order_date", javaType = java.time.ZonedDateTime.class,
+                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+            @Arg(column = "delivery_date", javaType = java.time.ZonedDateTime.class,
+                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+            @Arg(column = "settlement_created_at", javaType = java.time.ZonedDateTime.class,
+                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
             @Arg(column = "settlement_status", javaType = com.team5.catdogeats.orders.domain.enums.SettlementStatus.class)
     })
     List<SettlementItemDTO> findSettlementsBySellerIdAndPeriod(
@@ -257,7 +263,7 @@ public interface SettlementMapper {
     );
 
     /**
-     * 판매자의 월별 정산내역 조회 (영수증용)
+     * 판매자의 월별 정산내역 조회 (영수증용 - 페이징)
      */
     @Select("""
         SELECT 
@@ -266,9 +272,57 @@ public interface SettlementMapper {
             st.item_price as order_amount,
             st.commission_amount as commission,
             st.settlement_amount,
-            o.created_at::timestamp as order_date,
-            s.delivered_at::timestamp as delivery_date,
-            st.created_at::timestamp as settlement_created_at,
+            o.created_at as order_date,
+            s.delivered_at as delivery_date,
+            st.created_at as settlement_created_at,
+            st.settlement_status
+        FROM settlements st
+        INNER JOIN order_items oi ON st.order_item_id = oi.id
+        INNER JOIN orders o ON oi.order_id = o.id
+        INNER JOIN products p ON oi.product_id = p.id
+        LEFT JOIN shipments s ON o.id = s.order_id
+        WHERE st.seller_id = #{sellerId}
+        AND o.order_status != 'CANCELLED'
+        AND o.is_hidden = false
+        AND EXTRACT(YEAR FROM st.created_at) = #{targetMonth.year}
+        AND EXTRACT(MONTH FROM st.created_at) = #{targetMonth.monthValue}
+        ORDER BY st.created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+        """)
+    @ConstructorArgs({
+            @Arg(column = "order_number", javaType = String.class),
+            @Arg(column = "product_name", javaType = String.class),
+            @Arg(column = "order_amount", javaType = Long.class),
+            @Arg(column = "commission", javaType = Long.class),
+            @Arg(column = "settlement_amount", javaType = Long.class),
+            @Arg(column = "order_date", javaType = java.time.ZonedDateTime.class,
+                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+            @Arg(column = "delivery_date", javaType = java.time.ZonedDateTime.class,
+                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+            @Arg(column = "settlement_created_at", javaType = java.time.ZonedDateTime.class,
+                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+            @Arg(column = "settlement_status", javaType = com.team5.catdogeats.orders.domain.enums.SettlementStatus.class)
+    })
+    List<SettlementItemDTO> findMonthlySettlementsWithPaging(
+            @Param("sellerId") String sellerId,
+            @Param("targetMonth") YearMonth targetMonth,
+            @Param("offset") long offset,
+            @Param("limit") int limit
+    );
+
+    /**
+     * 판매자의 월별 정산내역 조회 (CSV용 - 전체)
+     */
+    @Select("""
+        SELECT 
+            o.order_number,
+            p.title as product_name,
+            st.item_price as order_amount,
+            st.commission_amount as commission,
+            st.settlement_amount,
+            o.created_at as order_date,
+            s.delivered_at as delivery_date,
+            st.created_at as settlement_created_at,
             st.settlement_status
         FROM settlements st
         INNER JOIN order_items oi ON st.order_item_id = oi.id
@@ -288,12 +342,34 @@ public interface SettlementMapper {
             @Arg(column = "order_amount", javaType = Long.class),
             @Arg(column = "commission", javaType = Long.class),
             @Arg(column = "settlement_amount", javaType = Long.class),
-            @Arg(column = "order_date", javaType = java.time.LocalDateTime.class),
-            @Arg(column = "delivery_date", javaType = java.time.LocalDateTime.class),
-            @Arg(column = "settlement_created_at", javaType = java.time.LocalDateTime.class),
+            @Arg(column = "order_date", javaType = java.time.ZonedDateTime.class,
+                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+            @Arg(column = "delivery_date", javaType = java.time.ZonedDateTime.class,
+                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+            @Arg(column = "settlement_created_at", javaType = java.time.ZonedDateTime.class,
+                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
             @Arg(column = "settlement_status", javaType = com.team5.catdogeats.orders.domain.enums.SettlementStatus.class)
     })
     List<SettlementItemDTO> findMonthlySettlements(
+            @Param("sellerId") String sellerId,
+            @Param("targetMonth") YearMonth targetMonth
+    );
+
+    /**
+     * 판매자의 월별 정산 건수 조회 (페이징용)
+     */
+    @Select("""
+        SELECT COUNT(*)
+        FROM settlements st
+        INNER JOIN order_items oi ON st.order_item_id = oi.id
+        INNER JOIN orders o ON oi.order_id = o.id
+        WHERE st.seller_id = #{sellerId}
+        AND o.order_status != 'CANCELLED'
+        AND o.is_hidden = false
+        AND EXTRACT(YEAR FROM st.created_at) = #{targetMonth.year}
+        AND EXTRACT(MONTH FROM st.created_at) = #{targetMonth.monthValue}
+        """)
+    Long countMonthlySettlements(
             @Param("sellerId") String sellerId,
             @Param("targetMonth") YearMonth targetMonth
     );

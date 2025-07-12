@@ -1,35 +1,17 @@
 package com.team5.catdogeats.orders.domain.dto;
 
+import org.springframework.data.domain.Page;
+
 import java.time.YearMonth;
-import java.util.List;
 
 /**
- * 월별 정산내역 영수증 DTO
- * CSV Export용 데이터 구조
+ * 월별 정산내역 영수증 응답 DTO (페이징 포함)
  */
 public record MonthlySettlementReceiptDto(
-        /**
-         * 대상 년월
-         */
-        YearMonth targetMonth,
-
-        /**
-         * 판매자명 (상호명)
-         */
-        String vendorName,
-
-        /**
-         * 사업자번호
-         */
-        String businessNumber,
-
-        /**
-         * 월별 정산 아이템 리스트
-         */
-        List<SettlementItemDTO> items,
-
-        /**
-         * 월별 정산 요약 정보 (개수와 금액 모두 포함)
-         */
-        MonthlySettlementStatusDto summary
-) {}
+        YearMonth targetMonth,              // 대상 월
+        String vendorName,                  // 업체명
+        String businessNumber,              // 사업자번호
+        Page<SettlementItemDTO> items,      // 페이징된 정산 아이템 리스트
+        MonthlySettlementStatusDto summary  // 월별 정산 요약 정보
+) {
+}
