@@ -10,8 +10,6 @@ import java.time.OffsetDateTime;
 
 /**
  * 정산 배치 처리용 DTO
- * Chunk 기반 배치에서 ItemReader와 ItemWriter 간 데이터 전달용
- * PENDING 상태 제거로 단순화됨
  */
 @Getter
 @Builder
