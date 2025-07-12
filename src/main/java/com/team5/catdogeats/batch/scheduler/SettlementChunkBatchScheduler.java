@@ -51,10 +51,8 @@ public class SettlementChunkBatchScheduler {
             // Spring Batch Job 실행
             JobExecution jobExecution = jobLauncher.run(settlementChunkDailyJob, jobParameters);
 
-            // 단순히 실행 시작 로그만 남김 (상태 판단 제거)
             log.info("정산 일일 배치 실행 요청 완료 - JobExecutionId: {}", jobExecution.getId());
 
-            // 실제 완료는 Spring Batch가 별도 스레드에서 로깅함
 
         } catch (JobExecutionAlreadyRunningException e) {
             log.warn("정산 일일 배치가 이미 실행중입니다", e);
@@ -108,7 +106,7 @@ public class SettlementChunkBatchScheduler {
 
     /**
      * 수동 실행용 메서드 - 일일 배치
-     * Admin Controller에서 사용 (동기 처리 필요)
+     * Admin Controller에서 사용
      */
     public JobExecution runDailyJobManually() {
         log.info("수동 정산 일일 배치 작업 시작");
@@ -133,7 +131,7 @@ public class SettlementChunkBatchScheduler {
 
     /**
      * 수동 실행용 메서드 - 월간 배치
-     * Admin Controller에서 사용 (동기 처리 필요)
+     * Admin Controller에서 사용
      */
     public JobExecution runMonthlyJobManually() {
         log.info("수동 정산 월간 완료 배치 작업 시작");
