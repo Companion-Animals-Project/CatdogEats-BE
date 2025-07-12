@@ -8,17 +8,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
 import java.util.List;
 import java.util.Optional;
 
 /**
  * Shipments 엔티티 Repository
- * 기존 메서드는 유지하고 판매자 기능에 필요한 메서드만 추가
  */
 public interface ShipmentRepository extends JpaRepository<Shipments, String> {
-
-    // ===== 기존 메서드들 (수정하지 않음) =====
-
     /**
      * 주문으로 배송 정보 조회
      */
@@ -33,26 +30,6 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
     WHERE o.orderNumber = :orderNumber
     """)
     Optional<Shipments> findByOrderNumber(@Param("orderNumber") String orderNumber);
-
-    // ===== 판매자 기능을 위한 추가 메서드들 =====
-
-    /**
-     * 판매자가 주문번호로 배송정보 조회 (권한 검증 포함)
-     * 판매자는 본인이 판매한 상품이 포함된 주문의 배송지 정보만 조회할 수 있다
-     */
-    @Query("""
-    SELECT DISTINCT s FROM Shipments s
-    JOIN FETCH s.orders o
-    JOIN FETCH o.orderItems oi
-    JOIN FETCH oi.products p
-    JOIN FETCH p.seller ps
-    WHERE o.orderNumber = :orderNumber
-    AND ps.userId = :sellerId
-    """)
-    Optional<Shipments> findShippingInfoByOrderNumberAndSeller(
-            @Param("orderNumber") String orderNumber,
-            @Param("sellerId") String sellerId
-    );
 
     /**
      * 판매자의 주문 목록 조회 (페이징)
@@ -77,7 +54,6 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
      */
     Optional<Shipments> findByCourierAndTrackingNumber(String courier, String trackingNumber);
 
-
     /**
      * 배송중인 주문 목록 조회 (배치 작업용)
      */
@@ -93,31 +69,4 @@ public interface ShipmentRepository extends JpaRepository<Shipments, String> {
     List<Shipments> findByOrderStatusAndTrackingNumberIsNotNull(
             @Param("orderStatus") OrderStatus orderStatus
     );
-
-    // ===== 배치 작업용 메서드들 (DeliveryTrackingBatchService용) =====
-
-    /**
-     * 주문 상태별 배송 정보 개수 조회
-     * @param orderStatus 주문 상태
-     * @return 해당 상태의 배송 정보 개수
-     */
-    @Query("""
-    SELECT COUNT(s)
-    FROM Shipments s
-    JOIN s.orders o
-    WHERE o.orderStatus = :orderStatus
-    """)
-    long countByOrderStatus(@Param("orderStatus") OrderStatus orderStatus);
-
-    /**
-     * 오늘 배송 완료된 주문 개수 조회
-     * @return 오늘 배송 완료된 주문 개수
-     */
-    @SuppressWarnings("SqlDialectInspection")
-    @Query(value = """
-    SELECT COUNT(*)
-    FROM shipments s
-    WHERE s.delivered_at::date = CURRENT_DATE
-    """, nativeQuery = true)
-    long countDeliveredToday();
 }
