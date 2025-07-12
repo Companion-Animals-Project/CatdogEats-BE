@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotBlank;
  */
 @Schema(description = "사용자 문의 종료 요청")
 public record InquiryUserCloseRequestDTO(
-        @Schema(description = "문의 ID", example = "inquiry-uuid-123")
+        @Schema(description = "문의 ID")
         @NotBlank(message = "문의 ID는 필수입니다")
         String inquiryId
 ) {

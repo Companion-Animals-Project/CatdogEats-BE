@@ -66,6 +66,7 @@ public class InquiryAdminController {
                     "모든 조건은 선택사항이며, 조건이 없으면 전체 조회합니다."
     )
     public ResponseEntity<ApiResponse<Page<InquiryListResponseDTO>>> getAllInquiries(
+            HttpSession session,
             // 검색 조건들
             @Parameter(description = "검색 키워드 (제목 + 내용)")
             @RequestParam(required = false) String keyword,
@@ -101,11 +102,19 @@ public class InquiryAdminController {
 
 
         try {
+            // 세션 인증 추가
+            AdminInfo adminInfo = controllerUtils.requireSessionInfo(session);
+
             Page<InquiryListResponseDTO> inquiries = inquiryService.getAllInquiriesWithSearchAndPaging(
                     keyword, status, type, urgentLevel, startDate, endDate,
                     page, size, sort, direction
             );
             return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, inquiries));
+        } catch (BadCredentialsException e) {
+            log.warn("관리자 로그인 필요 - 목록 조회 시도, error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
+            );
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(
                     ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
@@ -124,15 +133,24 @@ public class InquiryAdminController {
             description = "관리자가 특정 문의의 상세 내용을 조회합니다."
     )
     public ResponseEntity<ApiResponse<InquiryDetailResponseDTO>> getInquiryDetailForAdmin(
+            HttpSession session,
             @Parameter(description = "문의 ID")
             @PathVariable String inquiryId) {
 
         try {
+            // 세션 인증 추가
+            AdminInfo adminInfo = controllerUtils.requireSessionInfo(session);
+
             InquiryDetailResponseDTO inquiry = inquiryService.getInquiryDetailForAdmin(inquiryId);
             log.info("관리자 문의 상세 조회 완료 - inquiryId: {}", inquiryId);
 
             return ResponseEntity.ok(
                     ApiResponse.success(ResponseCode.SUCCESS, inquiry)
+            );
+        } catch (BadCredentialsException e) {
+            log.warn("관리자 로그인 필요 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
             );
         } catch (IllegalArgumentException e) {
             log.warn("관리자 문의 상세 조회 실패 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
@@ -154,15 +172,24 @@ public class InquiryAdminController {
                     + "긴급도 레벨: HIGH, MIDDLE, LOW"
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> updateUrgentLevel(
+            HttpSession session,
             @Parameter(description = "긴급도 수정 요청")
             @Valid @RequestBody InquiryUrgentLevelRequestDTO request) {
 
         try {
+            // 세션 인증 추가
+            AdminInfo adminInfo = controllerUtils.requireSessionInfo(session);
+
             InquiryResponseDTO response = inquiryService.updateUrgentLevel(
                     request.inquiryId(), request.urgentLevel());
 
             return ResponseEntity.ok(
                     ApiResponse.success(ResponseCode.SUCCESS, response)
+            );
+        } catch (BadCredentialsException e) {
+            log.warn("관리자 로그인 필요 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    ApiResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
             );
         } catch (EntityNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
@@ -295,10 +322,14 @@ public class InquiryAdminController {
             description = "관리자가 문의에 첨부된 파일(이미지/문서)을 다운로드합니다."
     )
     public ResponseEntity<Resource> downloadFile(
+            HttpSession session,
             @PathVariable String inquiryId,
             @PathVariable String fileId) {
 
         try {
+            // 세션 인증 추가
+            AdminInfo adminInfo = controllerUtils.requireSessionInfo(session);
+
             Resource resource = inquiryFileService.downloadAdminFileWithoutValidation(inquiryId, fileId);
 
             // 파일명 생성을 서비스에 위임
@@ -310,7 +341,9 @@ public class InquiryAdminController {
                     .header(HttpHeaders.PRAGMA, "no-cache")
                     .header(HttpHeaders.EXPIRES, "0")
                     .body(resource);
-
+        } catch (BadCredentialsException e) {
+            log.warn("관리자 로그인 필요 - inquiryId: {}, fileId: {}", inquiryId, fileId);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         } catch (EntityNotFoundException e) {
             log.warn("관리자 - 파일을 찾을 수 없음: inquiryId: {}, fileId: {}", inquiryId, fileId);
             return ResponseEntity.notFound().build();

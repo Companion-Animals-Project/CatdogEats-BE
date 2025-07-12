@@ -6,7 +6,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
-
 // 1:1 문의 파일 관리 서비스 인터페이스
 public interface InquiryFileService {
 
@@ -25,16 +24,18 @@ public interface InquiryFileService {
     // 문의 스레드의 모든 첨부 파일 조회 (상세조회에서 사용)
     List<InquiryAttachmentDTO> getInquiryThreadAttachments(String rootInquiryId);
 
+    // === 파일 다운로드 기능 ===
+
+    // 🔄 수정된 메서드: 사용자용 파일 다운로드 (provider + providerId 방식)
+    Resource downloadUserFileWithValidation(String inquiryId, String fileId, String provider, String providerId);
+
+    // 관리자용 파일 다운로드
+    Resource downloadAdminFileWithoutValidation(String inquiryId, String fileId);
 
     // === 유틸리티 기능 ===
 
     // 파일의 실제 확장자 반환
     String getFileExtension(String fileId);
-
-
-    // 추가
-    Resource downloadUserFileWithValidation(String inquiryId, String fileId, String providerId);
-    Resource downloadAdminFileWithoutValidation(String inquiryId, String fileId);
 
     // 관리자용 다운로드 파일명 생성
     String generateAdminDownloadFileName(String fileId);

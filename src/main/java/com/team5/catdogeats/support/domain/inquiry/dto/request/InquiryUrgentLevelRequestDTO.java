@@ -11,7 +11,7 @@ import jakarta.validation.constraints.NotNull;
  */
 @Schema(description = "문의 긴급도 수정 요청")
 public record InquiryUrgentLevelRequestDTO(
-        @Schema(description = "문의 ID", example = "inquiry-uuid-123")
+        @Schema(description = "문의 ID")
         @NotBlank(message = "문의 ID는 필수입니다")
         String inquiryId,
 

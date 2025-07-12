@@ -23,12 +23,12 @@ public record InquiryCreateRequestDTO(
         @NotNull(message = "문의 유형은 필수입니다")
         InquiryType inquiryType,
 
-        @Schema(description = "제목", example = "상품에 대한 문의입니다")
+        @Schema(description = "제목")
         @NotBlank(message = "제목은 필수입니다")
         @Size(min = 5, max = 100, message = "제목은 5자 이상 100자 이하로 입력해주세요")
         String title,
 
-        @Schema(description = "내용", example = "상품 상세 정보에 대해 궁금한 점이 있습니다")
+        @Schema(description = "내용")
         @NotBlank(message = "내용은 필수입니다")
         @Size(min = 10, max = 2000, message = "내용은 10자 이상 2,000자 이하로 입력해주세요")
         String content,
@@ -48,9 +48,7 @@ public record InquiryCreateRequestDTO(
         )
         InquiryReceiveMethod inquiryReceiveMethod,
 
-        @Schema(description = "첨부 이미지 파일들 (선택사항, 최대 5개)",
-                example = "null",
-                nullable = true)
+        @Schema(hidden = true)
         MultipartFile[] imageFiles
 ) {
     public InquiryCreateRequestDTO {

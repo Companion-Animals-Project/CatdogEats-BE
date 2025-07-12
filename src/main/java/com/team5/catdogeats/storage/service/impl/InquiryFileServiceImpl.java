@@ -205,6 +205,7 @@ public class InquiryFileServiceImpl implements InquiryFileService {
     }
 
     // providerId로 직접 비교 (DB 조회 없음)
+    @Deprecated
     private boolean checkUserAccessByProviderId(Users user, String providerId) {
         if (user == null || providerId == null) {
             return false;
@@ -215,8 +216,8 @@ public class InquiryFileServiceImpl implements InquiryFileService {
     }
 
 
-    // 권한 검증 로직을 별도 메서드로 분리
-    private boolean hasFileAccess(InquiryFiles inquiryFile, String providerId) {
+    // 🆕 개선된 권한 검증 메서드 (userId 기반)
+    private boolean hasFileAccessByUserId(InquiryFiles inquiryFile, String userId) {
         try {
             // 이미지 파일인 경우 - 접근 허용
             if (inquiryFile.getImages() != null) {
@@ -227,13 +228,13 @@ public class InquiryFileServiceImpl implements InquiryFileService {
             if (inquiryFile.getFiles() != null) {
                 Inquires inquiry = inquiryFile.getInquires();
                 Inquires rootInquiry = findRootInquiryOptimized(inquiry);
-                return checkUserAccessByProviderId(rootInquiry.getUsers(), providerId);
+                return userId.equals(rootInquiry.getUsers().getId());
             }
 
             return false;
         } catch (Exception e) {
-            log.error("파일 접근 권한 검증 실패 - fileId: {}, providerId: {}",
-                    inquiryFile.getId(), providerId, e);
+            log.error("파일 접근 권한 검증 실패 - fileId: {}, userId: {}",
+                    inquiryFile.getId(), userId, e);
             return false;
         }
     }
@@ -454,29 +455,37 @@ public class InquiryFileServiceImpl implements InquiryFileService {
      */
     @Override
     @JpaTransactional(readOnly = true)
-    public Resource downloadUserFileWithValidation(String inquiryId, String fileId, String providerId) {
+    public Resource downloadUserFileWithValidation(String inquiryId, String fileId, String provider, String providerId) {
 
-        // 한 번의 쿼리로 파일 정보와 권한 정보를 모두 조회
+        // 1. provider + providerId로 사용자 조회
+        Users user = userRepository.findByProviderAndProviderId(provider, providerId)
+                .orElseThrow(() -> {
+                    log.warn("사용자를 찾을 수 없음 - provider: {}, providerId: {}", provider, providerId);
+                    return new EntityNotFoundException(
+                            String.format("사용자를 찾을 수 없습니다: provider=%s, providerId=%s", provider, providerId));
+                });
+
+        // 2. 한 번의 쿼리로 파일 정보와 권한 정보를 모두 조회
         InquiryFiles inquiryFile = inquiryFileRepository.findByFileIdWithUserAndInquiry(fileId)
                 .orElseThrow(() -> {
                     log.warn("파일을 찾을 수 없음 - fileId: {}", fileId);
                     return new EntityNotFoundException("파일을 찾을 수 없습니다: " + fileId);
                 });
 
-        // 권한 검증 (이미 조회된 데이터 사용)
-        if (!hasFileAccess(inquiryFile, providerId)) {
-            log.warn("파일 접근 권한 없음 - fileId: {}, providerId: {}", fileId, providerId);
+        // 3. 권한 검증 (사용자 ID 기반으로 개선)
+        if (!hasFileAccessByUserId(inquiryFile, user.getId())) {
+            log.warn("파일 접근 권한 없음 - fileId: {}, provider: {}, providerId: {}", fileId, provider, providerId);
             throw new AccessDeniedException("해당 파일에 대한 접근 권한이 없습니다.");
         }
 
-        // 파일 URL 추출 (이미 조회된 데이터 사용)
+        // 4. 파일 URL 추출 (이미 조회된 데이터 사용)
         String fileUrl = extractFileUrl(inquiryFile);
         if (fileUrl == null) {
             log.error("파일 URL을 찾을 수 없음 - fileId: {}", fileId);
             throw new EntityNotFoundException("파일 URL을 찾을 수 없습니다: " + fileId);
         }
 
-        log.info("사용자 파일 다운로드 승인 - fileId: {}, providerId: {}", fileId, providerId);
+        log.info("사용자 파일 다운로드 승인 - fileId: {}, provider: {}, providerId: {}", fileId, provider, providerId);
         return createResourceFromUrl(fileUrl);
     }
 

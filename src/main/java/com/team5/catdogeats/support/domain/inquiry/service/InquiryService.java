@@ -19,20 +19,20 @@ public interface InquiryService {
 
     // === 사용자 기능 (판매자, 구매자) - 간소화된 정보 ===
 
-    // 사용자용 문의 목록 조회 (간소화)
-    Page<InquiryListResponseDTO> getUserInquiries(String providerId, Pageable pageable);
+    // 사용자용 문의 목록 조회
+    Page<InquiryListResponseDTO> getUserInquiries(String provider, String providerId, Pageable pageable);
 
-    // 사용자용 문의 상세 조회 (간소화)
-    InquiryDetailResponseDTO getUserInquiryDetail(String inquiryId, String providerId);
+    // 사용자용 문의 상세 조회
+    InquiryDetailResponseDTO getUserInquiryDetail(String inquiryId, String provider, String providerId);
 
-    // 최초 문의 등록 (상세한 정보 반환)
-    InquiryResponseDTO createInquiry(String providerId, InquiryCreateRequestDTO request);
+    // 최초 문의 등록
+    InquiryResponseDTO createInquiry(String provider, String providerId, InquiryCreateRequestDTO request);
 
     // 사용자용 답글 등록 (스레드 형태)
-    InquiryResponseDTO createUserFollowup(String inquiryId, String providerId, String content);
+    InquiryResponseDTO createUserFollowup(String inquiryId, String provider, String providerId, String content);
 
-    // 유저 문의 종료 (사유 없음)
-    InquiryResponseDTO closeInquiryByUser(String inquiryId, String providerId);
+    // 유저 문의 종료
+    InquiryResponseDTO closeInquiryByUser(String inquiryId, String provider, String providerId);
 
 
 
@@ -53,14 +53,17 @@ public interface InquiryService {
     // 긴급도 수정
     InquiryResponseDTO updateUrgentLevel(String inquiryId, InquiryUrgentLevel urgentLevel);
 
-    // 🆕 추가 메서드 (3개)
+
+    // 파일 포함 메서드
     InquiryResponseDTO createInquiryWithFiles(InquiryCreateRequestDTO request,
                                               MultipartFile[] imageFiles,
+                                              String provider,
                                               String providerId);
 
     InquiryResponseDTO createUserFollowupWithFiles(String inquiryId,
                                                    String content,
                                                    MultipartFile[] imageFiles,
+                                                   String provider,
                                                    String providerId);
 
     InquiryResponseDTO createAdminReplyWithFiles(String inquiryId,

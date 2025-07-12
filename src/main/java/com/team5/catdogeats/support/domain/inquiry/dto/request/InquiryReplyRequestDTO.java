@@ -12,11 +12,11 @@ import org.springframework.web.multipart.MultipartFile;
  */
 @Schema(description = "문의 답변/답글 등록 요청")
 public record InquiryReplyRequestDTO(
-        @Schema(description = "문의 ID", example = "inquiry-uuid-123")
+        @Schema(description = "문의 ID")
         @NotBlank(message = "문의 ID는 필수입니다")
         String inquiryId,
 
-        @Schema(description = "답변/답글 내용", example = "문의 주신 내용에 대한 답변입니다.")
+        @Schema(description = "답변/답글 내용")
         @NotBlank(message = "답변 내용은 필수입니다")
         @Size(min = 5, max = 2000, message = "답변 내용은 5자 이상 2,000자 이하로 입력해주세요")
         String content,

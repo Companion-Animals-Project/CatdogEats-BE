@@ -28,9 +28,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -49,6 +47,7 @@ public class InquiryController {
             description = "로그인한 사용자의 문의 목록을 페이징으로 조회합니다. 제목, 내용 미리보기, 상태, 작성일만 표시됩니다."
     )
     public ResponseEntity<ApiResponse<Page<InquiryListResponseDTO>>> getUserInquiries(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
             @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "페이지 크기", example = "10")
@@ -59,19 +58,15 @@ public class InquiryController {
             @RequestParam(defaultValue = "desc") String direction) {
 
         try {
-            // SecurityContextHolder 에서 직접 사용자 정보 추출
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            String providerId = extractProviderIdFromAuth(auth);
-
             Sort.Direction sortDirection = direction.equalsIgnoreCase("asc") ?
                     Sort.Direction.ASC : Sort.Direction.DESC;
             Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sort));
 
             Page<InquiryListResponseDTO> inquiries = inquiryService.getUserInquiries(
-                    providerId, pageable);
+                    userPrincipal.provider(), userPrincipal.providerId(), pageable);
 
-            log.info("사용자 문의 목록 조회 완료 - providerId: {}, page: {}, size: {}",
-                    providerId, page, size);
+            log.info("사용자 문의 목록 조회 완료 - provider: {}, providerId: {}, page: {}, size: {}",
+                    userPrincipal.provider(), userPrincipal.providerId(), page, size);
 
             return ResponseEntity.ok(
                     ApiResponse.success(ResponseCode.SUCCESS, inquiries)
@@ -95,17 +90,15 @@ public class InquiryController {
             description = "로그인한 사용자의 특정 문의 상세 내용을 조회합니다. 제목, 전체 내용, 상태, 답변을 확인할 수 있습니다."
     )
     public ResponseEntity<ApiResponse<InquiryDetailResponseDTO>> getInquiryDetail(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @PathVariable String inquiryId) {
 
         try {
-            // SecurityContextHolder 에서 직접 사용자 정보 추출
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            String providerId = extractProviderIdFromAuth(auth);
-
             InquiryDetailResponseDTO inquiry = inquiryService.getUserInquiryDetail(
-                    inquiryId, providerId);
+                    inquiryId, userPrincipal.provider(), userPrincipal.providerId());
 
-            log.info("문의 상세 조회 완료 - inquiryId: {}, providerId: {}", inquiryId, providerId);
+            log.info("문의 상세 조회 완료 - inquiryId: {}, provider: {}, providerId: {}",
+                    inquiryId, userPrincipal.provider(), userPrincipal.providerId());
 
             return ResponseEntity.ok(
                     ApiResponse.success(ResponseCode.SUCCESS, inquiry)
@@ -125,11 +118,6 @@ public class InquiryController {
             return ResponseEntity.badRequest().body(
                     ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
-        } catch (IllegalStateException e) {
-            log.warn("인증 오류 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                    ApiResponse.error(ResponseCode.UNAUTHORIZED, e.getMessage())
-            );
         } catch (Exception e) {
             log.error("문의 상세 조회 중 서버 오류 - inquiryId: {}", inquiryId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
@@ -147,20 +135,17 @@ public class InquiryController {
                     + "이미지 파일 첨부 가능 (JPG, PNG, WebP, 최대 5MB)"
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> createInquiry(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "문의 등록 정보 (파일 포함)")
             @Valid @ModelAttribute InquiryCreateRequestDTO request) {
 
         try {
-            // SecurityContextHolder 에서 직접 사용자 정보 추출
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            String providerId = extractProviderIdFromAuth(auth);
-
-            // 확장된 DTO 에서 직접 파일 정보 추출
             InquiryResponseDTO response = inquiryService.createInquiryWithFiles(
-                    request, request.imageFiles(), providerId);
+                    request, request.imageFiles(),
+                    userPrincipal.provider(), userPrincipal.providerId());
 
-            log.info("문의 등록 완료 - inquiryId: {}, providerId: {}, 파일 수: {}",
-                    response.inquiryId(), providerId,
+            log.info("문의 등록 완료 - inquiryId: {}, provider: {}, providerId: {}, 파일 수: {}",
+                    response.inquiryId(), userPrincipal.provider(), userPrincipal.providerId(),
                     request.imageFiles() != null ? request.imageFiles().length : 0);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -170,11 +155,6 @@ public class InquiryController {
             log.warn("문의 등록 실패 - error: {}", e.getMessage());
             return ResponseEntity.badRequest().body(
                     ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
-            );
-        } catch (IllegalStateException e) {
-            log.warn("인증 오류 - error: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                    ApiResponse.error(ResponseCode.UNAUTHORIZED, e.getMessage())
             );
         } catch (Exception e) {
             log.error("문의 등록 중 서버 오류", e);
@@ -191,21 +171,17 @@ public class InquiryController {
                     "이미지 파일 첨부 가능 (JPG, PNG, WebP, 최대 5MB)"
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> createFollowup(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "답글 등록 정보 (파일 포함)")
             @Valid @ModelAttribute InquiryUserFollowupRequestDTO request) {
 
-        String providerId = null;
         try {
-            // SecurityContextHolder 에서 직접 사용자 정보 추출
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            providerId = extractProviderIdFromAuth(auth);
-
-            // 확장된 DTO 에서 직접 파일 정보 추출
             InquiryResponseDTO response = inquiryService.createUserFollowupWithFiles(
-                    request.inquiryId(), request.content(), request.imageFiles(), providerId);
+                    request.inquiryId(), request.content(), request.imageFiles(),
+                    userPrincipal.provider(), userPrincipal.providerId());
 
-            log.info("사용자 답글 등록 완료 - inquiryId: {}, providerId: {}, 파일 수: {}",
-                    request.inquiryId(), providerId,
+            log.info("사용자 답글 등록 완료 - inquiryId: {}, provider: {}, providerId: {}, 파일 수: {}",
+                    request.inquiryId(), userPrincipal.provider(), userPrincipal.providerId(),
                     request.imageFiles() != null ? request.imageFiles().length : 0);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
@@ -218,7 +194,8 @@ public class InquiryController {
                     ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
             );
         } catch (AccessDeniedException e) {
-            log.warn("접근 권한 없음 - inquiryId: {}, providerId: {}", request.inquiryId(), providerId);
+            log.warn("접근 권한 없음 - inquiryId: {}, provider: {}, providerId: {}",
+                    request.inquiryId(), userPrincipal.provider(), userPrincipal.providerId());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
                     ApiResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage())
             );
@@ -248,19 +225,16 @@ public class InquiryController {
                     + "이미 종료된 문의는 종료할 수 없습니다."
     )
     public ResponseEntity<ApiResponse<InquiryResponseDTO>> closeInquiry(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "문의 종료 요청")
             @Valid @RequestBody InquiryUserCloseRequestDTO request) {
 
         try {
-            // SecurityContextHolder 에서 직접 사용자 정보 추출
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            String providerId = extractProviderIdFromAuth(auth);
-
             InquiryResponseDTO response = inquiryService.closeInquiryByUser(
-                    request.inquiryId(), providerId);
+                    request.inquiryId(), userPrincipal.provider(), userPrincipal.providerId());
 
-            log.info("사용자 문의 종료 완료 - inquiryId: {}, providerId: {}",
-                    request.inquiryId(), providerId);
+            log.info("사용자 문의 종료 완료 - inquiryId: {}, provider: {}, providerId: {}",
+                    request.inquiryId(), userPrincipal.provider(), userPrincipal.providerId());
 
             return ResponseEntity.ok(
                     ApiResponse.success(ResponseCode.SUCCESS, response)
@@ -300,7 +274,7 @@ public class InquiryController {
 
         try {
             Resource resource = inquiryFileService.downloadUserFileWithValidation(
-                    inquiryId, fileId, userPrincipal.providerId());
+                    inquiryId, fileId, userPrincipal.provider(), userPrincipal.providerId());
 
             // 동일한 메서드 사용 (관리자용과 같은 파일명 생성 로직)
             String fileName = inquiryFileService.generateAdminDownloadFileName(fileId);
@@ -322,21 +296,5 @@ public class InquiryController {
             log.error("사용자 파일 다운로드 실패 - inquiryId: {}, fileId: {}", inquiryId, fileId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
-    }
-
-    /**
-     * Authentication 에서 providerId 추출하는 헬퍼 메서드
-     */
-    private String extractProviderIdFromAuth(Authentication auth) {
-        if (auth == null || !auth.isAuthenticated()) {
-            throw new IllegalStateException("로그인이 필요합니다");
-        }
-
-        // JWT 토큰 기반 인증에서 providerId 추출
-        if (auth.getPrincipal() instanceof UserPrincipal userPrincipal) {
-            return userPrincipal.providerId();
-        }
-
-        throw new IllegalStateException("사용자 정보를 찾을 수 없습니다");
     }
 }
