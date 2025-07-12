@@ -135,10 +135,10 @@ public class ShipmentSyncServiceImpl implements ShipmentSyncService {
      * 판매자의 배송 중인 주문 목록 조회
      */
     private List<Shipments> findSellerInDeliveryShipments(Sellers seller) {
-        List<Shipments> allShipments = shipmentRepository.findAll();
+        List<Shipments> inDeliveryShipments = shipmentRepository
+                .findByOrderStatusAndTrackingNumberIsNotNull(OrderStatus.IN_DELIVERY);
 
-        return allShipments.stream()
-                .filter(shipment -> OrderStatus.IN_DELIVERY.equals(shipment.getOrders().getOrderStatus()))
+        return inDeliveryShipments.stream()
                 .filter(shipment -> hasSellerProducts(shipment.getOrders(), seller))
                 .toList();
     }
