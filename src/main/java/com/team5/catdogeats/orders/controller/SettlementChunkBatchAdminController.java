@@ -2,7 +2,7 @@ package com.team5.catdogeats.orders.controller;
 
 import com.team5.catdogeats.batch.config.SettlementBatchProperties;
 import com.team5.catdogeats.batch.scheduler.SettlementChunkBatchScheduler;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.batch.mapper.SettlementChunkMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,7 +39,7 @@ public class SettlementChunkBatchAdminController {
             summary = "정산 일일 배치 수동 실행",
             description = "정산 데이터 생성 배치를 수동으로 실행합니다."
     )
-    public ResponseEntity<ApiResponse<Map<String, Object>>> runDailyBatch() {
+    public ResponseEntity<APIResponse<Map<String, Object>>> runDailyBatch() {
         try {
             log.info("관리자 요청 - 정산 일일 배치 수동 실행");
 
@@ -85,17 +85,17 @@ public class SettlementChunkBatchAdminController {
             );
 
             if (isSuccess) {
-                return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+                return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
             } else {
                 return ResponseEntity.internalServerError()
-                        .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
+                        .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
                                 "배치 실행 실패: " + jobExecution.getExitStatus().getExitDescription()));
             }
 
         } catch (Exception e) {
             log.error("정산 일일 배치 수동 실행 실패", e);
             return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
                             "정산 일일 배치 실행 실패: " + e.getMessage()));
         }
     }
@@ -108,7 +108,7 @@ public class SettlementChunkBatchAdminController {
             summary = "정산 월간 완료 배치 수동 실행",
             description = "처리중인 정산들을 완료 상태로 변경하는 배치를 수동으로 실행합니다."
     )
-    public ResponseEntity<ApiResponse<Map<String, Object>>> runMonthlyBatch() {
+    public ResponseEntity<APIResponse<Map<String, Object>>> runMonthlyBatch() {
         try {
             log.info("관리자 요청 - 정산 월간 완료 배치 수동 실행");
 
@@ -149,17 +149,17 @@ public class SettlementChunkBatchAdminController {
             );
 
             if (isSuccess) {
-                return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+                return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
             } else {
                 return ResponseEntity.internalServerError()
-                        .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
+                        .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
                                 "배치 실행 실패: " + jobExecution.getExitStatus().getExitDescription()));
             }
 
         } catch (Exception e) {
             log.error("정산 월간 완료 배치 수동 실행 실패", e);
             return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
                             "정산 월간 완료 배치 실행 실패: " + e.getMessage()));
         }
     }
@@ -172,7 +172,7 @@ public class SettlementChunkBatchAdminController {
             summary = "정산 배치 현황 조회",
             description = "정산 배치 처리 대상 건수 및 설정 정보를 조회합니다."
     )
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getBatchStatus() {
+    public ResponseEntity<APIResponse<Map<String, Object>>> getBatchStatus() {
         try {
             int unsettledCount = settlementChunkMapper.countUnsettledItems();
             int inProgressCount = settlementChunkMapper.countInProgressSettlements();
@@ -195,12 +195,12 @@ public class SettlementChunkBatchAdminController {
                     )
             );
 
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, status));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, status));
 
         } catch (Exception e) {
             log.error("배치 현황 조회 실패", e);
             return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
                             "배치 현황 조회 실패: " + e.getMessage()));
         }
     }
@@ -213,7 +213,7 @@ public class SettlementChunkBatchAdminController {
             summary = "정산 배치 설정 조회",
             description = "현재 적용된 정산 배치 설정값들을 조회합니다."
     )
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getBatchConfiguration() {
+    public ResponseEntity<APIResponse<Map<String, Object>>> getBatchConfiguration() {
         try {
             Map<String, Object> config = Map.of(
                     "chunkProcessing", Map.of(
@@ -232,12 +232,12 @@ public class SettlementChunkBatchAdminController {
                     )
             );
 
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, config));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, config));
 
         } catch (Exception e) {
             log.error("배치 설정 조회 실패", e);
             return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR,
                             "배치 설정 조회 실패: " + e.getMessage()));
         }
     }

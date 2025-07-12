@@ -1,7 +1,7 @@
 package com.team5.catdogeats.users.controller;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.users.domain.dto.SellerInfoRequestDTO;
 import com.team5.catdogeats.users.domain.dto.SellerInfoResponseDTO;
@@ -35,7 +35,7 @@ public class SellerInfoController {
                     """
     )
     @GetMapping("/info")
-    public ResponseEntity<ApiResponse<SellerInfoResponseDTO>> getSellerInfo(
+    public ResponseEntity<APIResponse<SellerInfoResponseDTO>> getSellerInfo(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
         log.info("판매자 정보 조회 요청 - provider: {}, providerId: {}",
@@ -45,12 +45,12 @@ public class SellerInfoController {
 
         if (response == null) {
             return ResponseEntity.ok(
-                    ApiResponse.success(ResponseCode.SELLER_INFO_NOT_FOUND)
+                    APIResponse.success(ResponseCode.SELLER_INFO_NOT_FOUND)
             );
         }
 
         return ResponseEntity.ok(
-                ApiResponse.success(ResponseCode.SELLER_INFO_SUCCESS, response)
+                APIResponse.success(ResponseCode.SELLER_INFO_SUCCESS, response)
         );
     }
 
@@ -66,7 +66,7 @@ public class SellerInfoController {
                     """
     )
     @PatchMapping("/info")
-    public ResponseEntity<ApiResponse<SellerInfoResponseDTO>> upsertSellerInfo(
+    public ResponseEntity<APIResponse<SellerInfoResponseDTO>> upsertSellerInfo(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody SellerInfoRequestDTO request) {
 
@@ -76,7 +76,7 @@ public class SellerInfoController {
         SellerInfoResponseDTO response = sellerInfoService.upsertSellerInfo(userPrincipal, request);
 
         return ResponseEntity.ok(
-                ApiResponse.success(ResponseCode.SELLER_INFO_SAVE_SUCCESS, response)
+                APIResponse.success(ResponseCode.SELLER_INFO_SAVE_SUCCESS, response)
         );
     }
 }

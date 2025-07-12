@@ -1,7 +1,7 @@
 package com.team5.catdogeats.orders.controller;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.orders.domain.dto.PeriodSalesAnalyticsResponseDTO;
 import com.team5.catdogeats.orders.domain.dto.ProductSalesAnalyticsRequestDTO;
@@ -54,7 +54,7 @@ public class SalesAnalyticsController {
             summary = "기간별 매출 분석 조회",
             description = "판매자의 특정 년도 월별 매출 분석 데이터를 조회합니다. (정산 완료된 데이터만)"
     )
-    public ResponseEntity<ApiResponse<PeriodSalesAnalyticsResponseDTO>> getPeriodSalesAnalytics(
+    public ResponseEntity<APIResponse<PeriodSalesAnalyticsResponseDTO>> getPeriodSalesAnalytics(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "조회할 년도 (2020~현재년도)", example = "2024")
             @RequestParam Integer year) {
@@ -71,22 +71,22 @@ public class SalesAnalyticsController {
             log.info("기간별 매출 분석 조회 성공 - year: {}, 년도총매출: {}, 월별데이터수: {}",
                     year, response.yearTotalAmount(), response.monthlyData().size());
 
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
 
         } catch (IllegalArgumentException e) {
             log.warn("기간별 매출 분석 조회 실패 - 잘못된 년도: {}, 사유: {}", year, e.getMessage());
             return ResponseEntity.status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
 
         } catch (NoSuchElementException e) {
             log.warn("기간별 매출 분석 조회 실패 - 판매자를 찾을 수 없음: {}", e.getMessage());
             return ResponseEntity.status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
 
         } catch (Exception e) {
             log.error("기간별 매출 분석 조회 중 예상치 못한 오류", e);
             return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "기간별 매출 분석 조회 중 서버 오류가 발생했습니다"));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "기간별 매출 분석 조회 중 서버 오류가 발생했습니다"));
         }
     }
 
@@ -104,7 +104,7 @@ public class SalesAnalyticsController {
             summary = "상품별 매출 분석 조회",
             description = "판매자의 상품별 매출 분석 데이터를 조회합니다. 연도별/월별 선택 가능하며 페이징 처리됩니다. (정산 완료된 데이터만)"
     )
-    public ResponseEntity<ApiResponse<ProductSalesAnalyticsResponseDTO>> getProductSalesAnalytics(
+    public ResponseEntity<APIResponse<ProductSalesAnalyticsResponseDTO>> getProductSalesAnalytics(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
 
             @Parameter(description = "조회 타입 (Swagger에서 드롭다운으로 표시)")
@@ -133,23 +133,23 @@ public class SalesAnalyticsController {
             log.info("상품별 매출 분석 조회 성공 - type: {}, year: {}, month: {}, 총매출: {}, 상품수: {}",
                     type, year, month, response.totalAmount(), response.products().totalElements());
 
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
 
         } catch (IllegalArgumentException e) {
             log.warn("상품별 매출 분석 조회 실패 - 잘못된 요청: type={}, year={}, month={}, 사유: {}",
                     type, year, month, e.getMessage());
             return ResponseEntity.status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
 
         } catch (NoSuchElementException e) {
             log.warn("상품별 매출 분석 조회 실패 - 판매자를 찾을 수 없음: {}", e.getMessage());
             return ResponseEntity.status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
-                    .body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
 
         } catch (Exception e) {
             log.error("상품별 매출 분석 조회 중 예상치 못한 오류", e);
             return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "상품별 매출 분석 조회 중 서버 오류가 발생했습니다"));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "상품별 매출 분석 조회 중 서버 오류가 발생했습니다"));
         }
     }
 
