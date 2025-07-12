@@ -72,37 +72,6 @@ public class SettlementBatchProperties {
      */
     private boolean detailLoggingEnabled = false;
 
-    /**
-     * 알림 설정
-     */
-    private NotificationConfig notification = new NotificationConfig();
-
-    /**
-     * 알림 설정 내부 클래스
-     */
-    @Getter
-    @Setter
-    public static class NotificationConfig {
-        /**
-         * 실패 시 알림 활성화
-         */
-        private boolean failureNotificationEnabled = true;
-
-        /**
-         * 성공 시 알림 활성화
-         */
-        private boolean successNotificationEnabled = false;
-
-        /**
-         * 높은 Skip 비율 임계치 (%)
-         */
-        private double highSkipRateThreshold = 5.0;
-
-        /**
-         * 느린 처리 임계치 (초)
-         */
-        private long slowProcessingThreshold = 3600; // 1시간
-    }
 
     /**
      * 설정값 유효성 검증
