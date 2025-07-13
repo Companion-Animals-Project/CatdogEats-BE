@@ -1,7 +1,7 @@
 package com.team5.catdogeats.notifications.controller;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.notifications.domain.dto.NotificationReadRequestDTO;
 import com.team5.catdogeats.notifications.domain.dto.NotificationResponseDTO;
@@ -44,58 +44,58 @@ public class NotificationController {
     }
 
     @PostMapping("/send")
-    public ResponseEntity<ApiResponse<Void>> send(@AuthenticationPrincipal UserPrincipal userPrincipal, @RequestBody String message) {
+    public ResponseEntity<APIResponse<Void>> send(@AuthenticationPrincipal UserPrincipal userPrincipal, @RequestBody String message) {
         if (userPrincipal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
         }
         try {
             notificationService.sendNotification(userPrincipal.provider(), userPrincipal.providerId(), message);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
 
     }
 
     @PatchMapping("/read")
-    public ResponseEntity<ApiResponse<Void>> markAsRead(@RequestBody @Valid NotificationReadRequestDTO request,
+    public ResponseEntity<APIResponse<Void>> markAsRead(@RequestBody @Valid NotificationReadRequestDTO request,
                                                         @AuthenticationPrincipal UserPrincipal principal) {
         if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
         }
         try {
             commandService.markAsRead(principal, request.notificationId());
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
 
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<NotificationResponseDTO>>> getNotifications(@RequestBody NotificationSearchRequestDTO dto,
-                                                                                      @AuthenticationPrincipal UserPrincipal principal) {
+    public ResponseEntity<APIResponse<List<NotificationResponseDTO>>> getNotifications(@RequestBody NotificationSearchRequestDTO dto,
+                                                                                       @AuthenticationPrincipal UserPrincipal principal) {
         if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
         }
 
         try {
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, commandService.getNotifications(principal, dto, 10)));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, commandService.getNotifications(principal, dto, 10)));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
 
     }
 
     @GetMapping("/count")
-    public ResponseEntity<ApiResponse<Long>> countUnreadNotifications(@AuthenticationPrincipal UserPrincipal principal) {
+    public ResponseEntity<APIResponse<Long>> countUnreadNotifications(@AuthenticationPrincipal UserPrincipal principal) {
         if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
         }
         try {
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, commandService.countUnreadNotifications(principal)));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, commandService.countUnreadNotifications(principal)));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
     }
 

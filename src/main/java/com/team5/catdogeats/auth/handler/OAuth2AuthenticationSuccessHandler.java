@@ -1,9 +1,12 @@
 package com.team5.catdogeats.auth.handler;
 
+import com.team5.catdogeats.auth.dto.UrlProperties;
 import com.team5.catdogeats.auth.service.JwtService;
 import com.team5.catdogeats.auth.service.RefreshTokenService;
 import com.team5.catdogeats.auth.util.CookieUtils;
+import com.team5.catdogeats.auth.util.JwtUtils;
 import com.team5.catdogeats.global.config.CookieProperties;
+import com.team5.catdogeats.users.domain.enums.Role;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -24,8 +27,10 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
     private final CookieUtils cookieUtils;
     private final JwtService jwtService;
+    private final JwtUtils jwtUtils;
     private final CookieProperties cookieProperties;
     private final RefreshTokenService refreshTokenService;
+    private final UrlProperties urlProperties;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -40,7 +45,11 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         String token = jwtService.createAccessToken(authentication);
         String refreshTokenId = refreshTokenService.createRefreshToken(authentication);
         log.debug("Created refresh token: {}", refreshTokenId);
-        String url = request.getContextPath() + "/";
+        String successUrl = urlProperties.getSuccessUrl();
+        log.debug("Success URL: {}", successUrl);
+        String role = (String) jwtUtils.parseToken(token).get("authorities");
+        String url = getUrl(role);
+        log.debug("Redirecting to: {}", url);
         ResponseCookie cookie = cookieUtils.createCookie("token", cookieProperties.getMaxAge(), token);
         ResponseCookie refreshIdCookie = cookieUtils.createCookie("refreshTokenId", cookieProperties.getMaxAge(), refreshTokenId);
         log.debug("Created cookies: {} {}", cookie, refreshIdCookie);
@@ -50,5 +59,16 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             response.addHeader("Set-Cookie", cookie.toString());
             response.addHeader("Set-Cookie", refreshIdCookie.toString());
             response.sendRedirect(url);
+    }
+
+    private String getUrl(String role) {
+        if (Role.ROLE_TEMP.toString().equals(role)) {
+                return urlProperties.getRoleSelectionUrl();
+        } else if (Role.ROLE_BUYER.toString().equals(role)) {
+            return urlProperties.getSuccessUrl();
+        } else if(Role.ROLE_SELLER.toString().equals(role)) {
+            return urlProperties.getSuccessUrl() + "seller";
+        }
+        return urlProperties.getWithdrawnUrl() + "?error=role";
     }
 }

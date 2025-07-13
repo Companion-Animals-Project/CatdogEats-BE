@@ -23,10 +23,12 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequest
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
+@EnableRedisHttpSession(maxInactiveIntervalInSeconds = 1800)
 @Slf4j
 @RequiredArgsConstructor
 public class SecurityConfig {
@@ -105,6 +107,7 @@ public class SecurityConfig {
                             .requestMatchers("/").permitAll()
                             .requestMatchers("tossTest.html").permitAll()
                             .requestMatchers("/alarm.html").permitAll()
+                            .requestMatchers("/health").permitAll()
                             .requestMatchers("/index.html").permitAll() // 개발할때만 사용 로그인 페이지
                             .requestMatchers("WebSocket.html").permitAll() // 개발할때만 소켓 페이지
                             .requestMatchers("/withdraw").permitAll()
