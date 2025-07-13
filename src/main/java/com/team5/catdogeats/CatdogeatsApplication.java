@@ -9,8 +9,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableAsync
-@EnableBatchProcessing
 @EnableScheduling
+@EnableBatchProcessing
 @EnableRetry
 public class CatdogeatsApplication {
 
