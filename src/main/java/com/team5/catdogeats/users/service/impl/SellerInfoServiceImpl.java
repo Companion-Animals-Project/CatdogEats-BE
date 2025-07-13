@@ -31,7 +31,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
 
     private final SellersRepository sellersRepository;
     private final UserRepository userRepository;
-    private final AddressService addressService; // AddressService 의존성 추가
+    private final AddressService addressService;
 
     @Override
     public SellerInfoResponseDTO getSellerInfo(UserPrincipal userPrincipal) {
@@ -42,7 +42,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
         Users user = findUserByPrincipal(userPrincipal);
 
         // 판매자 정보 조회
-        return getSellerInfoInternal(user.getId(), userPrincipal);
+        return getSellerInfoInternal(user.getId());
     }
 
     @JpaTransactional
@@ -58,7 +58,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
         validateOperatingHours(request);
         validateClosedDays(request.closedDays());
 
-        // 판매자 정보 등록/수정
+        // 판매자 정보 등록/수정 (userPrincipal - 주소 생성/수정에 필요)
         return upsertSellerInfoInternal(user, request, userPrincipal);
     }
 
@@ -77,9 +77,9 @@ public class SellerInfoServiceImpl implements SellerInfoService {
     }
 
     /**
-     * 판매자 정보 조회 로직 (주소 정보 포함)
+     * 판매자 정보 조회 로직 (주소 정보 포함) - userPrincipal 제거
      */
-    private SellerInfoResponseDTO getSellerInfoInternal(String userId, UserPrincipal userPrincipal) {
+    private SellerInfoResponseDTO getSellerInfoInternal(String userId) {
         Optional<Sellers> sellerOpt = sellersRepository.findByUserId(userId);
 
         if (sellerOpt.isEmpty()) {
@@ -89,7 +89,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
 
         Sellers seller = sellerOpt.get();
 
-        // 사업자 주소 조회 (userId 기반 메서드 사용)
+        // 사업자 주소 조회 (userId 기반 메서드 사용 - userPrincipal 불필요)
         AddressResponseDto businessAddress = null;
         try {
             businessAddress = addressService.getDefaultAddressByUserId(userId, AddressType.BUSINESS);
@@ -103,7 +103,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
     }
 
     /**
-     * 판매자 정보 등록/수정 로직 (주소 처리 포함)
+     * 판매자 정보 등록/수정 로직 (주소 처리 포함) - userPrincipal (주소 생성/수정에 필요)
      */
     private SellerInfoResponseDTO upsertSellerInfoInternal(Users user, SellerInfoRequestDTO request, UserPrincipal userPrincipal) {
         String userId = user.getId();
@@ -127,7 +127,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
             log.info("판매자 정보 신규 등록 완료 - userId: {}", userId);
             Sellers savedSeller = sellersRepository.save(seller);
 
-            // 주소 정보 처리 (신규 등록)
+            // 주소 정보 처리 (신규 등록) - userPrincipal 필요
             AddressResponseDto businessAddress = handleAddressForCreate(request, userPrincipal);
 
             return SellerInfoResponseDTO.from(savedSeller, businessAddress);
@@ -138,7 +138,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
             log.info("판매자 정보 수정 완료 - userId: {}", userId);
             Sellers savedSeller = sellersRepository.save(seller);
 
-            // 주소 정보 처리 (수정)
+            // 주소 정보 처리 (수정) - userPrincipal 필요
             AddressResponseDto businessAddress = handleAddressForUpdate(request, userPrincipal, userId);
 
             return SellerInfoResponseDTO.from(savedSeller, businessAddress);
@@ -146,7 +146,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
     }
 
     /**
-     * 신규 등록 시 주소 처리
+     * 신규 등록 시 주소 처리 - userPrincipal 필요 (AddressService.createAddress 호출)
      */
     private AddressResponseDto handleAddressForCreate(SellerInfoRequestDTO request, UserPrincipal userPrincipal) {
         if (!request.hasAddressInfo()) {
@@ -168,27 +168,27 @@ public class SellerInfoServiceImpl implements SellerInfoService {
                     .isDefault(true) // 사업자 주소는 기본적으로 기본 주소로 설정
                     .build();
 
+            // userPrincipal 필요 - AddressService.createAddress 호출
             AddressResponseDto createdAddress = addressService.createAddress(addressRequest, userPrincipal);
             log.info("사업자 주소 등록 완료 - addressId: {}", createdAddress.getId());
             return createdAddress;
 
         } catch (Exception e) {
             log.error("사업자 주소 등록 중 오류 발생", e);
-
             return null;
         }
     }
 
     /**
-     * 수정 시 주소 처리
+     * 수정 시 주소 처리 - userPrincipal 필요 (AddressService.updateAddress 호출)
      */
     private AddressResponseDto handleAddressForUpdate(SellerInfoRequestDTO request, UserPrincipal userPrincipal, String userId) {
         try {
-            // 기존 사업자 주소 조회
+            // 기존 사업자 주소 조회 (userId 기반 - userPrincipal 불필요)
             AddressResponseDto existingAddress = addressService.getDefaultAddressByUserId(userId, AddressType.BUSINESS);
 
             if (existingAddress == null && request.hasAddressInfo()) {
-                // 기존 주소가 없고 새로운 주소 정보가 있으면 신규 생성
+                // 기존 주소가 없고 새로운 주소 정보가 있으면 신규 생성 - userPrincipal 필요
                 return handleAddressForCreate(request, userPrincipal);
             } else if (existingAddress != null && request.hasAddressInfo()) {
                 // 기존 주소가 있고 새로운 주소 정보가 있으면 수정
@@ -204,6 +204,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
                         .isDefault(true)
                         .build();
 
+                // userPrincipal 필요 - AddressService.updateAddress 호출
                 AddressResponseDto updatedAddress = addressService.updateAddress(
                         existingAddress.getId(), updateRequest, userPrincipal);
                 log.info("사업자 주소 수정 완료 - addressId: {}", updatedAddress.getId());
