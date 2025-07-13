@@ -8,8 +8,9 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 // 결제 완료 후 구매 상품만 장바구니에서 삭제하는 이벤트 리스너
-// PaymentCompletedEvent를 수신 -> 비동기, 구매상품 장바구니에서 삭제
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -26,34 +27,54 @@ public class CartCleanupEventListener {
         long startTime = System.currentTimeMillis();
 
         try {
+            // orderItems에서 구매한 상품 ID 목록 추출
+            List<String> purchasedProductIds = extractPurchasedProductIds(event);
+
             // 입력값 검증
-            if (event.getPurchasedProductIds() == null || event.getPurchasedProductIds().isEmpty()) {
+            if (purchasedProductIds == null || purchasedProductIds.isEmpty()) {
                 log.warn("구매 상품 목록이 비어있음 - paymentId: {}, userId: {}",
-                        event.getPaymentId(), event.getUserId());
+                        event.paymentId(), event.userId());
                 return;
             }
 
-            // 🎯 핵심: 구매한 상품들만 선별적으로 삭제
+            // 구매한 상품들만 선별적으로 삭제
             cartService.clearPurchasedItemsFromCart(
-                    event.getUserId(),
-                    event.getPurchasedProductIds()
+                    event.userId(),
+                    purchasedProductIds
             );
 
             long processingTime = System.currentTimeMillis() - startTime;
             log.info("구매 상품들 장바구니 삭제 완료 - userId: {}, paymentId: {}, 상품수: {}, 처리시간: {}ms",
-                    event.getUserId(), event.getPaymentId(),
-                    event.getPurchasedProductIds().size(), processingTime);
+                    event.userId(), event.paymentId(),
+                    purchasedProductIds.size(), processingTime);
 
         } catch (Exception e) {
             long processingTime = System.currentTimeMillis() - startTime;
             log.error("구매 상품들 장바구니 삭제 실패 - userId: {}, paymentId: {}, 상품수: {}, 처리시간: {}ms, error: {}",
-                    event.getUserId(), event.getPaymentId(),
-                    event.getPurchasedProductIds() != null ? event.getPurchasedProductIds().size() : 0,
+                    event.userId(), event.paymentId(),
+                    event.orderItems() != null ? event.orderItems().size() : 0,
                     processingTime, e.getMessage(), e);
 
             // 실패 시 별도 처리 (모니터링, 재시도 등)
             handleCleanupFailure(event, e);
         }
+    }
+
+    /**
+     * PaymentCompletedEvent의 orderItems에서 구매한 상품 ID 목록을 추출
+     *
+     * @param event 결제 완료 이벤트
+     * @return 구매한 상품 ID 목록
+     */
+    private List<String> extractPurchasedProductIds(PaymentCompletedEvent event) {
+        if (event.orderItems() == null || event.orderItems().isEmpty()) {
+            return List.of();
+        }
+
+        return event.orderItems().stream()
+                .map(orderItem -> orderItem.productId())
+                .distinct()  // 중복 제거
+                .toList();
     }
 
     /**
@@ -71,7 +92,7 @@ public class CartCleanupEventListener {
         // 4. 수동 처리를 위한 별도 테이블에 기록
 
         log.warn("장바구니 정리 실패에 대한 수동 확인 필요 - paymentId: {}, userId: {}, error: {}",
-                event.getPaymentId(), event.getUserId(), exception.getMessage());
+                event.paymentId(), event.userId(), exception.getMessage());
 
         // 현재는 로깅만 수행하고, 실패 정보를 관리자가 확인할 수 있도록 함
     }
