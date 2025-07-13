@@ -1,9 +1,6 @@
 package com.team5.catdogeats.batch.forecast.scheduler;
 
 import com.team5.catdogeats.batch.config.ForecastBatchProperties;
-import com.team5.catdogeats.batch.service.ForecastBatchConcurrencyService;
-import com.team5.catdogeats.batch.service.ForecastBatchExecutionService;
-import com.team5.catdogeats.batch.service.impl.ForecastBatchExecutionServiceImpl.BatchExecutionResult;
 import com.team5.catdogeats.batch.scheduler.ForecastBatchScheduler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

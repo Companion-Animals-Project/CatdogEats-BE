@@ -1,7 +1,6 @@
 package com.team5.catdogeats.batch.forecast.reader;
 
 import com.team5.catdogeats.batch.dto.ForecastBatchItem;
-import com.team5.catdogeats.batch.mapper.ForecastBatchMapper;
 import com.team5.catdogeats.batch.reader.ForecastBatchItemReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

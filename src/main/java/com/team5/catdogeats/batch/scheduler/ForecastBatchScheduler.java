@@ -1,18 +1,20 @@
 package com.team5.catdogeats.batch.scheduler;
 
 import com.team5.catdogeats.batch.config.ForecastBatchProperties;
-import com.team5.catdogeats.batch.service.ForecastBatchConcurrencyService;
-import com.team5.catdogeats.batch.service.ForecastBatchExecutionService;
-import com.team5.catdogeats.batch.service.impl.ForecastBatchExecutionServiceImpl.BatchExecutionResult;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.*;
+import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.batch.core.repository.JobExecutionAlreadyRunningException;
+import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
+import org.springframework.batch.core.repository.JobRestartException;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 수요예측 배치 스케줄러
+ * 수요예측 배치 스케줄러 (단순화된 버전)
+ * Spring Batch JobRepository를 사용한 표준 패턴
  */
 @Slf4j
 @Component
@@ -24,8 +26,10 @@ import org.springframework.stereotype.Component;
 )
 public class ForecastBatchScheduler {
 
-    private final ForecastBatchExecutionService batchExecutionService;
-    private final ForecastBatchConcurrencyService batchConcurrencyService;
+    private final JobLauncher jobLauncher;
+    private final Job forecastAggregationJob;
+    private final Job forecastPredictionJob;
+    private final Job forecastCleanupJob;
     private final ForecastBatchProperties forecastBatchProperties;
 
     /**
@@ -38,33 +42,7 @@ public class ForecastBatchScheduler {
             return;
         }
 
-        try {
-            log.info("수요예측 일별 집계 배치 작업 시작 - cron: ${batch.forecast.aggregation-cron}");
-            log.info("배치 설정 - chunkSize: {}, skipLimit: {}, retryLimit: {}",
-                    forecastBatchProperties.getChunkSize(),
-                    forecastBatchProperties.getSkipLimit(),
-                    forecastBatchProperties.getRetryLimit());
-
-            long startTime = System.currentTimeMillis();
-
-            // 일별 집계 배치 실행
-            BatchExecutionResult result = batchExecutionService.executeAggregationJob();
-
-            long endTime = System.currentTimeMillis();
-            long executionTime = endTime - startTime;
-
-            if (result.isSuccess()) {
-                log.info("수요예측 일별 집계 배치 작업 완료 - 실행시간: {}ms", executionTime);
-                log.info("실행 결과: {}", result.getExecutionSummary());
-
-            } else {
-                log.error("수요예측 일별 집계 배치 작업 실패 - 실행시간: {}ms, 원인: {}",
-                        executionTime, result.getMessage());
-            }
-
-        } catch (Exception e) {
-            log.error("수요예측 일별 집계 배치 작업 중 예상치 못한 오류 발생", e);
-        }
+        executeJob(forecastAggregationJob, "일별 판매 집계");
     }
 
     /**
@@ -77,187 +55,123 @@ public class ForecastBatchScheduler {
             return;
         }
 
-        try {
-            log.info("수요예측 실행 배치 작업 시작 - cron: ${batch.forecast.forecast-cron}");
-
-            long startTime = System.currentTimeMillis();
-
-            // 수요예측 실행 배치 실행
-            BatchExecutionResult result = batchExecutionService.executePredictionJob();
-
-            long endTime = System.currentTimeMillis();
-            long executionTime = endTime - startTime;
-
-            if (result.isSuccess()) {
-                log.info("수요예측 실행 배치 작업 완료 - 실행시간: {}ms", executionTime);
-                log.info("실행 결과: {}", result.getExecutionSummary());
-
-
-            } else {
-                log.error("수요예측 실행 배치 작업 실패 - 실행시간: {}ms, 원인: {}",
-                        executionTime, result.getMessage());
-            }
-
-        } catch (Exception e) {
-            log.error("수요예측 실행 배치 작업 중 예상치 못한 오류 발생", e);
-        }
+        executeJob(forecastPredictionJob, "수요예측 실행");
     }
 
     /**
      * 데이터 정리 스케줄러 (매주 일요일 새벽 4시)
      */
-    @Scheduled(cron = "0 0 4 * * SUN") // 매주 일요일 새벽 4시
+    @Scheduled(cron = "0 0 4 * * SUN")
     public void runCleanupJob() {
         if (!forecastBatchProperties.isEnabled()) {
             log.info("수요예측 배치가 비활성화되어 있습니다. 스킵합니다.");
             return;
         }
 
+        executeJob(forecastCleanupJob, "데이터 정리");
+    }
+
+    /**
+     * 수동 실행용 메서드들
+     */
+    public JobExecution runAggregationJobManually() {
+        return executeJob(forecastAggregationJob, "수동 일별 판매 집계");
+    }
+
+    public JobExecution runPredictionJobManually() {
+        return executeJob(forecastPredictionJob, "수동 수요예측 실행");
+    }
+
+    public JobExecution runCleanupJobManually() {
+        return executeJob(forecastCleanupJob, "수동 데이터 정리");
+    }
+
+    /**
+     * 통합된 Job 실행 메서드
+     */
+    private JobExecution executeJob(Job job, String description) {
+        log.info("{} 배치 작업 시작", description);
+        long startTime = System.currentTimeMillis();
+
         try {
-            log.info("수요예측 데이터 정리 배치 작업 시작");
+            // JobParameters 생성 (타임스탬프로 중복 방지)
+            JobParameters jobParameters = new JobParametersBuilder()
+                    .addLong("timestamp", System.currentTimeMillis())
+                    .addString("description", description)
+                    .toJobParameters();
 
-            long startTime = System.currentTimeMillis();
+            JobExecution jobExecution = jobLauncher.run(job, jobParameters);
 
-            // 데이터 정리 배치 실행
-            BatchExecutionResult result = batchExecutionService.executeCleanupJob();
-
-            long endTime = System.currentTimeMillis();
-            long executionTime = endTime - startTime;
-
-            if (result.isSuccess()) {
-                log.info("수요예측 데이터 정리 배치 작업 완료 - 실행시간: {}ms", executionTime);
-                log.info("실행 결과: {}", result.getExecutionSummary());
-
-            } else {
-                log.error("수요예측 데이터 정리 배치 작업 실패 - 실행시간: {}ms, 원인: {}",
-                        executionTime, result.getMessage());
+            // 동기 실행 대기
+            while (jobExecution.isRunning()) {
+                Thread.sleep(1000);
             }
 
-        } catch (Exception e) {
-            log.error("수요예측 데이터 정리 배치 작업 중 예상치 못한 오류 발생", e);
-        }
-    }
+            long executionTime = System.currentTimeMillis() - startTime;
 
-    /**
-     * 타임아웃된 배치 정리 스케줄러 (매 6시간마다 실행)
-     */
-    @Scheduled(fixedRate = 21600000) // 6시간
-    public void cleanupTimeoutBatches() {
-        try {
-            log.debug("수요예측 배치 타임아웃 정리 작업 시작");
-            batchConcurrencyService.cleanupTimeoutBatches();
-            forceCleanupStuckBatches();
-            log.debug("수요예측 배치 타임아웃 정리 작업 완료");
-
-        } catch (Exception e) {
-            log.error("수요예측 배치 타임아웃 정리 작업 중 오류 발생", e);
-        }
-    }
-
-    /**
-     * 애플리케이션 시작 시 즉시 정리
-     */
-    @PostConstruct
-    public void cleanupOnStartup() {
-        try {
-            log.info("애플리케이션 시작 - 수요예측 배치 상태 초기화");
-
-            // 배치 상태 테이블 초기화
-            batchConcurrencyService.initializeBatchStatuses();
-
-            // 비정상 종료된 배치들 강제 정리
-            forceCleanupStuckBatches();
-
-            log.info("수요예측 배치 상태 초기화 완료");
-
-        } catch (Exception e) {
-            log.error("수요예측 배치 상태 초기화 중 오류 발생", e);
-        }
-    }
-
-    /**
-     * 수동 실행용 메서드 - 일별 집계 배치
-     */
-    public BatchExecutionResult runAggregationJobManually() {
-        try {
-            log.info("수동 수요예측 일별 집계 배치 작업 시작");
-
-            BatchExecutionResult result = batchExecutionService.executeAggregationJob();
-
-            if (result.isSuccess()) {
-                log.info("수동 수요예측 일별 집계 배치 작업 완료");
-                log.info("실행 결과: {}", result.getExecutionSummary());
+            if (BatchStatus.COMPLETED.equals(jobExecution.getStatus())) {
+                log.info("{} 배치 작업 완료 - 실행시간: {}ms", description, executionTime);
+                logExecutionSummary(jobExecution);
             } else {
-                log.error("수동 수요예측 일별 집계 배치 작업 실패: {}", result.getMessage());
+                log.error("{} 배치 작업 실패 - 상태: {}, 실행시간: {}ms",
+                        description, jobExecution.getStatus(), executionTime);
+                logFailureDetails(jobExecution);
             }
 
-            return result;
+            return jobExecution;
 
+        } catch (JobExecutionAlreadyRunningException e) {
+            log.warn("{} 배치가 이미 실행중입니다", description);
+            throw new RuntimeException("배치가 이미 실행중입니다", e);
+        } catch (JobRestartException e) {
+            log.error("{} 배치 재시작 오류", description, e);
+            throw new RuntimeException("배치 재시작 오류", e);
+        } catch (JobInstanceAlreadyCompleteException e) {
+            log.warn("{} 배치가 이미 완료되었습니다", description);
+            throw new RuntimeException("배치가 이미 완료되었습니다", e);
+        } catch (JobParametersInvalidException e) {
+            log.error("{} 배치 파라미터 오류", description, e);
+            throw new RuntimeException("잘못된 Job 파라미터", e);
         } catch (Exception e) {
-            log.error("수동 수요예측 일별 집계 배치 작업 중 예외 발생", e);
-            throw new RuntimeException("수요예측 일별 집계 배치 작업 실행 실패", e);
+            log.error("{} 배치 작업 중 예상치 못한 오류 발생", description, e);
+            throw new RuntimeException("배치 실행 실패", e);
         }
     }
 
     /**
-     * 수동 실행용 메서드 - 수요예측 실행 배치
+     * 실행 결과 요약 로깅
      */
-    public BatchExecutionResult runPredictionJobManually() {
-        try {
-            log.info("수동 수요예측 실행 배치 작업 시작");
+    private void logExecutionSummary(JobExecution jobExecution) {
+        jobExecution.getStepExecutions().forEach(stepExecution -> {
+            String stepName = stepExecution.getStepName();
 
-            BatchExecutionResult result = batchExecutionService.executePredictionJob();
+            if ("aggregationStep".equals(stepName)) {
+                int aggregatedRecords = stepExecution.getExecutionContext().getInt("aggregatedRecords", 0);
+                log.info("일별 집계: {}건", aggregatedRecords);
 
-            if (result.isSuccess()) {
-                log.info("수동 수요예측 실행 배치 작업 완료");
-                log.info("실행 결과: {}", result.getExecutionSummary());
-            } else {
-                log.error("수동 수요예측 실행 배치 작업 실패: {}", result.getMessage());
+            } else if ("predictionStep".equals(stepName)) {
+                log.info("수요예측: Read {}건, Write {}건, Skip {}건",
+                        stepExecution.getReadCount(),
+                        stepExecution.getWriteCount(),
+                        stepExecution.getSkipCount());
+
+            } else if ("cleanupStep".equals(stepName)) {
+                int deletedRecords = stepExecution.getExecutionContext().getInt("deletedRecords", 0);
+                log.info("데이터 정리: {}건 삭제", deletedRecords);
             }
-
-            return result;
-
-        } catch (Exception e) {
-            log.error("수동 수요예측 실행 배치 작업 중 예외 발생", e);
-            throw new RuntimeException("수요예측 실행 배치 작업 실행 실패", e);
-        }
+        });
     }
 
     /**
-     * 수동 실행용 메서드 - 데이터 정리 배치
+     * 실패 상세 정보 로깅
      */
-    public BatchExecutionResult runCleanupJobManually() {
-        try {
-            log.info("수동 수요예측 데이터 정리 배치 작업 시작");
-
-            BatchExecutionResult result = batchExecutionService.executeCleanupJob();
-
-            if (result.isSuccess()) {
-                log.info("수동 수요예측 데이터 정리 배치 작업 완료");
-                log.info("실행 결과: {}", result.getExecutionSummary());
-            } else {
-                log.error("수동 수요예측 데이터 정리 배치 작업 실패: {}", result.getMessage());
+    private void logFailureDetails(JobExecution jobExecution) {
+        jobExecution.getStepExecutions().forEach(stepExecution -> {
+            if (BatchStatus.FAILED.equals(stepExecution.getStatus())) {
+                log.error("실패한 Step: {}, 종료 코드: {}",
+                        stepExecution.getStepName(),
+                        stepExecution.getExitStatus().getExitDescription());
             }
-
-            return result;
-
-        } catch (Exception e) {
-            log.error("수동 수요예측 데이터 정리 배치 작업 중 예외 발생", e);
-            throw new RuntimeException("수요예측 데이터 정리 배치 작업 실행 실패", e);
-        }
-    }
-
-    /**
-     * 비정상 종료된 배치들 강제 정리
-     */
-    private void forceCleanupStuckBatches() {
-        try {
-            log.debug("비정상 종료된 수요예측 배치 강제 정리 시작");
-            batchConcurrencyService.forceCleanupStuckBatches();
-            log.debug("비정상 종료된 수요예측 배치 강제 정리 완료");
-
-        } catch (Exception e) {
-            log.error("비정상 종료된 수요예측 배치 강제 정리 중 오류 발생", e);
-        }
+        });
     }
 }
