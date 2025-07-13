@@ -38,8 +38,8 @@ public record SellerStoreInfoDTO(
         @Schema(description = "사업자 주소 정보")
         StoreAddressInfo storeAddress,
 
-        @Schema(description = "운영 시작년도", example = "2020")
-        String operationStartYear,
+        @Schema(description = "운영 시작일", example = "2020-07-14")
+        String operationStartDate,
 
         @Schema(description = "총 상품 수", example = "50")
         Long totalProducts,
@@ -95,7 +95,7 @@ public record SellerStoreInfoDTO(
 
         String operatingStartTime = formatTimeOnly(seller.getOperatingStartTime());
         String operatingEndTime = formatTimeOnly(seller.getOperatingEndTime());
-        String operationStartYear = extractYear(seller.getCreatedAt());
+        String operationStartDate = formatCreatedDate(seller.getCreatedAt());
 
         // Orders 도메인의 SellerStoreStatsDTO 사용
         Long totalSalesCount = stats != null ? stats.totalSalesCount() : 0L;
@@ -109,9 +109,9 @@ public record SellerStoreInfoDTO(
                 seller.getTags(),
                 operatingStartTime,
                 operatingEndTime,
-                seller.getClosedDays(), // 휴무일 추가
-                StoreAddressInfo.from(businessAddress), // 주소 정보 추가
-                operationStartYear,
+                seller.getClosedDays(),
+                StoreAddressInfo.from(businessAddress),
+                operationStartDate,
                 totalProducts,
                 totalSalesCount,
                 avgDeliveryDays,
@@ -138,12 +138,13 @@ public record SellerStoreInfoDTO(
     }
 
     /**
-     *  ZoneDateTime -> 연도만 문자열로 추출
+     *  ZoneDateTime -> "yyyy-MM-dd" 문자열로 변환 (년-월-일 형식)
      */
-    private static String extractYear(java.time.ZonedDateTime createdAt) {
+    private static String formatCreatedDate(java.time.ZonedDateTime createdAt) {
         if (createdAt == null) {
             return null;
         }
-        return String.valueOf(createdAt.getYear());
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        return createdAt.format(formatter);
     }
 }
