@@ -1,6 +1,6 @@
 package com.team5.catdogeats.support.domain.faq.controller;
 
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.support.domain.enums.FaqCategory;
 import com.team5.catdogeats.support.domain.faq.dto.response.FaqResponseDTO;
@@ -36,7 +36,7 @@ public class FaqController {
                     "**정렬:** displayOrder 오름차순으로 고정<br/>" +
                     "**페이징:** 기본값 page=0, size=10"
     )
-    public ResponseEntity<ApiResponse<Page<FaqResponseDTO>>> getFaqs(
+    public ResponseEntity<APIResponse<Page<FaqResponseDTO>>> getFaqs(
             @Parameter(description = "카테고리 필터", example = "ALL")
             @RequestParam(defaultValue = "ALL") FaqCategory category,
 
@@ -59,16 +59,16 @@ public class FaqController {
             log.info("FAQ 목록 조회 성공 - 총 {}개, 현재 페이지 {}개",
                     faqs.getTotalElements(), faqs.getNumberOfElements());
 
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, faqs));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, faqs));
         } catch (IllegalArgumentException e) {
             log.warn("FAQ 목록 조회 실패 - 잘못된 요청: {}", e.getMessage());
             return ResponseEntity.badRequest().body(
-                    ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
+                    APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
             log.error("FAQ 목록 조회 중 서버 오류", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                    ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
+                    APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
         }
     }
@@ -79,7 +79,7 @@ public class FaqController {
             description = "FAQ 검색에서 자주 사용되는 인기 검색어 목록을 조회합니다.<br/>" +
                     "현재는 하드코딩된 키워드를 반환하며, 사용자가 클릭 시 해당 키워드로 검색이 실행됩니다."
     )
-    public ResponseEntity<ApiResponse<List<String>>> getPopularKeywords() {
+    public ResponseEntity<APIResponse<List<String>>> getPopularKeywords() {
         try {
             log.info("인기 검색어 목록 조회 요청");
 
@@ -87,11 +87,11 @@ public class FaqController {
 
             log.info("인기 검색어 목록 조회 성공 - {}개", popularKeywords.size());
 
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, popularKeywords));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, popularKeywords));
         } catch (Exception e) {
             log.error("인기 검색어 목록 조회 중 서버 오류", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                    ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
+                    APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
         }
     }
