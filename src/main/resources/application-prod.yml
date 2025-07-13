@@ -2,6 +2,15 @@ batch:
   withdrawn:
     cron: ${WITHDRAW_CRON:0 30 2 * * ?}
     chunk-size: ${WITHDRAW_CHUNK:1000}
+  # 정산 배치 설정 추가
+  settlement:
+    # 일일 정산 배치 (매일 오전 2시)
+    daily-cron: "${SETTLEMENT_DAILY_CRON:0 0 2 * * ?}"
+    # 월간 정산 완료 배치 (매월 1일 오전 4시)
+    monthly-cron: "${SETTLEMENT_MONTHLY_CRON:0 0 4 1 * ?}"
+    # 배치 활성화 여부
+    enabled: ${SETTLEMENT_BATCH_ENABLED:true}
+
 spring:
   servlet:
     multipart:
@@ -93,9 +102,6 @@ spring:
             token-uri: https://kauth.kakao.com/oauth/token
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
-      success: null
-      fail: null
-      duplicated: null
 
   jpa:
     hibernate:

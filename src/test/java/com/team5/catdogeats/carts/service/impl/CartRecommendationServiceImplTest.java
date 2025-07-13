@@ -8,7 +8,6 @@ import com.team5.catdogeats.carts.repository.CartRecommendationRepository;
 import com.team5.catdogeats.pets.domain.enums.PetCategory;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.domain.enums.ProductCategory;
-import com.team5.catdogeats.products.domain.enums.StockStatus;
 import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.domain.enums.Role;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
@@ -22,7 +21,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -98,8 +100,7 @@ class CartRecommendationServiceImplTest {
                 .contents("강아지용 수제 간식")
                 .petCategory(PetCategory.DOG)
                 .productCategory(ProductCategory.HANDMADE)
-                .stockStatus(StockStatus.IN_STOCK)
-                .isDiscounted(false)
+                .discounted(false)
                 .price(10000L)
                 .leadTime((short) 3)
                 .stock(100)
@@ -113,9 +114,8 @@ class CartRecommendationServiceImplTest {
                 .contents("강아지용 프리미엄 간식")
                 .petCategory(PetCategory.DOG)
                 .productCategory(ProductCategory.FINISHED)
-                .stockStatus(StockStatus.IN_STOCK)
-                .isDiscounted(true)
-                .discountRate(20.0)
+                .discounted(true)
+                .discountRate((short) 20)
                 .price(15000L)
                 .leadTime((short) 5)
                 .stock(50)
@@ -130,8 +130,7 @@ class CartRecommendationServiceImplTest {
                 .contents("고양이용 수제 간식")
                 .petCategory(PetCategory.CAT)
                 .productCategory(ProductCategory.HANDMADE)
-                .stockStatus(StockStatus.IN_STOCK)
-                .isDiscounted(false)
+                .discounted(false)
                 .price(12000L)
                 .leadTime((short) 4)
                 .stock(80)
@@ -145,8 +144,7 @@ class CartRecommendationServiceImplTest {
                 .contents("고양이용 프리미엄 간식")
                 .petCategory(PetCategory.CAT)
                 .productCategory(ProductCategory.FINISHED)
-                .stockStatus(StockStatus.IN_STOCK)
-                .isDiscounted(false)
+                .discounted(false)
                 .price(18000L)
                 .leadTime((short) 6)
                 .stock(30)
@@ -161,9 +159,8 @@ class CartRecommendationServiceImplTest {
                 .contents("인기 추천 상품")
                 .petCategory(PetCategory.DOG)
                 .productCategory(ProductCategory.HANDMADE)
-                .stockStatus(StockStatus.IN_STOCK)
-                .isDiscounted(true)
-                .discountRate(15.0)
+                .discounted(true)
+                .discountRate((short) 15)
                 .price(20000L)
                 .leadTime((short) 3)
                 .stock(200)
@@ -177,8 +174,7 @@ class CartRecommendationServiceImplTest {
                 .contents("베스트 추천 상품")
                 .petCategory(PetCategory.CAT)
                 .productCategory(ProductCategory.FINISHED)
-                .stockStatus(StockStatus.IN_STOCK)
-                .isDiscounted(false)
+                .discounted(false)
                 .price(25000L)
                 .leadTime((short) 4)
                 .stock(150)
@@ -211,7 +207,7 @@ class CartRecommendationServiceImplTest {
 
             given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
                     .willReturn(Optional.of(testUser));
-            given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
+            given(cartItemRepository.findCartItemsWithProductByBuyerId("test-user-id"))
                     .willReturn(dogOnlyCartItems);
             // ✅ 새로운 메서드로 변경
             given(cartRecommendationRepository.findTopPopularProductsByCategoryExcluding(
@@ -242,7 +238,7 @@ class CartRecommendationServiceImplTest {
 
             given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
                     .willReturn(Optional.of(testUser));
-            given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
+            given(cartItemRepository.findCartItemsWithProductByBuyerId("test-user-id"))
                     .willReturn(catOnlyCartItems);
             // ✅ 새로운 메서드로 변경
             given(cartRecommendationRepository.findTopPopularProductsByCategoryExcluding(
@@ -273,7 +269,7 @@ class CartRecommendationServiceImplTest {
 
             given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
                     .willReturn(Optional.of(testUser));
-            given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
+            given(cartItemRepository.findCartItemsWithProductByBuyerId("test-user-id"))
                     .willReturn(mixedCartItems);
             // ✅ 새로운 메서드로 변경
             given(cartRecommendationRepository.findTopPopularProductsExcluding(
@@ -302,7 +298,7 @@ class CartRecommendationServiceImplTest {
 
             given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
                     .willReturn(Optional.of(testUser));
-            given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
+            given(cartItemRepository.findCartItemsWithProductByBuyerId("test-user-id"))
                     .willReturn(emptyCartItems);
             // ✅ 새로운 메서드로 변경
             given(cartRecommendationRepository.findTopPopularProductsAll(DEFAULT_RECOMMENDATION_LIMIT))
@@ -353,7 +349,7 @@ class CartRecommendationServiceImplTest {
 
             given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
                     .willReturn(Optional.of(testUser));
-            given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
+            given(cartItemRepository.findCartItemsWithProductByBuyerId("test-user-id"))
                     .willThrow(new RuntimeException("DB 연결 오류"));
             // ✅ 새로운 메서드로 변경
             given(cartRecommendationRepository.findTopPopularProductsAll(DEFAULT_RECOMMENDATION_LIMIT))
@@ -385,7 +381,7 @@ class CartRecommendationServiceImplTest {
 
             given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
                     .willReturn(Optional.of(testUser));
-            given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
+            given(cartItemRepository.findCartItemsWithProductByBuyerId("test-user-id"))
                     .willReturn(emptyCartItems);
             // ✅ 새로운 메서드로 변경
             given(cartRecommendationRepository.findTopPopularProductsAll(DEFAULT_RECOMMENDATION_LIMIT))
@@ -415,7 +411,7 @@ class CartRecommendationServiceImplTest {
 
             given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
                     .willReturn(Optional.of(testUser));
-            given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
+            given(cartItemRepository.findCartItemsWithProductByBuyerId("test-user-id"))
                     .willReturn(emptyCartItems);
             // ✅ 새로운 메서드로 변경
             given(cartRecommendationRepository.findTopPopularProductsAll(DEFAULT_RECOMMENDATION_LIMIT))
@@ -458,7 +454,7 @@ class CartRecommendationServiceImplTest {
 
             given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
                     .willReturn(Optional.of(testUser));
-            given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
+            given(cartItemRepository.findCartItemsWithProductByBuyerId("test-user-id"))
                     .willReturn(dogOnlyCartItems);
             // ✅ 새로운 메서드로 변경
             given(cartRecommendationRepository.findTopPopularProductsByCategoryExcluding(
@@ -487,7 +483,7 @@ class CartRecommendationServiceImplTest {
 
             given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
                     .willReturn(Optional.of(testUser));
-            given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
+            given(cartItemRepository.findCartItemsWithProductByBuyerId("test-user-id"))
                     .willReturn(multipleDogItems);
             // ✅ 새로운 메서드로 변경
             given(cartRecommendationRepository.findTopPopularProductsByCategoryExcluding(
@@ -521,7 +517,7 @@ class CartRecommendationServiceImplTest {
 
             given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
                     .willReturn(Optional.of(testUser));
-            given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
+            given(cartItemRepository.findCartItemsWithProductByBuyerId("test-user-id"))
                     .willReturn(emptyCartItems);
             given(cartRecommendationRepository.findTopPopularProductsAll(DEFAULT_RECOMMENDATION_LIMIT))
                     .willReturn(products);
@@ -542,7 +538,7 @@ class CartRecommendationServiceImplTest {
 
             given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
                     .willReturn(Optional.of(testUser));
-            given(cartItemRepository.findCartItemsWithProductByUserId("test-user-id"))
+            given(cartItemRepository.findCartItemsWithProductByBuyerId("test-user-id"))
                     .willReturn(dogOnlyCartItems);
             given(cartRecommendationRepository.findTopPopularProductsByCategoryExcluding(
                     PetCategory.DOG.name(), Arrays.asList("dog-product-1"), DEFAULT_RECOMMENDATION_LIMIT))
