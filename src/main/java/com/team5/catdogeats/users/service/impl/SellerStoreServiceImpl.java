@@ -1,5 +1,8 @@
 package com.team5.catdogeats.users.service.impl;
 
+import com.team5.catdogeats.addresses.domain.enums.AddressType;
+import com.team5.catdogeats.addresses.dto.AddressResponseDto;
+import com.team5.catdogeats.addresses.service.AddressService;
 import com.team5.catdogeats.orders.domain.dto.SellerStoreStatsDTO;
 import com.team5.catdogeats.orders.service.SellerStoreStatsService;
 import com.team5.catdogeats.pets.domain.enums.PetCategory;
@@ -21,7 +24,7 @@ import org.springframework.stereotype.Service;
 import jakarta.persistence.EntityNotFoundException;
 
 /**
- * 판매자 스토어 페이지 Application Service
+ * 판매자 스토어 페이지 Application Service (주소 정보 포함)
  */
 @Slf4j
 @Service
@@ -31,6 +34,7 @@ public class SellerStoreServiceImpl implements SellerStoreService {
     private final SellersRepository sellersRepository;
     private final SellerStoreProductService productService;
     private final SellerStoreStatsService sellerStoreStatsService;
+    private final AddressService addressService; // AddressService 의존성 추가
 
     @Override
     public SellerStorePageResponse getSellerStorePage(
@@ -43,7 +47,7 @@ public class SellerStoreServiceImpl implements SellerStoreService {
             String filter) {
 
         log.info("판매자 스토어 페이지 조회 요청 - vendorName: {}, page: {}, size: {}, sort: {}, petCategory: {},productCategory: {},  filter: {}",
-                vendorName, page, size, sort, petCategory,productCategory, filter);
+                vendorName, page, size, sort, petCategory, productCategory, filter);
 
         //1. 파라미터 검증
         validateRequestParameters(vendorName, page, size, filter);
@@ -62,16 +66,42 @@ public class SellerStoreServiceImpl implements SellerStoreService {
         // 5. 상점 집계 정보 조회 (Orders 도메인)
         SellerStoreStatsDTO storeStats = sellerStoreStatsService.getSellerStoreStats(seller.getUserId());
 
-        // 6. 응답 데이터 생성
-        SellerStorePageResponse response = buildResponse(seller, totalProducts, storeStats, productInfoPage);
+        // 6. 사업자 주소 정보 조회 (Address 도메인)
+        AddressResponseDto businessAddress = getBusinessAddress(seller);
 
-        //7. 페이지 번호를 다시 1-based로 조정
+        // 7. 응답 데이터 생성 (주소 정보 포함)
+        SellerStorePageResponse response = buildResponse(seller, totalProducts, storeStats, businessAddress, productInfoPage);
+
+        //8. 페이지 번호를 다시 1-based로 조정
         response = adjustPageNumberInResponse(response, pageable.getPageNumber());
 
-        log.info("판매자 스토어 페이지 조회 완료 - vendorName: {}, filter: {}, totalProducts: {}, totalSales: {}, pageContent: {}",
-                vendorName, filter, totalProducts, storeStats.totalSalesCount(), productInfoPage.getNumberOfElements());
+        log.info("판매자 스토어 페이지 조회 완료 - vendorName: {}, filter: {}, totalProducts: {}, totalSales: {}, pageContent: {}, hasAddress: {}",
+                vendorName, filter, totalProducts, storeStats.totalSalesCount(), productInfoPage.getNumberOfElements(), businessAddress != null);
 
         return response;
+    }
+
+    /**
+     * 판매자의 사업자 주소 정보 조회
+     */
+    private AddressResponseDto getBusinessAddress(Sellers seller) {
+        try {
+            // userId를 직접 사용하여 주소 조회
+            AddressResponseDto businessAddress = addressService.getDefaultAddressByUserId(
+                    seller.getUserId(),
+                    AddressType.BUSINESS
+            );
+
+            log.debug("사업자 주소 조회 완료 - sellerId: {}, addressExists: {}",
+                    seller.getUserId(), businessAddress != null);
+            return businessAddress;
+
+        } catch (Exception e) {
+            log.warn("사업자 주소 조회 중 오류 발생 - sellerId: {}, error: {}",
+                    seller.getUserId(), e.getMessage());
+            // 주소 조회 실패는 무시하고 null 반환
+            return null;
+        }
     }
 
     /**
@@ -181,16 +211,17 @@ public class SellerStoreServiceImpl implements SellerStoreService {
     }
 
     /**
-     * 응답 데이터 생성
+     * 응답 데이터 생성 (주소 정보 포함)
      */
     private SellerStorePageResponse buildResponse(
             Sellers seller,
             Long totalProducts,
             SellerStoreStatsDTO storeStats,
+            AddressResponseDto businessAddress,
             Page<ProductStoreInfoDTO> productInfoPage) {
 
-        // 판매자 정보 생성 (집계 정보 포함)
-        SellerStoreInfoDTO sellerInfo = SellerStoreInfoDTO.from(seller, totalProducts, storeStats);
+        // 판매자 정보 생성 (집계 정보 + 주소 정보 포함)
+        SellerStoreInfoDTO sellerInfo = SellerStoreInfoDTO.from(seller, totalProducts, storeStats, businessAddress);
 
         // 상품 카드로 변환
         Page<SellerStoreProductCardDTO> productCardPage = productInfoPage

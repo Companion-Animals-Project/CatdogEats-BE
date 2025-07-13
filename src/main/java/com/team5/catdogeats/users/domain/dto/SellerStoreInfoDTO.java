@@ -1,5 +1,6 @@
 package com.team5.catdogeats.users.domain.dto;
 
+import com.team5.catdogeats.addresses.dto.AddressResponseDto;
 import com.team5.catdogeats.orders.domain.dto.SellerStoreStatsDTO;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -31,6 +32,12 @@ public record SellerStoreInfoDTO(
         @Schema(description = "운영 종료시간", example = "18:00")
         String operatingEndTime,
 
+        @Schema(description = "휴무일", example = "월요일,화요일")
+        String closedDays,
+
+        @Schema(description = "사업자 주소 정보")
+        StoreAddressInfo storeAddress,
+
         @Schema(description = "운영 시작년도", example = "2020")
         String operationStartYear,
 
@@ -49,9 +56,39 @@ public record SellerStoreInfoDTO(
 ) {
 
     /**
-     * Orders 도메인의 SellerStoreStats를 사용하여 생성
+     * 스토어 주소 정보를 위한 중첩 레코드
      */
-    public static SellerStoreInfoDTO from(Sellers seller, Long totalProducts, SellerStoreStatsDTO stats) {
+    @Schema(description = "스토어 주소 정보")
+    public record StoreAddressInfo(
+            @Schema(description = "주소 제목", example = "본사")
+            String title,
+
+            @Schema(description = "전체 주소", example = "서울시 강남구 역삼동 테헤란로 123 101호")
+            String fullAddress,
+
+            @Schema(description = "우편번호", example = "12345")
+            String postalCode,
+
+            @Schema(description = "전화번호", example = "02-1234-5678")
+            String phoneNumber
+    ) {
+        public static StoreAddressInfo from(AddressResponseDto address) {
+            if (address == null) {
+                return null;
+            }
+            return new StoreAddressInfo(
+                    address.getTitle(),
+                    address.getFullAddress(),
+                    address.getPostalCode(),
+                    address.getPhoneNumber()
+            );
+        }
+    }
+
+    /**
+     * Orders 도메인의 SellerStoreStats와 주소 정보를 사용하여 생성
+     */
+    public static SellerStoreInfoDTO from(Sellers seller, Long totalProducts, SellerStoreStatsDTO stats, AddressResponseDto businessAddress) {
         if (seller == null) {
             return null;
         }
@@ -59,8 +96,6 @@ public record SellerStoreInfoDTO(
         String operatingStartTime = formatTimeOnly(seller.getOperatingStartTime());
         String operatingEndTime = formatTimeOnly(seller.getOperatingEndTime());
         String operationStartYear = extractYear(seller.getCreatedAt());
-
-
 
         // Orders 도메인의 SellerStoreStatsDTO 사용
         Long totalSalesCount = stats != null ? stats.totalSalesCount() : 0L;
@@ -74,12 +109,21 @@ public record SellerStoreInfoDTO(
                 seller.getTags(),
                 operatingStartTime,
                 operatingEndTime,
+                seller.getClosedDays(), // 휴무일 추가
+                StoreAddressInfo.from(businessAddress), // 주소 정보 추가
                 operationStartYear,
                 totalProducts,
                 totalSalesCount,
                 avgDeliveryDays,
                 totalReviews
         );
+    }
+
+    /**
+     * 기존 호환성을 위한 메서드 (주소 정보 없이)
+     */
+    public static SellerStoreInfoDTO from(Sellers seller, Long totalProducts, SellerStoreStatsDTO stats) {
+        return from(seller, totalProducts, stats, null);
     }
 
     /**

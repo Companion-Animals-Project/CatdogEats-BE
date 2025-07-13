@@ -29,7 +29,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@JpaTransactional(readOnly = true)
 public class AddressServiceImpl implements AddressService {
 
     private final AddressRepository addressRepository;
@@ -71,7 +71,7 @@ public class AddressServiceImpl implements AddressService {
     @Override
     @JpaTransactional
     public AddressResponseDto createAddress(AddressRequestDto requestDto, UserPrincipal userPrincipal) {
-        String userId = findUserIdByPrincipal(userPrincipal);
+        String userId = findUserIdByPrincipalFromUsers(userPrincipal);
 
         // 주소 개수 제한 검증
         validateAddressLimit(userId, requestDto.getAddressType());
@@ -108,7 +108,7 @@ public class AddressServiceImpl implements AddressService {
     @Override
     @JpaTransactional
     public AddressResponseDto updateAddress(String addressId, AddressUpdateRequestDto updateDto, UserPrincipal userPrincipal) {
-        String userId = findUserIdByPrincipal(userPrincipal);
+        String userId = findUserIdByPrincipalFromUsers(userPrincipal);
 
         Addresses address = findAddressById((addressId));
         validateAddressOwnership(address, userId);
@@ -179,6 +179,46 @@ public class AddressServiceImpl implements AddressService {
                 .orElse(null);
     }
 
+    //판매자 스토어 페이지 조회용
+    @Override
+    @JpaTransactional
+    public AddressResponseDto getDefaultAddressByUserId(String userId, AddressType addressType) {
+        log.debug("userId로 기본 주소 조회 시작 - userId: {}, addressType: {}", userId, addressType);
+
+        if (userId == null || userId.trim().isEmpty()) {
+            log.warn("userId가 null이거나 비어있습니다.");
+            return null;
+        }
+
+        try {
+            var addressOpt = addressRepository.findByUserIdAndAddressTypeAndIsDefaultTrue(userId, addressType);
+
+            if (addressOpt.isPresent()) {
+                AddressResponseDto result = AddressResponseDto.from(addressOpt.get());
+                log.info("기본 주소 조회 성공 - userId: {}, addressType: {}, addressId: {}, title: {}",
+                        userId, addressType, result.getId(), result.getTitle());
+                return result;
+            } else {
+                log.info("기본 주소가 없음 - userId: {}, addressType: {}", userId, addressType);
+
+                // 기본 주소가 없으면 해당 타입의 모든 주소를 조회해서 확인
+                List<Addresses> allAddresses = addressRepository.findByUserIdAndAddressTypeOrderByIsDefaultDescCreatedAtDesc(userId, addressType);
+                log.debug("해당 사용자의 {} 타입 주소 총 개수: {}", addressType, allAddresses.size());
+
+                if (!allAddresses.isEmpty()) {
+                    log.debug("첫 번째 주소 정보 - id: {}, title: {}, isDefault: {}",
+                            allAddresses.get(0).getId(), allAddresses.get(0).getTitle(), allAddresses.get(0).isDefault());
+                }
+
+                return null;
+            }
+        } catch (Exception e) {
+            log.error("주소 조회 중 예외 발생 - userId: {}, addressType: {}, error: {}",
+                    userId, addressType, e.getMessage(), e);
+            return null;
+        }
+    }
+
     // Private 헬퍼 메서드
     // UserPrincipal에서 userId 조회
     private String findUserIdByPrincipal(UserPrincipal userPrincipal) {
@@ -188,6 +228,17 @@ public class AddressServiceImpl implements AddressService {
         ).orElseThrow(() -> new UserNotFoundException("해당 유저 정보를 찾을 수 없습니다."));
 
         return buyerDTO.userId();
+    }
+    // UserPrincipal에서 userId 조회 - Seller,Buyer 둘다 호환되는 버전
+    private String findUserIdByPrincipalFromUsers(UserPrincipal userPrincipal) {
+        Users user = userRepository.findByProviderAndProviderId(
+                userPrincipal.provider(),
+                userPrincipal.providerId()
+        ).orElseThrow(() -> new UserNotFoundException(
+                String.format("해당 유저 정보를 찾을 수 없습니다 - provider: %s, providerId: %s",
+                        userPrincipal.provider(), userPrincipal.providerId())));
+
+        return user.getId();
     }
 
     private Addresses findAddressById(String addressId) {
@@ -213,4 +264,5 @@ public class AddressServiceImpl implements AddressService {
             throw new IllegalArgumentException(message);
         }
     }
+
 }

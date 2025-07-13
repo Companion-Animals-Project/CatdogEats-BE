@@ -1,5 +1,10 @@
 package com.team5.catdogeats.users.service.impl;
 
+import com.team5.catdogeats.addresses.domain.enums.AddressType;
+import com.team5.catdogeats.addresses.dto.AddressRequestDto;
+import com.team5.catdogeats.addresses.dto.AddressResponseDto;
+import com.team5.catdogeats.addresses.dto.AddressUpdateRequestDto;
+import com.team5.catdogeats.addresses.service.AddressService;
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.users.domain.Users;
@@ -16,7 +21,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
-
 import java.util.List;
 import java.util.Optional;
 
@@ -27,6 +31,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
 
     private final SellersRepository sellersRepository;
     private final UserRepository userRepository;
+    private final AddressService addressService; // AddressService 의존성 추가
 
     @Override
     public SellerInfoResponseDTO getSellerInfo(UserPrincipal userPrincipal) {
@@ -37,8 +42,9 @@ public class SellerInfoServiceImpl implements SellerInfoService {
         Users user = findUserByPrincipal(userPrincipal);
 
         // 판매자 정보 조회
-        return getSellerInfoInternal(user.getId());
+        return getSellerInfoInternal(user.getId(), userPrincipal);
     }
+
     @JpaTransactional
     @Override
     public SellerInfoResponseDTO upsertSellerInfo(UserPrincipal userPrincipal, SellerInfoRequestDTO request) {
@@ -48,16 +54,13 @@ public class SellerInfoServiceImpl implements SellerInfoService {
         // Users 조회
         Users user = findUserByPrincipal(userPrincipal);
 
-
         // 운영시간, 휴무일 유효성 검증
         validateOperatingHours(request);
         validateClosedDays(request.closedDays());
 
         // 판매자 정보 등록/수정
-        return upsertSellerInfoInternal(user, request);
+        return upsertSellerInfoInternal(user, request, userPrincipal);
     }
-
-
 
     // === 공통 헬퍼 메서드들 ===
 
@@ -73,11 +76,10 @@ public class SellerInfoServiceImpl implements SellerInfoService {
                         userPrincipal.provider(), userPrincipal.providerId())));
     }
 
-
     /**
-     * 판매자 정보 조회 로직 (권한 검증 분리)
+     * 판매자 정보 조회 로직 (주소 정보 포함)
      */
-    private SellerInfoResponseDTO getSellerInfoInternal(String userId) {
+    private SellerInfoResponseDTO getSellerInfoInternal(String userId, UserPrincipal userPrincipal) {
         Optional<Sellers> sellerOpt = sellersRepository.findByUserId(userId);
 
         if (sellerOpt.isEmpty()) {
@@ -85,13 +87,25 @@ public class SellerInfoServiceImpl implements SellerInfoService {
             return null;
         }
 
-        return SellerInfoResponseDTO.from(sellerOpt.get());
+        Sellers seller = sellerOpt.get();
+
+        // 사업자 주소 조회 (userId 기반 메서드 사용)
+        AddressResponseDto businessAddress = null;
+        try {
+            businessAddress = addressService.getDefaultAddressByUserId(userId, AddressType.BUSINESS);
+            log.debug("사업자 주소 조회 완료 - userId: {}, addressExists: {}", userId, businessAddress != null);
+        } catch (Exception e) {
+            log.warn("사업자 주소 조회 중 오류 발생 - userId: {}, error: {}", userId, e.getMessage());
+            // 주소 조회 실패는 무시하고 계속 진행
+        }
+
+        return SellerInfoResponseDTO.from(seller, businessAddress);
     }
 
     /**
-     * 판매자 정보 등록/수정 로직
+     * 판매자 정보 등록/수정 로직 (주소 처리 포함)
      */
-    private SellerInfoResponseDTO upsertSellerInfoInternal(Users user, SellerInfoRequestDTO request) {
+    private SellerInfoResponseDTO upsertSellerInfoInternal(Users user, SellerInfoRequestDTO request, UserPrincipal userPrincipal) {
         String userId = user.getId();
 
         // 기존 판매자 정보 조회
@@ -112,24 +126,110 @@ public class SellerInfoServiceImpl implements SellerInfoService {
             Sellers seller = createNewSeller(user, request);
             log.info("판매자 정보 신규 등록 완료 - userId: {}", userId);
             Sellers savedSeller = sellersRepository.save(seller);
-            return SellerInfoResponseDTO.from(savedSeller);
+
+            // 주소 정보 처리 (신규 등록)
+            AddressResponseDto businessAddress = handleAddressForCreate(request, userPrincipal);
+
+            return SellerInfoResponseDTO.from(savedSeller, businessAddress);
 
         } else {
             Sellers seller = existingSellerOpt.get();
             updateSellerInfoPatch(seller, request, userId);
             log.info("판매자 정보 수정 완료 - userId: {}", userId);
             Sellers savedSeller = sellersRepository.save(seller);
-            return SellerInfoResponseDTO.from(savedSeller);
+
+            // 주소 정보 처리 (수정)
+            AddressResponseDto businessAddress = handleAddressForUpdate(request, userPrincipal, userId);
+
+            return SellerInfoResponseDTO.from(savedSeller, businessAddress);
         }
     }
 
+    /**
+     * 신규 등록 시 주소 처리
+     */
+    private AddressResponseDto handleAddressForCreate(SellerInfoRequestDTO request, UserPrincipal userPrincipal) {
+        if (!request.hasAddressInfo()) {
+            log.debug("주소 정보가 없어 주소 등록을 생략합니다.");
+            return null;
+        }
+
+        try {
+            AddressRequestDto addressRequest = AddressRequestDto.builder()
+                    .title(request.addressTitle())
+                    .city(request.city())
+                    .district(request.district())
+                    .neighborhood(request.neighborhood())
+                    .streetAddress(request.streetAddress())
+                    .postalCode(request.postalCode())
+                    .detailAddress(request.detailAddress())
+                    .phoneNumber(request.phoneNumber())
+                    .addressType(AddressType.BUSINESS)
+                    .isDefault(true) // 사업자 주소는 기본적으로 기본 주소로 설정
+                    .build();
+
+            AddressResponseDto createdAddress = addressService.createAddress(addressRequest, userPrincipal);
+            log.info("사업자 주소 등록 완료 - addressId: {}", createdAddress.getId());
+            return createdAddress;
+
+        } catch (Exception e) {
+            log.error("사업자 주소 등록 중 오류 발생", e);
+
+            return null;
+        }
+    }
+
+    /**
+     * 수정 시 주소 처리
+     */
+    private AddressResponseDto handleAddressForUpdate(SellerInfoRequestDTO request, UserPrincipal userPrincipal, String userId) {
+        try {
+            // 기존 사업자 주소 조회
+            AddressResponseDto existingAddress = addressService.getDefaultAddressByUserId(userId, AddressType.BUSINESS);
+
+            if (existingAddress == null && request.hasAddressInfo()) {
+                // 기존 주소가 없고 새로운 주소 정보가 있으면 신규 생성
+                return handleAddressForCreate(request, userPrincipal);
+            } else if (existingAddress != null && request.hasAddressInfo()) {
+                // 기존 주소가 있고 새로운 주소 정보가 있으면 수정
+                AddressUpdateRequestDto updateRequest = AddressUpdateRequestDto.builder()
+                        .title(request.addressTitle())
+                        .city(request.city())
+                        .district(request.district())
+                        .neighborhood(request.neighborhood())
+                        .streetAddress(request.streetAddress())
+                        .postalCode(request.postalCode())
+                        .detailAddress(request.detailAddress())
+                        .phoneNumber(request.phoneNumber())
+                        .isDefault(true)
+                        .build();
+
+                AddressResponseDto updatedAddress = addressService.updateAddress(
+                        existingAddress.getId(), updateRequest, userPrincipal);
+                log.info("사업자 주소 수정 완료 - addressId: {}", updatedAddress.getId());
+                return updatedAddress;
+            } else {
+                // 주소 정보 업데이트가 없으면 기존 주소 반환
+                return existingAddress;
+            }
+
+        } catch (Exception e) {
+            log.error("사업자 주소 처리 중 오류 발생", e);
+            // 주소 처리 실패는 로그만 남기고 계속 진행
+            try {
+                return addressService.getDefaultAddressByUserId(userId, AddressType.BUSINESS);
+            } catch (Exception ex) {
+                log.warn("기존 주소 조회도 실패", ex);
+                return null;
+            }
+        }
+    }
 
     private void updateSellerInfoPatch(Sellers seller, SellerInfoRequestDTO request, String userId) {
         if (request.vendorName() != null && !request.vendorName().trim().isEmpty()) {
             validateVendorNameDuplication(userId, request.vendorName());
             seller.updateVendorName(request.vendorName());
         }
-
 
         if (request.businessNumber() != null && !request.businessNumber().trim().isEmpty()) {
             validateBusinessNumberDuplication(userId, request.businessNumber());
@@ -160,7 +260,6 @@ public class SellerInfoServiceImpl implements SellerInfoService {
             seller.updateClosedDays(request.closedDays());
         }
     }
-
 
     /**
      * 사업자 등록번호 중복 검증
@@ -221,7 +320,6 @@ public class SellerInfoServiceImpl implements SellerInfoService {
         }
     }
 
-
     private void validateVendorNameDuplication(String userId, String vendorName) {
         sellersRepository.findByVendorName(vendorName)
                 .filter(seller -> !userId.equals(seller.getUserId()))
@@ -231,6 +329,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
                     throw new DataIntegrityViolationException("이미 사용 중인 상점명입니다: " + vendorName);
                 });
     }
+
     /**
      * 새 판매자 정보 생성
      */

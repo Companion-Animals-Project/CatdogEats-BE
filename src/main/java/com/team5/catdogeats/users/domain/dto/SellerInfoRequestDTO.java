@@ -14,12 +14,10 @@ public record SellerInfoRequestDTO(
         @Size(max = 100, message = "업체명은 최대 100자까지 입력 가능합니다.")
         String vendorName,
 
-
         @Schema(description = "사업자 등록번호", example = "123-45-67890", required = true)
         @Size(max = 20, message = "사업자 등록번호는 최대 20자까지 입력 가능합니다.")
         @Pattern(regexp = "^[0-9\\-]+$", message = "사업자 등록번호는 숫자와 하이픈만 입력 가능합니다.")
         String businessNumber,
-
 
         @Schema(description = "정산 은행명", example = "국민은행")
         @Size(max = 50, message = "은행명은 최대 50자까지 입력 가능합니다.")
@@ -41,10 +39,55 @@ public record SellerInfoRequestDTO(
 
         @Schema(description = "휴무일 (쉼표로 구분)", example = "월요일,화요일")
         @Size(max = 20, message = "휴무일은 최대 20자까지 입력 가능합니다.")
-        String closedDays
+        String closedDays,
+
+        @Schema(description = "사업자 주소 제목", example = "본사")
+        @Size(max = 30, message = "주소 제목은 30자 이하여야 합니다")
+        String addressTitle,
+
+        @Schema(description = "시/도", example = "서울시")
+        @Size(max = 100, message = "시/도는 100자 이하여야 합니다")
+        String city,
+
+        @Schema(description = "시/군/구", example = "강남구")
+        @Size(max = 100, message = "시/군/구는 100자 이하여야 합니다")
+        String district,
+
+        @Schema(description = "읍/면/동", example = "역삼동")
+        @Size(max = 100, message = "읍/면/동은 100자 이하여야 합니다")
+        String neighborhood,
+
+        @Schema(description = "도로명 주소", example = "테헤란로 123")
+        @Size(max = 200, message = "도로명 주소는 200자 이하여야 합니다")
+        String streetAddress,
+
+        @Schema(description = "우편번호", example = "12345")
+        @Size(max = 20, message = "우편번호는 20자 이하여야 합니다")
+        String postalCode,
+
+        @Schema(description = "상세 주소", example = "101호")
+        @Size(max = 200, message = "상세 주소는 200자 이하여야 합니다")
+        String detailAddress,
+
+        @Schema(description = "전화번호", example = "02-1234-5678")
+        @Size(max = 30, message = "전화번호는 30자 이하여야 합니다")
+        String phoneNumber
 
 ) {
         public boolean isCreateRequest() {
-                return vendorName != null && !vendorName.trim().isEmpty() && businessNumber != null && !businessNumber.trim().isEmpty();
+                return vendorName != null && !vendorName.trim().isEmpty() &&
+                        businessNumber != null && !businessNumber.trim().isEmpty();
+        }
+
+        // 주소 정보가 포함되어 있는지 확인
+        public boolean hasAddressInfo() {
+                return addressTitle != null && !addressTitle.trim().isEmpty() &&
+                        city != null && !city.trim().isEmpty() &&
+                        district != null && !district.trim().isEmpty() &&
+                        neighborhood != null && !neighborhood.trim().isEmpty() &&
+                        streetAddress != null && !streetAddress.trim().isEmpty() &&
+                        postalCode != null && !postalCode.trim().isEmpty() &&
+                        detailAddress != null && !detailAddress.trim().isEmpty() &&
+                        phoneNumber != null && !phoneNumber.trim().isEmpty();
         }
 }
