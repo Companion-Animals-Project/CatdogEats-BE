@@ -5,7 +5,7 @@ import com.team5.catdogeats.admins.domain.dto.AdminInfo;
 import com.team5.catdogeats.admins.repository.AdminRepository;
 import com.team5.catdogeats.admins.util.AdminControllerUtils;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -48,7 +48,7 @@ public class AdminSettingsController {
     @ResponseBody
     @JpaTransactional
     @Operation(summary = "관리자 프로필 업데이트")
-    public ResponseEntity<ApiResponse<String>> updateAdminProfile(
+    public ResponseEntity<APIResponse<String>> updateAdminProfile(
             @RequestBody UpdateProfileRequest request,
             HttpSession session) {
 
@@ -69,7 +69,7 @@ public class AdminSettingsController {
         log.info("관리자 프로필 업데이트: adminId={}, newName={}",
                 sessionInfo.adminId(), request.name());
 
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, "프로필이 업데이트되었습니다."));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, "프로필이 업데이트되었습니다."));
     }
 
     public record UpdateProfileRequest(String name) {}

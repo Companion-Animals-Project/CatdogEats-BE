@@ -1,6 +1,6 @@
 package com.team5.catdogeats.payments.controller;
 
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.payments.dto.response.PaymentConfirmResponse;
 import com.team5.catdogeats.payments.service.PaymentService;
@@ -45,7 +45,7 @@ public class PaymentController {
             summary = "결제 성공 콜백",
             description = "Toss Payments 결제 성공 시 호출되는 콜백 엔드포인트"
     )
-    public ResponseEntity<ApiResponse<PaymentConfirmResponse>> handlePaymentSuccess(
+    public ResponseEntity<APIResponse<PaymentConfirmResponse>> handlePaymentSuccess(
             @Parameter(description = "Toss Payments 결제 키", required = true)
             @RequestParam("paymentKey") String paymentKey,
 
@@ -65,19 +65,19 @@ public class PaymentController {
             log.info("결제 승인 완료: orderId={}, paymentId={}", orderId, response.getPaymentId());
 
             return ResponseEntity.ok(
-                    ApiResponse.success(ResponseCode.SUCCESS, response)
+                    APIResponse.success(ResponseCode.SUCCESS, response)
             );
 
         } catch (IllegalArgumentException e) {
             log.error("결제 승인 실패 (잘못된 요청): {}", e.getMessage());
             return ResponseEntity.badRequest().body(
-                    ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
+                    APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
 
         } catch (Exception e) {
             log.error("결제 승인 중 오류 발생: orderId={}, error={}", orderId, e.getMessage(), e);
             return ResponseEntity.internalServerError().body(
-                    ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "결제 처리 중 오류가 발생했습니다.")
+                    APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "결제 처리 중 오류가 발생했습니다.")
             );
         }
     }
@@ -96,7 +96,7 @@ public class PaymentController {
             summary = "결제 실패 콜백",
             description = "Toss Payments 결제 실패 시 호출되는 콜백 엔드포인트"
     )
-    public ResponseEntity<ApiResponse<String>> handlePaymentFailure(
+    public ResponseEntity<APIResponse<String>> handlePaymentFailure(
             @Parameter(description = "실패 코드")
             @RequestParam(value = "code", required = false) String code,
 
@@ -113,13 +113,13 @@ public class PaymentController {
             paymentService.handlePaymentFailure(orderId, code, message);
 
             return ResponseEntity.ok(
-                    ApiResponse.success(ResponseCode.SUCCESS, "결제 실패 처리가 완료되었습니다.")
+                    APIResponse.success(ResponseCode.SUCCESS, "결제 실패 처리가 완료되었습니다.")
             );
 
         } catch (Exception e) {
             log.error("결제 실패 처리 중 오류 발생: orderId={}, error={}", orderId, e.getMessage(), e);
             return ResponseEntity.internalServerError().body(
-                    ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "결제 실패 처리 중 오류가 발생했습니다.")
+                    APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, "결제 실패 처리 중 오류가 발생했습니다.")
             );
         }
     }

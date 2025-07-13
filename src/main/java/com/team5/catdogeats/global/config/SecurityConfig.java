@@ -104,6 +104,7 @@ public class SecurityConfig {
                     .authorizeHttpRequests(authorize
                             -> authorize
                             .requestMatchers("/").permitAll()
+                            .requestMatchers("/health").permitAll()
                             .requestMatchers("/index.html").permitAll() // 개발할때만 사용 로그인 페이지
                             .requestMatchers("WebSocket.html").permitAll() // 개발할때만 소켓 페이지
                             .requestMatchers("/withdraw").permitAll()

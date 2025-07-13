@@ -1,5 +1,6 @@
 package com.team5.catdogeats.auth.handler;
 
+import com.team5.catdogeats.auth.dto.UrlProperties;
 import com.team5.catdogeats.auth.util.CookieUtils;
 import com.team5.catdogeats.auth.util.JwtUtils;
 import com.team5.catdogeats.global.exception.TokenErrorException;
@@ -21,11 +22,12 @@ import java.io.IOException;
 public class CustomLogoutSuccessHandler implements LogoutSuccessHandler {
     private final JwtUtils jwtUtils;
     private final CookieUtils cookieUtils;
+    private final UrlProperties urlProperties;
 
     @Override
     public void onLogoutSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
         try {
-            String url = request.getContextPath() + "/";
+            String url = urlProperties.getLogoutUrl();
             ResponseCookie cookie = cookieUtils.createCookie("token", 0, null);
             ResponseCookie refreshIdCookie = cookieUtils.createCookie("refreshTokenId", 0, null);
             response.setContentType("application/json");
@@ -36,7 +38,9 @@ public class CustomLogoutSuccessHandler implements LogoutSuccessHandler {
             response.sendRedirect(url);
         } catch (TokenErrorException e) {
             log.error("Error during logout: {}", e.getMessage());
-            response.sendRedirect("/?logout-error=true");
+            String url = urlProperties.getLogoutUrl();
+            String redirectUrl = url + "?logout-error=true";
+            response.sendRedirect(redirectUrl);
         }
     }
 }
