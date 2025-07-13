@@ -1,8 +1,7 @@
 package com.team5.catdogeats.users.controller;
 
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
-import com.team5.catdogeats.users.service.SellerStoreService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -24,12 +23,12 @@ public class SellerStoreExceptionHandler {
      * Service의 findSellerByVendorName()에서 발생
      */
     @ExceptionHandler(EntityNotFoundException.class)
-    public ResponseEntity<ApiResponse<Object>> handleEntityNotFound(EntityNotFoundException e) {
+    public ResponseEntity<APIResponse<Object>> handleEntityNotFound(EntityNotFoundException e) {
         log.warn("판매자 스토어 조회 실패 - Message: {}", e.getMessage());
 
 
         return ResponseEntity.status(ResponseCode.SELLER_STORE_NOT_FOUND.getStatus())
-                .body(ApiResponse.error(ResponseCode.SELLER_STORE_NOT_FOUND, e.getMessage()));
+                .body(APIResponse.error(ResponseCode.SELLER_STORE_NOT_FOUND, e.getMessage()));
     }
 
     /**
@@ -41,12 +40,12 @@ public class SellerStoreExceptionHandler {
      * - 빈 판매자명 등
      */
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiResponse<Object>> handleIllegalArgument(IllegalArgumentException e) {
+    public ResponseEntity<APIResponse<Object>> handleIllegalArgument(IllegalArgumentException e) {
         log.warn("잘못된 요청 파라미터 - Message: {}", e.getMessage());
 
         // 파라미터별 구체적인 에러 응답
         return ResponseEntity.status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+                .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
     }
 
 
@@ -55,12 +54,12 @@ public class SellerStoreExceptionHandler {
      * Pageable 생성이나 처리 중 오류
      */
     @ExceptionHandler(org.springframework.data.mapping.PropertyReferenceException.class)
-    public ResponseEntity<ApiResponse<Object>> handlePropertyReferenceException(
+    public ResponseEntity<APIResponse<Object>> handlePropertyReferenceException(
             org.springframework.data.mapping.PropertyReferenceException e) {
         log.warn("잘못된 정렬 속성 - Message: {}", e.getMessage());
 
         return ResponseEntity.status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
-                .body(ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE,
+                .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE,
                         "잘못된 정렬 조건입니다: " + e.getPropertyName()));
     }
 
@@ -68,11 +67,11 @@ public class SellerStoreExceptionHandler {
      * 기타 예상치 못한 예외 처리
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Object>> handleGeneral(Exception e) {
+    public ResponseEntity<APIResponse<Object>> handleGeneral(Exception e) {
         log.error("판매자 스토어 조회 중 예상치 못한 오류", e);
 
         return ResponseEntity.status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
-                .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+                .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
     }
 
 
