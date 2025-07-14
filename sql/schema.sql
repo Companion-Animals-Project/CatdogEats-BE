@@ -528,8 +528,17 @@ CREATE TABLE faqs (
                       id VARCHAR(36) PRIMARY KEY,
                       question VARCHAR(255) NOT NULL,
                       answer TEXT NOT NULL,
+                      category ENUM('ALL', 'PRODUCT', 'ORDER', 'DELIVERY', 'RETURN', 'ACCOUNT', 'ETC') NOT NULL,
+                      display_order INT NOT NULL,
                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE faq_keywords (
+                            faq_id VARCHAR(36) NOT NULL,
+                            keyword VARCHAR(36) NOT NULL,
+                            CONSTRAINT uq_faq_keyword UNIQUE (faq_id, keyword),
+                            FOREIGN KEY (faq_id) REFERENCES faqs(id) ON DELETE CASCADE
 );
 
 CREATE TABLE inquiries (

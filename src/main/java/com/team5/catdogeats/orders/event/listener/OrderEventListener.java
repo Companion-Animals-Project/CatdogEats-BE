@@ -1,5 +1,6 @@
 package com.team5.catdogeats.orders.event.listener;
 
+import com.team5.catdogeats.coupons.repository.BuyerCouponRepository;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.Shipments;
@@ -11,6 +12,7 @@ import com.team5.catdogeats.orders.event.OrderCreatedEvent;
 import com.team5.catdogeats.orders.repository.OrderItemRepository;
 import com.team5.catdogeats.orders.repository.OrderRepository;
 import com.team5.catdogeats.orders.repository.ShipmentRepository;
+import com.team5.catdogeats.outbox.util.IdempotentConsumer;
 import com.team5.catdogeats.payments.domain.Payments;
 import com.team5.catdogeats.payments.domain.enums.PaymentMethod;
 import com.team5.catdogeats.payments.domain.enums.PaymentStatus;
@@ -23,16 +25,14 @@ import com.team5.catdogeats.products.service.ProductStockManager;
 import com.team5.catdogeats.products.service.StockReservationService;
 import com.team5.catdogeats.users.domain.mapping.Buyers;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
-import com.team5.catdogeats.users.repository.BuyerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
@@ -46,12 +46,16 @@ public class OrderEventListener {
     private final OrderItemRepository orderItemRepository;
     private final ShipmentRepository shipmentRepository;
     private final PaymentRepository paymentRepository;
-    private final BuyerRepository buyerRepository;
     private final ProductRepository productRepository;
     private final StockReservationService stockReservationService;
     private final ProductStockManager productStockManager;
+    private final BuyerCouponRepository buyerCouponRepository;
+    private final IdempotentConsumer idempotentConsumer;
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @RabbitListener(
+            queues = "#{@orderCreatedQueueForStock.name}",
+            containerFactory = "listenerContainerFactory"
+    )
     @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
     public void handleStockReservation(OrderCreatedEvent event) {
         String orderId = event.orderId();
@@ -80,7 +84,66 @@ public class OrderEventListener {
         }
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @RabbitListener(
+            queues = "#{@paymentCompletedQueue.name}",
+            containerFactory = "listenerContainerFactory"
+    )
+    @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
+    public void handleOrderItemsAndShipmentsCreation(PaymentCompletedEvent event, Message message) {
+        String messageId = message.getMessageProperties().getMessageId();
+        String orderId = event.orderId();
+
+        if (!idempotentConsumer.processOnce(messageId, "payment-completed-listener")) {
+            log.info("이미 처리된 결제 완료 메시지입니다: messageId={}, orderId={}", messageId, orderId);
+            return;
+        }
+
+
+        log.info("주문 완료 처리 시작: orderId={}, orderNumber={}, itemCount={}",
+                orderId, event.orderNumber(), event.getOrderItemCount());
+
+        try {
+            Orders order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없습니다: " + orderId));
+
+            List<OrderItems> orderItems = createOrderItems(order, event.orderItems());
+            orderItemRepository.saveAll(orderItems);
+            log.debug("OrderItems 생성 완료: orderId={}, itemCount={}", orderId, orderItems.size());
+
+            if (event.shippingAddress() != null) {
+                Sellers seller = getSellerFromOrderItems(orderItems);
+                Shipments shipment = createShipment(order, event.shippingAddress(), seller);
+                shipmentRepository.save(shipment);
+                log.debug("Shipments 생성 완료: orderId={}, shipmentId={}, 수령인={}",
+                        orderId, shipment.getId(), shipment.getRecipientName());
+            }
+
+            if (event.couponApplied() && !event.couponIds().isEmpty()) {
+                int updated = buyerCouponRepository.markBuyerCouponUsed(order.getBuyers(), event.couponIds(), ZonedDateTime.now());
+                if (updated != event.couponIds().size()) {
+                    throw new IllegalStateException("쿠폰 소모 처리 불일치");
+                }
+            }
+
+
+            order.setOrderStatus(OrderStatus.PAYMENT_COMPLETED);
+            orderRepository.save(order);
+            log.debug("주문 상태 변경 완료: orderId={}, status={}", orderId, OrderStatus.PAYMENT_COMPLETED);
+
+            stockReservationService.confirmReservations(orderId);
+            productStockManager.decrementStockForConfirmedReservations(orderId);
+            log.debug("재고 확정 완료: orderId={}", orderId);
+            log.debug("결제 완료 처리 전체 완료: orderId={} ✅", orderId);
+
+        } catch (Exception e) {
+            log.error("결제 완료 처리 실패: orderId={}, error={}", orderId, e.getMessage(), e);
+        }
+    }
+
+    @RabbitListener(
+            queues = "#{@orderCreatedQueueForPayment.name}",
+            containerFactory = "listenerContainerFactory"
+    )
     @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
     public void handlePaymentInfoCreation(OrderCreatedEvent event) {
         String orderId = event.orderId();
@@ -101,9 +164,10 @@ public class OrderEventListener {
                 return;
             }
 
-            Buyers buyer = buyerRepository.findById(event.userId())
-                    .orElseThrow(() -> new NoSuchElementException("구매자 정보를 찾을 수 없습니다: " + event.userId()));
-
+            Buyers buyer = order.getBuyers();
+            if (buyer == null) {
+                throw new NoSuchElementException("구매자 정보를 찾을 수 없습니다: " + event.buyerId());
+            }
 
             Payments payment = Payments.builder()
                     .orders(order)
@@ -123,122 +187,20 @@ public class OrderEventListener {
         }
     }
 
-    @Async
-    @EventListener
-    public void handleUserNotification(OrderCreatedEvent event) {
-        String orderId = event.orderId();
-        log.info("주문 생성 알림 처리 시작: orderId={}, orderNumber={}",
-                orderId, event.orderNumber());
-
-        try {
-            log.info("""
-                    [Catdogeats] 주문이 완료되었습니다! 🐱🐶
-                    주문번호: {}
-                    상품: {}
-                    총 금액: {}원
-                    결제를 진행해 주세요.
-                    """,
-                    event.orderNumber(),
-                    event.getOrderSummary(),
-                    String.format("%,d", event.finalTotalPrice())
-            );
-
-            log.info("주문 생성 알림 발송 완료: orderId={}, userId={}, itemCount={}",
-                    orderId, event.userId(), event.getOrderItemCount());
-
-        } catch (Exception e) {
-            log.error("주문 생성 알림 발송 실패: orderId={}, error={}", orderId, e.getMessage(), e);
-        }
-    }
-
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @RabbitListener(
+            queues = "#{@paymentFailedQueue.name}",
+            containerFactory = "listenerContainerFactory"
+    )
     @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
-    public void handleOrderItemsAndShipmentsCreation(PaymentCompletedEvent event) {
+    public void handlePaymentFailure(PaymentFailedEvent event, Message message) {
+        String messageId = message.getMessageProperties().getMessageId();
         String orderId = event.orderId();
-        log.info("주문 완료 처리 시작: orderId={}, orderNumber={}, itemCount={}",
-                orderId, event.orderNumber(), event.getOrderItemCount());
 
-        try {
-            Orders order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없습니다: " + orderId));
-
-            List<OrderItems> orderItems = createOrderItems(order, event.orderItems());
-            orderItemRepository.saveAll(orderItems);
-            log.info("OrderItems 생성 완료: orderId={}, itemCount={}", orderId, orderItems.size());
-
-            if (event.shippingAddress() != null) {
-                Sellers seller = getSellerFromOrderItems(orderItems);
-                Shipments shipment = createShipment(order, event.shippingAddress(), seller);
-                shipmentRepository.save(shipment);
-                log.info("Shipments 생성 완료: orderId={}, shipmentId={}, 수령인={}",
-                        orderId, shipment.getId(), shipment.getRecipientName());
-            }
-
-            order.setOrderStatus(OrderStatus.PAYMENT_COMPLETED);
-            orderRepository.save(order);
-            log.info("주문 상태 변경 완료: orderId={}, status={}", orderId, OrderStatus.PAYMENT_COMPLETED);
-
-            stockReservationService.confirmReservations(orderId);
-            productStockManager.decrementStockForConfirmedReservations(orderId);
-            log.info("재고 확정 완료: orderId={}", orderId);
-            log.info("결제 완료 처리 전체 완료: orderId={} ✅", orderId);
-
-        } catch (Exception e) {
-            log.error("결제 완료 처리 실패: orderId={}, error={}", orderId, e.getMessage(), e);
+        if (!idempotentConsumer.processOnce(messageId, "payment-failure-listener")) {
+            log.info("이미 처리된 결제 실패 메시지입니다: messageId={}, orderId={}", messageId, orderId);
+            return;
         }
-    }
 
-    @Async
-    @EventListener
-    public void handlePaymentCompletedNotification(PaymentCompletedEvent event) {
-        String orderId = event.orderId();
-        log.info("결제 완료 알림 처리 시작: orderId={}, orderNumber={}",
-                orderId, event.orderNumber());
-
-        try {
-            String productInfo = event.getFirstProductName() +
-                    (event.getOrderItemCount() > 1 ?
-                            String.format(" 외 %d개", event.getOrderItemCount() - 1) : "");
-
-            // 할인 정보 개선 (쿠폰 타입 지원)
-            String discountInfo = "";
-            if (event.isCouponApplied()) {
-                Long discountAmount = event.getDiscountAmount();
-                String couponDescription = event.getCouponDescription();
-
-                discountInfo = String.format("\n🎟️ 쿠폰 할인: %s (-%,d원)",
-                        couponDescription, discountAmount);
-            }
-
-            log.info("""
-                    [Catdogeats] 결제가 완료되었습니다! 🎉
-                    주문번호: {}
-                    상품: {}{}
-                    결제 금액: {}원
-                    상품 준비를 시작합니다.
-                    """,
-                    event.orderNumber(),
-                    productInfo,
-                    discountInfo,
-                    String.format("%,d", event.finalAmount())
-            );
-
-            // 로그 메시지도 개선
-            String couponLogInfo = event.isCouponApplied() ?
-                    event.getCouponDescription() : "없음";
-
-            log.info("결제 완료 알림 발송 완료: orderId={}, paymentId={}, itemCount={}, 쿠폰할인={}",
-                    orderId, event.paymentId(), event.getOrderItemCount(), couponLogInfo);
-
-        } catch (Exception e) {
-            log.error("결제 완료 알림 발송 실패: orderId={}, error={}", orderId, e.getMessage(), e);
-        }
-    }
-
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
-    public void handlePaymentFailure(PaymentFailedEvent event) {
-        String orderId = event.orderId();
         log.info("결제 실패 처리 시작: orderId={}, orderNumber={}, error={}",
                 orderId, event.orderNumber(), event.errorMessage());
 
@@ -271,7 +233,7 @@ public class OrderEventListener {
                             .orElseThrow(() -> new NoSuchElementException("상품을 찾을 수 없습니다: " + orderItem.productId()));
                     return new StockReservationService.ReservationRequest(product, orderItem.quantity());
                 })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private List<OrderItems> createOrderItems(Orders order, List<OrderItemInfo> orderItemInfos) {
@@ -293,7 +255,7 @@ public class OrderEventListener {
     private Shipments createShipment(Orders order, OrderCreateRequest.ShippingAddressRequest shippingAddress, Sellers seller) {
         return Shipments.builder()
                 .orders(order)
-                .user(order.getUser())
+                .buyers(order.getBuyers())
                 .seller(seller)
                 .recipientName(shippingAddress.getRecipientName())
                 .recipientPhone(shippingAddress.getRecipientPhone())
