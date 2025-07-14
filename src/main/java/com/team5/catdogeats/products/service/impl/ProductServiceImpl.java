@@ -13,6 +13,7 @@ import com.team5.catdogeats.products.domain.enums.ProductCategory;
 import com.team5.catdogeats.products.exception.DuplicateProductNumberException;
 import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.products.service.ProductService;
+import com.team5.catdogeats.reviews.repository.*;
 import com.team5.catdogeats.storage.domain.mapping.ProductsImages;
 import com.team5.catdogeats.storage.repository.ProductImageRepository;
 import com.team5.catdogeats.storage.service.ProductImageService;
@@ -39,6 +40,12 @@ public class ProductServiceImpl implements ProductService {
     private final SellersRepository sellerRepository;
     private final ProductImageRepository productImageRepository;
     private final ProductImageService productImageService;
+    private final ReviewRepository reviewRepository;
+    private final ReviewSummaryLLMRepository reviewSummaryLLMRepository;
+    private final ReviewClassificationLLMCatHandmadeRepository reviewClassificationLLMCatHandmadeRepository;
+    private final ReviewClassificationLLMCatFinishedRepository reviewClassificationLLMCatFinishedRepository;
+    private final ReviewClassificationLLMDogHandmadeRepository reviewClassificationLLMDogHandmadeRepository;
+    private final ReviewClassificationLLMDogFinishedRepository reviewClassificationLLMDogFinishedRepository;
 
     @Override
     public String registerProduct(UserPrincipal userPrincipal, ProductCreateRequestDto dto) {
@@ -84,10 +91,28 @@ public class ProductServiceImpl implements ProductService {
         product.updateFromDto(dto);
     }
 
+    @JpaTransactional
     @Override
     public void deleteProduct(ProductDeleteRequestDto dto) {
         Products product = productRepository.findById(dto.productId())
                 .orElseThrow(() -> new NoSuchElementException("해당 아이템 정보를 찾을 수 없습니다."));
+
+        reviewRepository.deleteAllByProduct(product);
+        // 카테고리별 리뷰분류 결과 삭제
+        PetCategory petCategory = product.getPetCategory();
+        ProductCategory productCategory = product.getProductCategory();
+
+        if (petCategory == PetCategory.CAT && productCategory == ProductCategory.HANDMADE) {
+            reviewClassificationLLMCatHandmadeRepository.deleteAllByProduct(product);
+        } else if (petCategory == PetCategory.CAT && productCategory == ProductCategory.FINISHED) {
+            reviewClassificationLLMCatFinishedRepository.deleteAllByProduct(product);
+        } else if (petCategory == PetCategory.DOG && productCategory == ProductCategory.HANDMADE) {
+            reviewClassificationLLMDogHandmadeRepository.deleteAllByProduct(product);
+        } else if (petCategory == PetCategory.DOG && productCategory == ProductCategory.FINISHED) {
+            reviewClassificationLLMDogFinishedRepository.deleteAllByProduct(product);
+        }
+        // 리뷰요약 결과 삭제
+        reviewSummaryLLMRepository.deleteAllByProduct(product);
 
         // 1. 리뷰와 연결된 모든 이미지 매핑 조회
         List<ProductsImages> mappings = productImageRepository.findAllByProductsId(dto.productId());

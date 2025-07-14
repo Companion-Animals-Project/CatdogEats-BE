@@ -75,6 +75,9 @@ public enum ResponseCode {
     CART_CLEARED(HttpStatus.OK, "장바구니가 비워졌습니다"),
     CART_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "장바구니 아이템을 찾을 수 없습니다"),
 
+    // === JSON 파싱 에러 ===
+    JSON_PARSING_FAIL(HttpStatus.BAD_REQUEST, "JSON 형식이 올바르지 않습니다."),
+
     // 추가적인 도메인별 에러 코드 정의 가능
     ;
 
