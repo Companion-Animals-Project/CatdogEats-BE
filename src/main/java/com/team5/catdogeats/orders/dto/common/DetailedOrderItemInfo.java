@@ -57,7 +57,7 @@ public record DetailedOrderItemInfo(
      * 기본 OrderItemInfo로 변환
      * 이벤트 발행 시 사용되는 메서드입니다.
      */
-    public OrderItemInfo toOrderItemInfo() {
-        return OrderItemInfo.of(productId, productName, quantity, unitPrice, totalPrice);
-    }
+//    public OrderItemInfo toOrderItemInfo() {
+//        return OrderItemInfo.of(productId, productName, quantity, unitPrice, totalPrice);
+//    }
 }

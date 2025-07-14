@@ -11,7 +11,7 @@ import java.util.List;
 @Builder
 public class CartResponse {
     private String cartId;
-    private String userId;
+    private String buyerId;
     private List<CartItemResponse> items;
     private Long totalAmount;
     private int totalItemCount;
