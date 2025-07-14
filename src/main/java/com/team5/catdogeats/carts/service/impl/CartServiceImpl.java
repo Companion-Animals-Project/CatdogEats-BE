@@ -13,8 +13,9 @@ import com.team5.catdogeats.carts.service.CartService;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.repository.ProductRepository;
-import com.team5.catdogeats.users.domain.Users;
-import com.team5.catdogeats.users.repository.UserRepository;
+import com.team5.catdogeats.users.domain.dto.BuyerDTO;
+import com.team5.catdogeats.users.domain.mapping.Buyers;
+import com.team5.catdogeats.users.repository.BuyerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,24 +32,24 @@ public class CartServiceImpl implements CartService {
 
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
-    private final UserRepository userRepository;
+    private final BuyerRepository buyerRepository;
     private final ProductRepository productRepository;
 
     @Override
     public CartResponse getCartByUserPrincipal(UserPrincipal userPrincipal) {
-        Users user = getUserByPrincipal(userPrincipal);
-        Carts cart = getOrCreateCart(user.getId());
+        Buyers user = getUserByPrincipal(userPrincipal);
+        Carts cart = getOrCreateCart(user.getUserId());
         List<CartItems> cartItems = cartItemRepository.findByCartsIdWithProduct(cart.getId());
 
-        log.debug("장바구니 조회 - userId: {}, 상품 수: {}", user.getId(), cartItems.size());
+        log.debug("장바구니 조회 - userId: {}, 상품 수: {}", user.getUserId(), cartItems.size());
         return buildCartResponse(cart, cartItems);
     }
 
     @Override
     @JpaTransactional
     public CartResponse addItemToCart(UserPrincipal userPrincipal, AddCartItemRequest request) {
-        Users user = getUserByPrincipal(userPrincipal);
-        Carts cart = getOrCreateCart(user.getId());
+        Buyers user = getUserByPrincipal(userPrincipal);
+        Carts cart = getOrCreateCart(user.getUserId());
         Products product = getProductById(request.getProductId());
 
         // 기존에 같은 상품이 있는지 확인
@@ -86,13 +87,13 @@ public class CartServiceImpl implements CartService {
     @Override
     @JpaTransactional
     public CartResponse updateCartItem(UserPrincipal userPrincipal, String cartItemId, UpdateCartItemRequest request) {
-        Users user = getUserByPrincipal(userPrincipal);
+        Buyers user = getUserByPrincipal(userPrincipal);
 
         // 권한확인 + 조회
-        CartItems cartItem = cartItemRepository.findByIdAndUserId(cartItemId, user.getId())
+        CartItems cartItem = cartItemRepository.findByIdAndBuyerId(cartItemId, user.getUserId())
                 .orElseThrow(() -> {
                     log.warn("장바구니 아이템 접근 권한 없음 또는 존재하지 않음 - userId: {}, cartItemId: {}",
-                            user.getId(), cartItemId);
+                            user.getUserId(), cartItemId);
                     return new SecurityException("해당 장바구니 아이템에 접근 권한이 없거나 존재하지 않습니다.");
                 });
 
@@ -110,13 +111,13 @@ public class CartServiceImpl implements CartService {
     @Override
     @JpaTransactional
     public CartResponse removeCartItem(UserPrincipal userPrincipal, String cartItemId) {
-        Users user = getUserByPrincipal(userPrincipal);
+        Buyers user = getUserByPrincipal(userPrincipal);
 
         // 권한 확인 + 조회
-        CartItems cartItem = cartItemRepository.findByIdAndUserId(cartItemId, user.getId())
+        CartItems cartItem = cartItemRepository.findByIdAndBuyerId(cartItemId, user.getUserId())
                 .orElseThrow(() -> {
                     log.warn("장바구니 아이템 삭제 권한 없음 또는 존재하지 않음 - userId: {}, cartItemId: {}",
-                            user.getId(), cartItemId);
+                            user.getUserId(), cartItemId);
                     return new SecurityException("해당 장바구니 아이템에 접근 권한이 없거나 존재하지 않습니다.");
                 });
 
@@ -131,20 +132,20 @@ public class CartServiceImpl implements CartService {
     @Override
     @JpaTransactional
     public void clearCart(UserPrincipal userPrincipal) {
-        Users user = getUserByPrincipal(userPrincipal);
-        Carts cart = getOrCreateCart(user.getId());
+        Buyers user = getUserByPrincipal(userPrincipal);
+        Carts cart = getOrCreateCart(user.getUserId());
         List<CartItems> cartItems = cartItemRepository.findByCartsId(cart.getId());
 
         int deletedCount = cartItems.size();
         cartItemRepository.deleteAll(cartItems);
 
-        log.info("장바구니 전체 비우기 - userId: {}, 삭제된 상품 수: {}", user.getId(), deletedCount);
+        log.info("장바구니 전체 비우기 - userId: {}, 삭제된 상품 수: {}", user.getUserId(), deletedCount);
     }
 
     // === Private Helper Methods ===
 
     private Carts getOrCreateCart(String userId) {
-        return cartRepository.findByUserId(userId)
+        return cartRepository.findByBuyerId(userId)
                 .orElseGet(() -> {
                     log.info("새 장바구니 생성 - userId: {}", userId);
                     return createNewCart(userId);
@@ -152,27 +153,24 @@ public class CartServiceImpl implements CartService {
     }
 
     private Carts createNewCart(String userId) {
-        Users user = getUserById(userId);
+        Buyers user = getUserById(userId);
         Carts newCart = Carts.builder()
-                .user(user)
+                .buyers(user)
                 .build();
         return cartRepository.save(newCart);
     }
 
     // 사용자 조회
-    private Users getUserByPrincipal(UserPrincipal userPrincipal) {
-        return userRepository.findByProviderAndProviderId(
+    private Buyers getUserByPrincipal(UserPrincipal userPrincipal) {
+         BuyerDTO buyerDTO = buyerRepository.findOnlyBuyerByProviderAndProviderId(
                         userPrincipal.provider(),
                         userPrincipal.providerId())
-                .orElseThrow(() -> {
-                    log.error("사용자를 찾을 수 없음 - provider: {}, providerId: {}",
-                            userPrincipal.provider(), userPrincipal.providerId());
-                    return new NoSuchElementException("사용자를 찾을 수 없습니다.");
-                });
+                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다."));
+         return BuyerDTO.toEntity(buyerDTO);
     }
 
-    private Users getUserById(String userId) {
-        return userRepository.findById(userId)
+    private Buyers getUserById(String userId) {
+        return buyerRepository.findById(userId)
                 .orElseThrow(() -> {
                     log.error("사용자 ID로 조회 실패 - userId: {}", userId);
                     return new NoSuchElementException("사용자를 찾을 수 없습니다: " + userId);
@@ -198,7 +196,7 @@ public class CartServiceImpl implements CartService {
 
         return CartResponse.builder()
                 .cartId(cart.getId())
-                .userId(cart.getUser().getId())
+                .buyerId(cart.getBuyers().getUserId())
                 .items(itemResponses)
                 .totalAmount(totalAmount)
                 .totalItemCount(itemResponses.size())
@@ -224,7 +222,7 @@ public class CartServiceImpl implements CartService {
 
         try {
             // 장바구니 조회 후 상품들 삭제
-            Carts cart = cartRepository.findByUserId(userId).orElse(null);
+            Carts cart = cartRepository.findByBuyerId(userId).orElse(null);
             if (cart == null) {
                 log.info("장바구니가 존재하지 않음 - userId: {}", userId);
                 return;

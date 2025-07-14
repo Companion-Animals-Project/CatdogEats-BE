@@ -3,6 +3,8 @@ package com.team5.catdogeats.carts.repository;
 import com.team5.catdogeats.carts.domain.Carts;
 import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.domain.enums.Role;
+import com.team5.catdogeats.users.domain.mapping.Buyers;
+import com.team5.catdogeats.users.repository.BuyerRepository;
 import com.team5.catdogeats.users.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,8 +29,11 @@ class CartRepositoryTest {
 
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private BuyerRepository buyerRepository;
 
     private Users testUser;
+    private Buyers testBuyer;
 
     @BeforeEach
     void setUp() {
@@ -41,6 +46,11 @@ class CartRepositoryTest {
                 .role(Role.ROLE_BUYER)
                 .build();
         testUser = userRepository.save(testUser);
+        testBuyer = Buyers.builder()
+                .user(testUser)
+                .nameMaskingStatus(true)
+                .build();
+        testBuyer = buyerRepository.save(testBuyer);
     }
 
     @Test
@@ -48,16 +58,16 @@ class CartRepositoryTest {
     void findByUserId_Success() {
         // given
         Carts cart = Carts.builder()
-                .user(testUser)
+                .buyers(testBuyer)
                 .build();
         cartRepository.save(cart);
 
         // when
-        Optional<Carts> foundCart = cartRepository.findByUserId(testUser.getId());
+        Optional<Carts> foundCart = cartRepository.findByBuyerId(testBuyer.getUserId());
 
         // then
         assertThat(foundCart).isPresent();
-        assertThat(foundCart.get().getUser().getId()).isEqualTo(testUser.getId());
+        assertThat(foundCart.get().getBuyers().getUserId()).isEqualTo(testBuyer.getUserId());
     }
 
     @Test
@@ -65,12 +75,12 @@ class CartRepositoryTest {
     void existsByUserId_True() {
         // given
         Carts cart = Carts.builder()
-                .user(testUser)
+                .buyers(testBuyer)
                 .build();
         cartRepository.save(cart);
 
         // when
-        boolean exists = cartRepository.existsByUserId(testUser.getId());
+        boolean exists = cartRepository.existsByBuyerId(testBuyer.getUserId());
 
         // then
         assertThat(exists).isTrue();
@@ -80,7 +90,7 @@ class CartRepositoryTest {
     @DisplayName("사용자 ID로 장바구니 존재 여부 확인 - 존재하지 않음")
     void existsByUserId_False() {
         // when
-        boolean notExists = cartRepository.existsByUserId("nonexistent-user-id");
+        boolean notExists = cartRepository.existsByBuyerId("nonexistent-user-id");
 
         // then
         assertThat(notExists).isFalse();
@@ -90,7 +100,7 @@ class CartRepositoryTest {
     @DisplayName("존재하지 않는 사용자 ID로 장바구니 조회")
     void findByUserId_NotFound() {
         // when
-        Optional<Carts> foundCart = cartRepository.findByUserId("nonexistent-user-id");
+        Optional<Carts> foundCart = cartRepository.findByBuyerId("nonexistent-user-id");
 
         // then
         assertThat(foundCart).isEmpty();
@@ -101,16 +111,16 @@ class CartRepositoryTest {
     void findByUserId_UniqueConstraint() {
         // given
         Carts firstCart = Carts.builder()
-                .user(testUser)
+                .buyers(testBuyer)
                 .build();
         cartRepository.save(firstCart);
 
         // when
-        Optional<Carts> foundCart = cartRepository.findByUserId(testUser.getId());
+        Optional<Carts> foundCart = cartRepository.findByBuyerId(testBuyer.getUserId());
 
         // then
         assertThat(foundCart).isPresent();
-        assertThat(foundCart.get().getUser().getId()).isEqualTo(testUser.getId());
+        assertThat(foundCart.get().getBuyers().getUserId()).isEqualTo(testBuyer.getUserId());
     }
 
     @Test
@@ -118,7 +128,7 @@ class CartRepositoryTest {
     void saveAndFind() {
         // given
         Carts cart = Carts.builder()
-                .user(testUser)
+                .buyers(testBuyer)
                 .build();
 
         // when
@@ -128,7 +138,7 @@ class CartRepositoryTest {
         // then
         assertThat(foundCart).isPresent();
         assertThat(foundCart.get().getId()).isEqualTo(savedCart.getId());
-        assertThat(foundCart.get().getUser().getId()).isEqualTo(testUser.getId());
+        assertThat(foundCart.get().getBuyers().getUserId()).isEqualTo(testBuyer.getUserId());
     }
 
     @Test
@@ -136,7 +146,7 @@ class CartRepositoryTest {
     void deleteCart() {
         // given
         Carts cart = Carts.builder()
-                .user(testUser)
+                .buyers(testBuyer)
                 .build();
         Carts savedCart = cartRepository.save(cart);
 
