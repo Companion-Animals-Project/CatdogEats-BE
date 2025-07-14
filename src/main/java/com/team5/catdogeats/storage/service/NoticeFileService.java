@@ -4,7 +4,7 @@ import com.team5.catdogeats.storage.domain.Files;
 import com.team5.catdogeats.support.domain.notice.dto.NoticeFileDownloadResponseDTO;
 import org.springframework.web.multipart.MultipartFile;
 
-public interface NoticeFileManagementService {
+public interface NoticeFileService {
 
     // 공지사항 파일 업로드 및 DB 저장
     Files uploadNoticeFile(MultipartFile file);
