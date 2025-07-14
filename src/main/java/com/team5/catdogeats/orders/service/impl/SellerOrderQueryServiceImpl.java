@@ -332,8 +332,8 @@ public class SellerOrderQueryServiceImpl implements SellerOrderQueryService {
                 .orderNumber(order.getOrderNumber())
                 .orderStatus(order.getOrderStatus())
                 .orderDate(order.getCreatedAt())
-                .buyerName(order.getUser().getName())
-                .maskedBuyerName(maskName(order.getUser().getName()))
+                .buyerName(order.getBuyers().getUser().getName()) // getUser() → getBuyers().getUser() 변경
+                .maskedBuyerName(maskName(order.getBuyers().getUser().getName())) // getUser() → getBuyers().getUser() 변경
                 .orderItems(orderItems)
                 .orderSummary(orderSummary)
                 .shipmentInfo(shipmentInfo)

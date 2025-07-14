@@ -28,9 +28,7 @@ public interface OrderRepository extends JpaRepository<Orders, String> {
         WHERE o.buyers = :buyer
           AND o.orderNumber = :orderNumber
     """)
-    Optional<Orders> findOrderDetailByUserAndOrderNumber(
-                                                           @Param("buyer") Buyers buyer,
-                                                           @Param("orderNumber") String orderNumber);
+    Optional<Orders> findOrderDetailByUserAndOrderNumber(@Param("buyer") Buyers buyer, @Param("orderNumber") String orderNumber);
 
     /**
      * 구매자 주문 목록 조회 (페이징, OrderItems·Shipment 포함)
@@ -44,9 +42,7 @@ public interface OrderRepository extends JpaRepository<Orders, String> {
         WHERE o.buyers = :buyer
           AND o.isHidden = false
     """)
-    Page<Orders> findBuyerOrdersWithDetails(
-                                                          @Param("buyer") Buyers buyer,
-                                                          Pageable pageable);
+    Page<Orders> findBuyerOrdersWithDetails(@Param("buyer") Buyers buyer, Pageable pageable);
 
     /**
      * 주문·결제 정보 DTO 투영 조회
@@ -57,6 +53,5 @@ public interface OrderRepository extends JpaRepository<Orders, String> {
         JOIN p.orders o
         WHERE o.id = :orderId
     """)
-    Optional<GroupOrdersAndPayments> findGroupByOrdersAndPaymentsOrderId(
-                                                                           @Param("orderId") String orderId);
+    Optional<GroupOrdersAndPayments> findGroupByOrdersAndPaymentsOrderId(@Param("orderId") String orderId);
 }

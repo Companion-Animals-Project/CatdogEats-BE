@@ -14,8 +14,9 @@ import com.team5.catdogeats.orders.repository.ShipmentRepository;
 import com.team5.catdogeats.orders.service.BuyerOrderQueryService;
 import com.team5.catdogeats.orders.service.LogisticsTrackingService;
 import com.team5.catdogeats.orders.service.ShipmentSyncService;
-import com.team5.catdogeats.users.domain.Users;
-import com.team5.catdogeats.users.repository.UserRepository;
+import com.team5.catdogeats.users.domain.dto.BuyerDTO;
+import com.team5.catdogeats.users.domain.mapping.Buyers;
+import com.team5.catdogeats.users.repository.BuyerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -36,7 +37,7 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
 
     private final OrderRepository orderRepository;
     private final ShipmentRepository shipmentRepository;
-    private final UserRepository userRepository;
+    private final BuyerRepository buyerRepository;
     private final LogisticsTrackingService logisticsTrackingService;
     private final ShipmentSyncService shipmentSyncService; // 자동 동기화 서비스 추가
 
@@ -51,14 +52,14 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
                 pageable.getPageNumber(), pageable.getPageSize());
 
         try {
-            // 1. 사용자 인증 및 조회
-            Users user = findUserByPrincipal(userPrincipal);
+            // 1. 구매자 인증 및 조회
+            Buyers buyer = findBuyerByPrincipal(userPrincipal);
 
             // 2. 페이징 정보 검증
             validatePageable(pageable);
 
             // 3. 구매자 주문 목록 조회 (연관 데이터 포함)
-            Page<Orders> orderPage = orderRepository.findBuyerOrdersWithDetails(user, pageable);
+            Page<Orders> orderPage = orderRepository.findBuyerOrdersWithDetails(buyer, pageable);
 
             // 4. DTO 변환
             List<BuyerOrderListResponse.BuyerOrderSummary> orderSummaries =
@@ -102,11 +103,11 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
                 userPrincipal.provider(), userPrincipal.providerId(), orderNumber);
 
         try {
-            // 1. 사용자 인증 및 조회
-            Users user = findUserByPrincipal(userPrincipal);
+            // 1. 구매자 인증 및 조회
+            Buyers buyer = findBuyerByPrincipal(userPrincipal);
 
             // 2. 주문 조회 및 권한 확인
-            Orders order = orderRepository.findOrderDetailByUserAndOrderNumber(user, orderNumber)
+            Orders order = orderRepository.findOrderDetailByUserAndOrderNumber(buyer, orderNumber)
                     .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없거나 접근 권한이 없습니다."));
 
             // 3. 배송 정보 조회
@@ -120,7 +121,7 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
                     log.info("배송 상태 자동 동기화 완료 - orderNumber: {}, 상태 업데이트됨", orderNumber);
 
                     // 동기화 후 최신 정보 다시 조회
-                    order = orderRepository.findOrderDetailByUserAndOrderNumber(user, orderNumber)
+                    order = orderRepository.findOrderDetailByUserAndOrderNumber(buyer, orderNumber)
                             .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없습니다."));
                     shipment = shipmentRepository.findByOrders(order)
                             .orElseThrow(() -> new IllegalStateException("배송 정보가 없습니다."));
@@ -133,15 +134,18 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
                         orderNumber, syncError.getMessage());
             }
 
-            // 5. 물류 서버에서 실시간 배송 추적 로그 조회 (기존 방식 유지)
-            List<BuyerShipmentDetailResponse.TrackingLog> trackingLogs = getTrackingLogsFromLogisticsServer(shipment.getTrackingNumber());
+            // 5. 물류 서버에서 실시간 배송 추적 로그 조회
+            List<BuyerShipmentDetailResponse.TrackingLog> trackingLogs =
+                    getTrackingLogsFromLogisticsServer(shipment.getTrackingNumber());
 
             // 6. 운송장 정보 생성
-            BuyerShipmentDetailResponse.TrackingInfo trackingInfo =
-                    BuyerShipmentDetailResponse.TrackingInfo.of(
-                            shipment.getTrackingNumber(),
-                            shipment.getCourier()
-                    );
+            BuyerShipmentDetailResponse.TrackingInfo trackingInfo = null;
+            if (shipment.getTrackingNumber() != null && shipment.getCourier() != null) {
+                trackingInfo = BuyerShipmentDetailResponse.TrackingInfo.of(
+                        shipment.getTrackingNumber(),
+                        shipment.getCourier()
+                );
+            }
 
             // 7. 수취인 정보 생성
             BuyerShipmentDetailResponse.RecipientInfo recipientInfo =
@@ -154,9 +158,7 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
                             shipment.getDeliveryRequest()
                     );
 
-            // ===== 8. [수정] 배송 상태에 따른 응답 분기 로직 개선 =====
-            // 기존: shipment.getDeliveredAt() != null 조건 (문제 원인)
-            // 개선: order.getOrderStatus() 기준으로 정확한 판단
+            // ===== 8. [복원] 배송 상태에 따른 응답 분기 로직 =====
             BuyerShipmentDetailResponse response;
             OrderStatus currentOrderStatus = order.getOrderStatus();
 
@@ -196,26 +198,25 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
 
             return response;
 
-        } catch (NoSuchElementException e) {
-            log.warn("구매자 배송 정보 상세 조회 실패 - orderNumber={}, reason={}", orderNumber, e.getMessage());
-            throw e;
-        } catch (IllegalStateException e) {
-            log.warn("구매자 배송 정보 상세 조회 상태 오류 - orderNumber={}, reason={}", orderNumber, e.getMessage());
+        } catch (NoSuchElementException | IllegalStateException e) {
+            log.warn("구매자 배송 정보 상세 조회 실패 - orderNumber: {}, reason: {}", orderNumber, e.getMessage());
             throw e;
         } catch (Exception e) {
-            log.error("구매자 배송 정보 상세 조회 중 오류 - orderNumber={}", orderNumber, e);
+            log.error("구매자 배송 정보 상세 조회 중 오류 - orderNumber: {}", orderNumber, e);
             throw new RuntimeException("배송 정보 상세 조회 중 오류가 발생했습니다", e);
         }
     }
 
+    // ===== 내부 헬퍼 메서드들 =====
 
     /**
-     * 사용자 조회 - 기존 패턴 활용
+     * UserPrincipal로 구매자 엔티티 조회 (기존 코드와 동일)
      */
-    private Users findUserByPrincipal(UserPrincipal userPrincipal) {
-        return userRepository.findByProviderAndProviderId(
+    private Buyers findBuyerByPrincipal(UserPrincipal userPrincipal) {
+        BuyerDTO buyerDTO = buyerRepository.findOnlyBuyerByProviderAndProviderId(
                         userPrincipal.provider(), userPrincipal.providerId())
-                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다"));
+                .orElseThrow(() -> new NoSuchElementException("구매자를 찾을 수 없습니다"));
+        return BuyerDTO.toEntity(buyerDTO);
     }
 
     /**
@@ -233,7 +234,7 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
                     order.getCreatedAt(),
                     order.getShipment().getDeliveredAt(),
                     orderItemsInfo,
-                    order.getTotalPrice()
+                    order.getDiscountedTotalPrice() // getTotalPrice() → getDiscountedTotalPrice() 변경
             );
         } else {
             // 배송 중인 경우 - 배송 상태 표시
@@ -242,7 +243,7 @@ public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
                     order.getCreatedAt(),
                     order.getOrderStatus(),
                     orderItemsInfo,
-                    order.getTotalPrice()
+                    order.getDiscountedTotalPrice() // getTotalPrice() → getDiscountedTotalPrice() 변경
             );
         }
     }
