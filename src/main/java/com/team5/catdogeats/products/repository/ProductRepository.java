@@ -56,7 +56,7 @@ public interface ProductRepository extends JpaRepository<Products, String> {
             p.stock_status AS stockStatus,
             p.created_at AS createdAt
         FROM products p
-        JOIN sellers s ON s.user_id = p.seller_id
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
         WHERE (:petCategory IS NULL OR p.petCategory = :petCategory)
           AND (:productCategory IS NULL OR p.productCategory = :productCategory)
         ORDER BY p.created_at DESC
@@ -64,6 +64,7 @@ public interface ProductRepository extends JpaRepository<Products, String> {
             countQuery = """
         SELECT COUNT(*)
         FROM products p
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
         WHERE (:petCategory IS NULL OR p.petCategory = :petCategory)
           AND (:productCategory IS NULL OR p.productCategory = :productCategory)
         """,
@@ -102,7 +103,7 @@ public interface ProductRepository extends JpaRepository<Products, String> {
             p.stock_status AS stockStatus,
             p.created_at AS createdAt
         FROM products p
-        JOIN sellers s ON s.user_id = p.seller_id
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
         WHERE (:petCategory IS NULL OR p.petCategory = :petCategory)
           AND (:productCategory IS NULL OR p.productCategory = :productCategory)
         ORDER BY p.price DESC
@@ -110,6 +111,7 @@ public interface ProductRepository extends JpaRepository<Products, String> {
             countQuery = """
         SELECT COUNT(*)
         FROM products p
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
         WHERE (:petCategory IS NULL OR p.petCategory = :petCategory)
           AND (:productCategory IS NULL OR p.productCategory = :productCategory)
         """,
@@ -148,7 +150,7 @@ public interface ProductRepository extends JpaRepository<Products, String> {
             p.stock_status AS stockStatus,
             p.created_at AS createdAt
         FROM products p
-        JOIN sellers s ON s.user_id = p.seller_id
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
         WHERE (:petCategory IS NULL OR p.petCategory = :petCategory)
           AND (:productCategory IS NULL OR p.productCategory = :productCategory)
         ORDER BY (
@@ -160,6 +162,7 @@ public interface ProductRepository extends JpaRepository<Products, String> {
             countQuery = """
         SELECT COUNT(*)
         FROM products p
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
         WHERE (:petCategory IS NULL OR p.petCategory = :petCategory)
           AND (:productCategory IS NULL OR p.productCategory = :productCategory)
         """,
@@ -201,7 +204,7 @@ public interface ProductRepository extends JpaRepository<Products, String> {
                   WHERE r.product_id = p.id
                 ) AS reviewCount
             FROM products p
-            JOIN sellers s ON s.user_id = p.seller_id
+            JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
             WHERE p.product_number = :productNumber
             LIMIT 1
         """,
@@ -238,7 +241,7 @@ public interface ProductRepository extends JpaRepository<Products, String> {
             p.discount_rate AS discountRate,
             p.created_at AS createdAt
         FROM products p
-        JOIN sellers s ON s.user_id = p.seller_id
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
         ORDER BY p.created_at DESC
         LIMIT 8
     """,
@@ -275,7 +278,7 @@ public interface ProductRepository extends JpaRepository<Products, String> {
             p.discount_rate AS discountRate,
             p.created_at AS createdAt
         FROM products p
-        JOIN sellers s ON s.user_id = p.seller_id
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
         WHERE p.is_discounted = true
         ORDER BY p.discount_rate DESC NULLS LAST
         LIMIT 8
@@ -350,7 +353,7 @@ public interface ProductRepository extends JpaRepository<Products, String> {
                 LEAST(100.0, COALESCE(ro.recent_order_count,0)/20.0*100.0) * 0.05
             ) AS bestScore
         FROM products p
-        JOIN sellers s ON s.user_id = p.seller_id
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
         LEFT JOIN sales_data sd ON p.id = sd.product_id
         LEFT JOIN review_data rd ON p.id = rd.product_id
         LEFT JOIN recent_orders ro ON p.id = ro.product_id
