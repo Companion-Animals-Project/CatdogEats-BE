@@ -1,5 +1,7 @@
 package com.team5.catdogeats.global.config;
 
+
+import com.team5.catdogeats.global.config.ZonedDateTimeTypeHandler;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.apache.ibatis.type.TypeHandler;
 import org.mybatis.spring.SqlSessionFactoryBean;
@@ -9,6 +11,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
+
+
 
 import javax.sql.DataSource;
 
@@ -35,14 +39,12 @@ public class MyBatisConfig {
         // MyBatis Configuration 설정
         org.apache.ibatis.session.Configuration configuration = new org.apache.ibatis.session.Configuration();
 
-        //ZonedDateTime TypeHandler 등록
-        configuration.getTypeHandlerRegistry().register(com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class);
-
         SqlSessionFactoryBean factoryBean = new SqlSessionFactoryBean();
         factoryBean.setDataSource(dataSource);
 
         // ZonedDateTime TypeHandler 등록
-        factoryBean.setTypeHandlers(new TypeHandler[]{new com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler()});
+        factoryBean.setTypeHandlers(new TypeHandler[]{new ZonedDateTimeTypeHandler()});
+
 
         // YAML 설정에서 가져온 type-aliases-package 적용
         try {
