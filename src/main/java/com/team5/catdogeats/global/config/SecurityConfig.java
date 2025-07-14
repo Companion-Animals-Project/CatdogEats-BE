@@ -120,7 +120,7 @@ public class SecurityConfig {
                             .requestMatchers("/login/oauth2/code/kakao/**").permitAll()
                             .requestMatchers("/v1/auth/refresh").permitAll()
                             .requestMatchers("/v1/notices").permitAll()
-                            .requestMatchers("/v1/faqs").permitAll()
+                            .requestMatchers("/v1/faqs/**").permitAll()
                             .requestMatchers("/v1/buyers/payments/success").permitAll()
                             .requestMatchers("/v1/buyers/payments/fail").permitAll()
                             .requestMatchers("tossTest.html").permitAll()

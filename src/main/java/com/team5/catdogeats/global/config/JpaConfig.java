@@ -28,7 +28,8 @@ import javax.sql.DataSource;
                 "com.team5.catdogeats.admins.repository",
                 "com.team5.catdogeats.outbox.repository",
                 "com.team5.catdogeats.support.domain.inquiry.repository",
-                "com.team5.catdogeats.admins.repository"},
+                "com.team5.catdogeats.admins.repository",
+                "com.team5.catdogeats.support.domain.faq.repository"},
         entityManagerFactoryRef = "entityManagerFactory",
         transactionManagerRef = "jpaTransactionManager"
 )
