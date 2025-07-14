@@ -1,8 +1,8 @@
 package com.team5.catdogeats.storage.service.impl;
 
 import com.team5.catdogeats.storage.domain.Files;
-import com.team5.catdogeats.storage.repository.FilesRepository;
-import com.team5.catdogeats.storage.service.NoticeFileManagementService;
+import com.team5.catdogeats.storage.repository.FileRepository;
+import com.team5.catdogeats.storage.service.NoticeFileService;
 import com.team5.catdogeats.storage.service.ObjectStorageService;
 import com.team5.catdogeats.support.domain.notice.dto.NoticeFileDownloadResponseDTO;
 import lombok.RequiredArgsConstructor;
@@ -21,9 +21,9 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class NoticeFileManagementServiceImpl implements NoticeFileManagementService {
+public class NoticeFileServiceImpl implements NoticeFileService {
 
-    private final FilesRepository filesRepository;
+    private final FileRepository fileRepository;
     private final ObjectStorageService objectStorageService;
 
     @Override
@@ -45,7 +45,7 @@ public class NoticeFileManagementServiceImpl implements NoticeFileManagementServ
                     .fileUrl(fileUrl)
                     .build();
 
-            return filesRepository.save(fileEntity);
+            return fileRepository.save(fileEntity);
 
         } catch (IOException e) {
             log.error("공지사항 파일 업로드 실패 - 파일명: {}", file.getOriginalFilename(), e);
@@ -55,7 +55,7 @@ public class NoticeFileManagementServiceImpl implements NoticeFileManagementServ
 
     @Override
     public NoticeFileDownloadResponseDTO downloadNoticeFile(String fileId) {
-        Files fileEntity = filesRepository.findById(fileId)
+        Files fileEntity = fileRepository.findById(fileId)
                 .orElseThrow(() -> new NoSuchElementException("파일을 찾을 수 없습니다: " + fileId));
 
         try {
@@ -88,7 +88,7 @@ public class NoticeFileManagementServiceImpl implements NoticeFileManagementServ
 
     @Override
     public void replaceNoticeFile(String fileId, MultipartFile newFile) {
-        Files fileEntity = filesRepository.findById(fileId)
+        Files fileEntity = fileRepository.findById(fileId)
                 .orElseThrow(() -> new NoSuchElementException("파일을 찾을 수 없습니다: " + fileId));
 
         try {
@@ -108,7 +108,7 @@ public class NoticeFileManagementServiceImpl implements NoticeFileManagementServ
 
             // DB 업데이트
             fileEntity.setFileUrl(newFileUrl);
-            filesRepository.save(fileEntity);
+            fileRepository.save(fileEntity);
 
             log.info("공지사항 파일 교체 완료: {} -> {}", oldFileUrl, newFileUrl);
 
@@ -120,14 +120,14 @@ public class NoticeFileManagementServiceImpl implements NoticeFileManagementServ
 
     @Override
     public void deleteNoticeFileCompletely(String fileId) {
-        Files fileEntity = filesRepository.findById(fileId)
+        Files fileEntity = fileRepository.findById(fileId)
                 .orElseThrow(() -> new NoSuchElementException("파일을 찾을 수 없습니다: " + fileId));
 
         // Storage에서 삭제
         deleteNoticeFileFromStorageOnly(fileEntity.getFileUrl());
 
         // DB에서 삭제
-        filesRepository.deleteById(fileId);
+        fileRepository.deleteById(fileId);
 
         log.info("공지사항 파일 완전 삭제 완료 - 파일 ID: {}", fileId);
     }

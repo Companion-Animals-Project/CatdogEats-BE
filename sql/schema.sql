@@ -539,12 +539,17 @@ CREATE TABLE inquiries (
                            admin_id VARCHAR(36) NULL,
                            title VARCHAR(255) NULL,
                            content TEXT NOT NULL,
-                           status ENUM('pending', 'answered') NOT NULL DEFAULT 'pending',
+                           status ENUM('PENDING', 'ANSWERED', 'FOLLOWUP', 'CLOSED', 'FORCE_CLOSED') NOT NULL DEFAULT 'PENDING',
+                           type ENUM('PRODUCT', 'ORDER', 'PAYMENT', 'DELIVERY', 'RETURN', 'ACCOUNT', 'ETC') NOT NULL,
+                           receive_method ENUM('WEB', 'CALL', 'SMS', 'NONE') NOT NULL DEFAULT 'WEB',
+                           urgent_level ENUM('HIGH', 'MIDDLE', 'LOW') NOT NULL,
+                           message_type ENUM('QUESTION', 'ANSWER', 'USER_FOLLOWUP', 'ADMIN_FOLLOWUP'),
                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                            FOREIGN KEY (user_id) REFERENCES users(id),
                            FOREIGN KEY (parent_id) REFERENCES inquiries(id) ON DELETE SET NULL,
-                           FOREIGN KEY (admin_id) REFERENCES admins(id)
+                           FOREIGN KEY (admin_id) REFERENCES admins(id),
+                           FOREIGN KEY (order_id) REFERENCES  orders(id)
 );
 
 CREATE TABLE files (
@@ -555,7 +560,12 @@ CREATE TABLE files (
 CREATE TABLE inquiry_files (
                                id VARCHAR(36) PRIMARY KEY,
                                inquiry_id VARCHAR(36) NOT NULL ,
-                               CONSTRAINT fk_inquiry_files_inquiry_id FOREIGN KEY (inquiry_id) REFERENCES inquiries(id)
+                               image_id VARCHAR(36) NULL , -- image_id 추가
+                               file_id VARCHAR(36) NULL , -- file_id 추가
+                               CONSTRAINT fk_inquiry_files_inquiry_id FOREIGN KEY (inquiry_id) REFERENCES inquiries(id),
+                               CONSTRAINT fk_inquiry_files_image_id FOREIGN KEY (image_id) REFERENCES images(id),  -- 이것도 추가
+                               CONSTRAINT fk_inquiry_files_file_id FOREIGN KEY (file_id) REFERENCES files(id)  -- 이것도 추가
+
 );
 
 CREATE TABLE notice_files (
