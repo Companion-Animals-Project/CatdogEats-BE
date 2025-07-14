@@ -1,5 +1,6 @@
 package com.team5.catdogeats.reviews.repository;
 
+import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.reviews.domain.Reviews;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -52,7 +53,7 @@ public interface ReviewRepository extends JpaRepository<Reviews, String> {
     // 별점 구간별 개수 (0점대~5점)
     @Query("""
         select
-            case 
+            case
                 when floor(r.star) = 0 then 0
                 when floor(r.star) = 1 then 1
                 when floor(r.star) = 2 then 2
@@ -66,4 +67,6 @@ public interface ReviewRepository extends JpaRepository<Reviews, String> {
         group by groupStar
     """)
     List<Object[]> findGroupStarCountBySellerId(@Param("sellerId") String sellerId);
+
+    void deleteAllByProduct(Products product);
 }
