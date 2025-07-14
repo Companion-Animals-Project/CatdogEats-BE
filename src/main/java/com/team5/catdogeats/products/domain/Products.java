@@ -36,7 +36,7 @@ public class Products extends BaseEntity {
     @Column(nullable = false)
     private String subTitle;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
+    @Column(nullable = false)
     private String productInfo;
 
     @Column(columnDefinition = "TEXT", nullable = false)
