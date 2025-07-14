@@ -34,7 +34,7 @@ public class SellerStoreServiceImpl implements SellerStoreService {
     private final SellersRepository sellersRepository;
     private final SellerStoreProductService productService;
     private final SellerStoreStatsService sellerStoreStatsService;
-    private final AddressService addressService; // AddressService 의존성 추가
+    private final AddressService addressService;
 
     @Override
     public SellerStorePageResponse getSellerStorePage(
@@ -55,8 +55,8 @@ public class SellerStoreServiceImpl implements SellerStoreService {
         //2. 페이징 처리 (1-based -> 0-based 변환)
         Pageable pageable = createPageable(page - 1, size, sort, filter);
 
-        // 3. 판매자 정보 조회
-        Sellers seller = findSellerByVendorName(vendorName);
+        // 3. 활성 판매자 정보 조회 (탈퇴하지 않은 판매자만)
+        Sellers seller = findActiveSellerByVendorName(vendorName);
 
         // 4. 상품 기본 정보 조회 (Products 도메인)
         Long totalProducts = productService.countSellerActiveProducts(seller.getUserId());
@@ -203,10 +203,10 @@ public class SellerStoreServiceImpl implements SellerStoreService {
     }
 
     /**
-     * 판매자 조회
+     * 활성 판매자 조회 (탈퇴하지 않은 판매자만)
      */
-    private Sellers findSellerByVendorName(String vendorName) {
-        return sellersRepository.findByVendorName(vendorName)
+    private Sellers findActiveSellerByVendorName(String vendorName) {
+        return sellersRepository.findByVendorNameAndIsDeletedFalse(vendorName)
                 .orElseThrow(() -> new EntityNotFoundException("판매자를 찾을 수 없습니다: " + vendorName));
     }
 
