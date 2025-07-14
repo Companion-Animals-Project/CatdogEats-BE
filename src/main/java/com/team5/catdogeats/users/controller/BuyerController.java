@@ -42,7 +42,7 @@ public class BuyerController {
     }
 
     @Operation(summary = "이름 마스킹 상태 변경",
-            description = "구매자의 이름 마스킹 설정을 변경합니다. 현재 상태가 활성화면 비활성화로, 비활성화면 활성화로 변경됩니다.")
+            description = "구매자의 이름 마스킹 설정을 변경합니다. 현재 상태가 활성화면 비활성화로  비활성화면 활성화로 변경됩니다.")
     @PostMapping("/mask")
     public ResponseEntity<ApiResponse<NameMaskingStatusResponseDto>> changeNameMaskingStatus(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
