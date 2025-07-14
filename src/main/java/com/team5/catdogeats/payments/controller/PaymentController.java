@@ -3,6 +3,7 @@ package com.team5.catdogeats.payments.controller;
 import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.payments.dto.response.PaymentConfirmResponse;
+import com.team5.catdogeats.payments.service.PaymentFailService;
 import com.team5.catdogeats.payments.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.*;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final PaymentFailService paymentFailService;
 
     /**
      * 결제 성공 콜백 처리
@@ -110,7 +112,7 @@ public class PaymentController {
 
         try {
             // 결제 실패 처리
-            paymentService.handlePaymentFailure(orderId, code, message);
+            paymentFailService.handlePaymentFailure(orderId, code, message);
 
             return ResponseEntity.ok(
                     APIResponse.success(ResponseCode.SUCCESS, "결제 실패 처리가 완료되었습니다.")

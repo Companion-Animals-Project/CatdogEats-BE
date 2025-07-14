@@ -1,0 +1,134 @@
+package com.team5.catdogeats.products.domain.mapping;
+
+import com.team5.catdogeats.baseEntity.BaseEntity;
+import com.team5.catdogeats.orders.domain.Orders;
+import com.team5.catdogeats.products.domain.Products;
+import com.team5.catdogeats.products.domain.enums.ReservationStatus;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.ZonedDateTime;
+
+@Entity
+@Table(name = "stock_reservations",
+        indexes = {
+                @Index(name = "idx_stock_reservation_order_id", columnList = "order_id"),
+                @Index(name = "idx_stock_reservation_product_id", columnList = "product_id"),
+                @Index(name = "idx_stock_reservation_status", columnList = "reservation_status"),
+        })
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
+public class StockReservation extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(length = 36)
+    private String id;
+
+    /**
+     * 주문 정보 (N:1 관계)
+     * 하나의 주문이 여러 상품에 대한 재고 예약을 가질 수 있습니다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_stock_reservation_order_id"))
+    private Orders order;
+
+    /**
+     * 상품 정보 (N:1 관계)
+     * 하나의 상품이 여러 예약을 가질 수 있습니다.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_stock_reservation_product_id"))
+    private Products product;
+
+    /**
+     * 예약 수량
+     * 실제 차감될 재고 수량입니다.
+     */
+    @Column(name = "reserved_quantity", nullable = false)
+    private Integer reservedQuantity;
+
+    /**
+     * 예약 상태
+     * RESERVED → CONFIRMED/CANCELLED 순서로 상태가 변경됩니다.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reservation_status", nullable = false, length = 20)
+    private ReservationStatus reservationStatus;
+
+    @Column(name = "reserved_at", nullable = false)
+    private ZonedDateTime reservedAt;
+
+    /**
+     * 예약 확정 시간
+     * 결제 성공 시에 설정됩니다.
+     */
+    @Column(name = "confirmed_at")
+    private ZonedDateTime confirmedAt;
+
+    /**
+     * 동시성 제어를 위한 버전 관리
+     * 여러 프로세스가 동시에 같은 예약을 처리하는 것을 방지합니다.
+     */
+    @Version
+    private Long version;
+
+    // === 비즈니스 메서드 ===
+
+    /**
+     * 예약 확정 처리
+     * 결제 성공 시 호출되어 예약을 확정 상태로 변경합니다.
+     */
+    public void confirm() {
+        if (this.reservationStatus != ReservationStatus.RESERVED) {
+            throw new IllegalStateException(
+                    String.format("예약 확정 불가: 현재 상태=%s, 예약 ID=%s",
+                            this.reservationStatus, this.id));
+        }
+
+        this.reservationStatus = ReservationStatus.CONFIRMED;
+        this.confirmedAt = ZonedDateTime.now();
+    }
+
+    /**
+     * 예약 취소 처리
+     * 사용자가 결제 전에 주문을 취소할 때 호출됩니다.
+     */
+    public void cancel() {
+        if (this.reservationStatus != ReservationStatus.RESERVED) {
+            throw new IllegalStateException(
+                    String.format("예약 취소 불가: 현재 상태=%s, 예약 ID=%s",
+                            this.reservationStatus, this.id));
+        }
+
+        this.reservationStatus = ReservationStatus.CANCELLED;
+    }
+
+    /**
+     * 예약이 활성 상태인지 확인
+     * RESERVED 상태만 활성 상태로 간주합니다.
+     */
+    public boolean isActive() {
+        return this.reservationStatus == ReservationStatus.RESERVED;
+    }
+
+    /**
+     * 정적 팩토리 메서드: 새로운 재고 예약 생성
+     */
+    public static StockReservation createReservation(Orders order, Products product, Integer quantity) {
+        ZonedDateTime now = ZonedDateTime.now();
+
+        return StockReservation.builder()
+                .order(order)
+                .product(product)
+                .reservedQuantity(quantity)
+                .reservationStatus(ReservationStatus.RESERVED)
+                .reservedAt(now)
+                .build();
+    }
+}

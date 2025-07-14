@@ -1,7 +1,5 @@
 package com.team5.catdogeats.products.service.impl;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.pets.domain.enums.PetCategory;
@@ -12,6 +10,7 @@ import com.team5.catdogeats.products.domain.enums.MainProductSortType;
 import com.team5.catdogeats.products.domain.enums.ProductCategory;
 import com.team5.catdogeats.products.exception.DuplicateProductNumberException;
 import com.team5.catdogeats.products.repository.ProductRepository;
+import com.team5.catdogeats.products.service.InventoryAdjustmentService;
 import com.team5.catdogeats.products.service.ProductService;
 import com.team5.catdogeats.reviews.repository.*;
 import com.team5.catdogeats.storage.domain.mapping.ProductsImages;
@@ -28,7 +27,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
@@ -40,6 +40,7 @@ public class ProductServiceImpl implements ProductService {
     private final SellersRepository sellerRepository;
     private final ProductImageRepository productImageRepository;
     private final ProductImageService productImageService;
+    private final InventoryAdjustmentService inventoryAdjustmentService;
     private final ReviewRepository reviewRepository;
     private final ReviewSummaryLLMRepository reviewSummaryLLMRepository;
     private final ReviewClassificationLLMCatHandmadeRepository reviewClassificationLLMCatHandmadeRepository;
@@ -51,34 +52,11 @@ public class ProductServiceImpl implements ProductService {
     public String registerProduct(UserPrincipal userPrincipal, ProductCreateRequestDto dto) {
         SellerDTO sellerDTO = sellerRepository.findSellerDtoByProviderAndProviderId(userPrincipal.provider(), userPrincipal.providerId())
                 .orElseThrow(() -> new NoSuchElementException("해당 유저 정보를 찾을 수 없습니다."));
+        Sellers seller = SellerDTO.toEntity(sellerDTO);
+        Long productNumber = getProductNumber();
 
-        Sellers seller = Sellers.builder()
-                .userId(sellerDTO.userId())
-                .vendorName(sellerDTO.vendorName())
-                .vendorProfileImage(sellerDTO.vendorProfileImage())
-                .businessNumber(sellerDTO.businessNumber())
-                .settlementBank(sellerDTO.settlementBank())
-                .settlementAccount(sellerDTO.settlementAccount())
-                .tags(sellerDTO.tags())
-                .operatingStartTime(sellerDTO.operatingStartTime())
-                .operatingEndTime(sellerDTO.operatingEndTime())
-                .closedDays(sellerDTO.closedDays())
-                .build();
-
-        Long productNumber;
-        try {
-            productNumber = generateProductNumber();
-        } catch (DuplicateProductNumberException e) {
-            log.warn("상품 번호 중복 발생, 1회 재시도");
-            try {
-                productNumber = generateProductNumber();
-            } catch (DuplicateProductNumberException ex) {
-                throw new IllegalStateException("상품 번호 생성 실패: 중복으로 인한 재시도 실패", ex);
-            }
-        }
-
-        Products product = Products.fromDto(dto, seller, productNumber);
-        return productRepository.save(product).getId();
+        Products product = productRepository.save(Products.fromDto(dto, seller, productNumber));
+        return product.getId();
     }
 
 
@@ -132,7 +110,7 @@ public class ProductServiceImpl implements ProductService {
 
         return switch (sortBy) {
             case PRICE ->
-                    productRepository.findAllByOrderByPriceDesc(petCategoryStr, productCategoryStr, pageable);
+                    productRepository.findAllByOrderByDiscountedPriceDesc(petCategoryStr, productCategoryStr, pageable);
             case AVERAGE_STAR ->
                     productRepository.findAllByOrderByAverageStarDesc(petCategoryStr, productCategoryStr, pageable);
             default ->
@@ -147,17 +125,6 @@ public class ProductServiceImpl implements ProductService {
         ProductDetailProjection projection = productRepository.findProductDetailByProductNumber(productNumber);
         if (projection == null) throw new NoSuchElementException("해당 상품 정보를 찾을 수 없습니다.");
 
-        List<String> images = new ArrayList<>();
-        String imagesJson = projection.getImages();
-        if (imagesJson != null && !imagesJson.isBlank()) {
-            try {
-                images = new ObjectMapper().readValue(imagesJson, new TypeReference<>() {
-                });
-            } catch (Exception e) {
-                // 파싱 실패시 빈 리스트로 둠
-                log.warn("상품 이미지 JSON 파싱 실패: {}", imagesJson, e);
-            }
-        }
 
         return new ProductDetailResponseDto(
                 projection.getTitle(),
@@ -167,7 +134,7 @@ public class ProductServiceImpl implements ProductService {
                 projection.getIsDiscounted() != null && projection.getIsDiscounted(),
                 projection.getDiscountRate(),
                 projection.getPrice(),
-                images,
+                projection.getImages(),
                 projection.getVendorName(),
                 projection.getAverageStar(),
                 projection.getReviewCount() != null ? projection.getReviewCount() : 0
@@ -196,6 +163,20 @@ public class ProductServiceImpl implements ProductService {
                 .toList();
     }
 
+
+    private Long getProductNumber() {
+
+        try {
+            return generateProductNumber();
+        } catch (DuplicateProductNumberException e) {
+            log.warn("상품 번호 중복 발생, 1회 재시도");
+            try {
+                return generateProductNumber();
+            } catch (DuplicateProductNumberException ex) {
+                throw new IllegalStateException("상품 번호 생성 실패: 중복으로 인한 재시도 실패", ex);
+            }
+        }
+    }
 
     /**
      * 고유한 상품 번호를 생성하는 메서드

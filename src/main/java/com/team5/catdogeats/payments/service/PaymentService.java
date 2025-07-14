@@ -10,6 +10,4 @@ public interface PaymentService {
     // 결제 승인 처리
     PaymentConfirmResponse confirmPayment(String paymentKey, String orderId, Long amount);
 
-    // 결제 실패 처리
-    void handlePaymentFailure(String orderId, String code, String message);
 }

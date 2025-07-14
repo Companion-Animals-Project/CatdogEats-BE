@@ -2,6 +2,15 @@ batch:
   withdrawn:
     cron: ${WITHDRAW_CRON:0 30 2 * * ?}
     chunk-size: ${WITHDRAW_CHUNK:1000}
+  # 정산 배치 설정 추가
+  settlement:
+    # 일일 정산 배치 (매일 오전 2시)
+    daily-cron: "${SETTLEMENT_DAILY_CRON:0 0 2 * * ?}"
+    # 월간 정산 완료 배치 (매월 1일 오전 4시)
+    monthly-cron: "${SETTLEMENT_MONTHLY_CRON:0 0 4 1 * ?}"
+    # 배치 활성화 여부
+    enabled: ${SETTLEMENT_BATCH_ENABLED:true}
+
 
   forecast:
     # 배치 활성화 여부
@@ -121,9 +130,6 @@ spring:
             token-uri: https://kauth.kakao.com/oauth/token
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
-      success: null
-      fail: null
-      duplicated: null
 
   jpa:
     hibernate:
@@ -149,10 +155,10 @@ spring:
       uri: ${MONGO_URL}
       database: ${MONGO_DATABASE}
   rabbitmq:
-    host: localhost
+    host: ${RABBITMQ_HOST}
     port: 5672
-    username: guest
-    password: guest
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
     listener:
       simple:
         acknowledge-mode: auto
@@ -245,6 +251,27 @@ app:
 
 websocket:
   endpoint: /v1/users/chat
+
+
+outbox:
+  processing:
+    mode: cdc
+
+debezium:
+  database:
+    hostname: ${DB_HOST}
+    port: 5672
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    dbname: catdogeats
+    server-name: catdogeats
+  connector:
+    slot-name: debezium_slot
+    publication-name: debezium_publication
+    plugin-name: pgoutput
+    table-include-list: public.outbox_messages
+  offset:
+    storage-file: ./data/debezium-offsets.dat
 
 #url:  #예시입니다 서버 개발 하실 떄는 8080 포트로 바꾸시고 프론트 개발하실때는 5173포트를 사용해 주세요
 #  success: http://localhost:5173/

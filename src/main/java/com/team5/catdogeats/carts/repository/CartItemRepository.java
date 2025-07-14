@@ -25,17 +25,17 @@ public interface CartItemRepository extends JpaRepository<CartItems, String> {
     // 장바구니 제품추천
     @Query("SELECT ci FROM CartItems ci " +
             "JOIN ci.carts c " +
-            "WHERE ci.id = :cartItemId AND c.user.id = :userId")
+            "WHERE ci.id = :cartItemId AND c.buyers.userId = :buyerId")
     // 사용자 ID + 장바구니 아이템 ID -> 해당 사용자의 장바구니 아이템 조회
-    Optional<CartItems> findByIdAndUserId(@Param("cartItemId") String cartItemId,
-                                          @Param("userId") String userId);
+    Optional<CartItems> findByIdAndBuyerId(@Param("cartItemId") String cartItemId,
+                                          @Param("buyerId") String buyerId);
 
     // 사용자의 장바구니에 담긴 상품 정보들 조회 - 카테고리 분석 + 중복 상품 제외
     @Query("SELECT ci FROM CartItems ci " +
             "JOIN FETCH ci.product p " +
             "JOIN ci.carts c " +
-            "WHERE c.user.id = :userId")
-    List<CartItems> findCartItemsWithProductByUserId(@Param("userId") String userId);
+            "WHERE c.buyers.userId = :buyerId")
+    List<CartItems> findCartItemsWithProductByBuyerId(@Param("buyerId") String buyerId);
 
     // 결제시 장바구니 제품 삭제
     // 장바구니에서 상품 조회결제 완료 시 해당 상품 장바구니에서 삭제

@@ -25,10 +25,4 @@ public enum ReservationStatus {
      */
     CANCELLED,
 
-    /**
-     * 만료됨 - 자동 만료
-     * RabbitMQ 지연 메시지를 통해 자동으로 만료된 상태
-     * (기본 30분 후 자동 만료)
-     */
-    EXPIRED
 }
