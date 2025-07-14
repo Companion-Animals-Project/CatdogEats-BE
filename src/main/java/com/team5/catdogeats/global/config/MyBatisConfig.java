@@ -42,7 +42,7 @@ public class MyBatisConfig {
         factoryBean.setDataSource(dataSource);
 
         // ZonedDateTime TypeHandler 등록
-        factoryBean.setTypeHandlers(new TypeHandler[]{new ZonedDateTimeTypeHandler()});
+        factoryBean.setTypeHandlers(new TypeHandler[]{new com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler()});
 
         // YAML 설정에서 가져온 type-aliases-package 적용
         try {

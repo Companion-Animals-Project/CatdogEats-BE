@@ -259,10 +259,10 @@ outbox:
 
 debezium:
   database:
-    hostname: ${DB_HOST}
-    port: 5672
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
+    hostname: localhost
+    port: 5432
+    username: postgres
+    password: "0000"
     dbname: catdogeats
     server-name: catdogeats
   connector:
@@ -270,8 +270,9 @@ debezium:
     publication-name: debezium_publication
     plugin-name: pgoutput
     table-include-list: public.outbox_messages
+    poll-interval-ms: 5000
   offset:
-    storage-file: ./data/debezium-offsets.dat
+    storage-file: ./data/debezium-offsets.txt
 
 #url:  #예시입니다 서버 개발 하실 떄는 8080 포트로 바꾸시고 프론트 개발하실때는 5173포트를 사용해 주세요
 #  success: http://localhost:5173/
