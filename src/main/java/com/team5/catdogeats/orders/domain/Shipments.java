@@ -1,7 +1,7 @@
 package com.team5.catdogeats.orders.domain;
 
 import com.team5.catdogeats.baseEntity.BaseEntity;
-import com.team5.catdogeats.users.domain.Users;
+import com.team5.catdogeats.users.domain.mapping.Buyers;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
 import jakarta.persistence.*;
 import lombok.*;
@@ -28,9 +28,9 @@ public class Shipments extends BaseEntity {
     private Orders orders;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false,
-            foreignKey = @ForeignKey(name = "fk_shipments_user"))
-    private Users user;
+    @JoinColumn(name = "buyer_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_shipments_buyer"))
+    private Buyers buyers;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "seller_id",

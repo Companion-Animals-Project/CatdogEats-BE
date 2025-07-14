@@ -556,8 +556,17 @@ CREATE TABLE faqs (
                       id VARCHAR(36) PRIMARY KEY,
                       question VARCHAR(255) NOT NULL,
                       answer TEXT NOT NULL,
+                      category ENUM('ALL', 'PRODUCT', 'ORDER', 'DELIVERY', 'RETURN', 'ACCOUNT', 'ETC') NOT NULL,
+                      display_order INT NOT NULL,
                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE faq_keywords (
+                            faq_id VARCHAR(36) NOT NULL,
+                            keyword VARCHAR(36) NOT NULL,
+                            CONSTRAINT uq_faq_keyword UNIQUE (faq_id, keyword),
+                            FOREIGN KEY (faq_id) REFERENCES faqs(id) ON DELETE CASCADE
 );
 
 CREATE TABLE inquiries (
@@ -567,12 +576,17 @@ CREATE TABLE inquiries (
                            admin_id VARCHAR(36) NULL,
                            title VARCHAR(255) NULL,
                            content TEXT NOT NULL,
-                           status ENUM('pending', 'answered') NOT NULL DEFAULT 'pending',
+                           status ENUM('PENDING', 'ANSWERED', 'FOLLOWUP', 'CLOSED', 'FORCE_CLOSED') NOT NULL DEFAULT 'PENDING',
+                           type ENUM('PRODUCT', 'ORDER', 'PAYMENT', 'DELIVERY', 'RETURN', 'ACCOUNT', 'ETC') NOT NULL,
+                           receive_method ENUM('WEB', 'CALL', 'SMS', 'NONE') NOT NULL DEFAULT 'WEB',
+                           urgent_level ENUM('HIGH', 'MIDDLE', 'LOW') NOT NULL,
+                           message_type ENUM('QUESTION', 'ANSWER', 'USER_FOLLOWUP', 'ADMIN_FOLLOWUP'),
                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                            FOREIGN KEY (user_id) REFERENCES users(id),
                            FOREIGN KEY (parent_id) REFERENCES inquiries(id) ON DELETE SET NULL,
-                           FOREIGN KEY (admin_id) REFERENCES admins(id)
+                           FOREIGN KEY (admin_id) REFERENCES admins(id),
+                           FOREIGN KEY (order_id) REFERENCES  orders(id)
 );
 
 CREATE TABLE files (
@@ -583,7 +597,12 @@ CREATE TABLE files (
 CREATE TABLE inquiry_files (
                                id VARCHAR(36) PRIMARY KEY,
                                inquiry_id VARCHAR(36) NOT NULL ,
-                               CONSTRAINT fk_inquiry_files_inquiry_id FOREIGN KEY (inquiry_id) REFERENCES inquiries(id)
+                               image_id VARCHAR(36) NULL , -- image_id 추가
+                               file_id VARCHAR(36) NULL , -- file_id 추가
+                               CONSTRAINT fk_inquiry_files_inquiry_id FOREIGN KEY (inquiry_id) REFERENCES inquiries(id),
+                               CONSTRAINT fk_inquiry_files_image_id FOREIGN KEY (image_id) REFERENCES images(id),  -- 이것도 추가
+                               CONSTRAINT fk_inquiry_files_file_id FOREIGN KEY (file_id) REFERENCES files(id)  -- 이것도 추가
+
 );
 
 CREATE TABLE notice_files (
@@ -593,3 +612,63 @@ CREATE TABLE notice_files (
                               CONSTRAINT fk_notice_files_notice_id FOREIGN KEY (notice_id) REFERENCES notices(id),
                               CONSTRAINT fk_notice_files_file_id FOREIGN KEY (file_id) REFERENCES files(id)  -- 이것도 추가
 );
+
+-- ===================== 정산 매출 분석 VIEW ==============================
+
+-- 목적: 정산 완료된 데이터만을 기반으로 매출 분석을 위한 View 생성
+-- 데이터 소스: settlements (COMPLETED 상태만) + order_items + products + orders
+-- 기간: settlement의 created_at 기준 (정산 생성 날짜)
+
+CREATE VIEW v_sales_analytics AS
+SELECT
+    -- 기본 식별자
+    st.seller_id,
+    oi.product_id,
+    p.title as product_name,
+    o.order_number,
+    st.id as settlement_id,
+    oi.id as order_item_id,
+
+    -- 날짜 관련 (정산 생성 날짜 기준)
+    EXTRACT(YEAR FROM st.created_at) as sales_year,
+    EXTRACT(MONTH FROM st.created_at) as sales_month,
+    st.created_at as settlement_date,
+    o.created_at as order_date,
+
+    -- 수량 및 금액 정보
+    oi.quantity,
+    oi.price as unit_price,                    -- 주문 시점 상품 단가
+    (oi.quantity * oi.price) as total_amount,  -- 총 주문 금액
+    st.settlement_amount,                      -- 정산 금액 (수수료 제외)
+    st.commission_amount,                      -- 수수료
+    st.item_price                             -- 정산 기준 상품 금액
+FROM settlements st
+         INNER JOIN order_items oi ON st.order_item_id = oi.id
+         INNER JOIN products p ON oi.product_id = p.id
+         INNER JOIN orders o ON oi.order_id = o.id
+WHERE
+  -- 정산 완료된 데이터만
+    st.settlement_status = 'COMPLETED'
+  -- 취소되지 않은 주문만
+  AND o.order_status != 'CANCELLED'
+  -- 숨겨지지 않은 주문만
+  AND o.is_hidden = false;
+
+
+-- View 성능 최적화를 위한 인덱스
+
+-- 1. 매출 분석 조회 최적화 인덱스 (판매자별 + 연도별)
+CREATE INDEX IF NOT EXISTS idx_settlements_sales_analytics
+    ON settlements (seller_id, settlement_status, created_at)
+    WHERE settlement_status = 'COMPLETED';
+
+-- 2. 상품별 매출 분석 최적화 인덱스
+CREATE INDEX IF NOT EXISTS idx_order_items_product_analysis
+    ON order_items (product_id, quantity, price);
+
+-- 3. 기간별 조회 최적화 인덱스
+CREATE INDEX IF NOT EXISTS idx_settlements_date_range
+    ON settlements (created_at, seller_id, settlement_status)
+    WHERE settlement_status = 'COMPLETED';
+
+-- ===================================================================================

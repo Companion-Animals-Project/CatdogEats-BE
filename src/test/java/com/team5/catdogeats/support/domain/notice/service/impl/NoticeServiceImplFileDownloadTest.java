@@ -1,6 +1,6 @@
 package com.team5.catdogeats.support.domain.notice.service.impl;
 
-import com.team5.catdogeats.storage.service.NoticeFileManagementService;
+import com.team5.catdogeats.storage.service.NoticeFileService;
 import com.team5.catdogeats.support.domain.notice.dto.NoticeFileDownloadResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,7 +20,7 @@ import static org.mockito.BDDMockito.*;
 class NoticeServiceImplFileDownloadTest {
 
     @Mock
-    private NoticeFileManagementService noticeFileManagementService;
+    private NoticeFileService noticeFileService;
 
     @InjectMocks
     private NoticeServiceImpl noticeService;
@@ -40,7 +40,7 @@ class NoticeServiceImplFileDownloadTest {
                 "application/pdf"
         );
 
-        given(noticeFileManagementService.downloadNoticeFile(fileId))
+        given(noticeFileService.downloadNoticeFile(fileId))
                 .willReturn(expectedResponse);
 
         // when
@@ -52,7 +52,7 @@ class NoticeServiceImplFileDownloadTest {
         assertThat(result.getFilename()).isEqualTo("test.pdf");
         assertThat(result.getContentType()).isEqualTo("application/pdf");
 
-        verify(noticeFileManagementService).downloadNoticeFile(fileId);
+        verify(noticeFileService).downloadNoticeFile(fileId);
     }
 
     @Test
@@ -61,7 +61,7 @@ class NoticeServiceImplFileDownloadTest {
         // given
         String fileId = "non-existing-file-id";
 
-        given(noticeFileManagementService.downloadNoticeFile(fileId))
+        given(noticeFileService.downloadNoticeFile(fileId))
                 .willThrow(new NoSuchElementException("파일을 찾을 수 없습니다. ID: " + fileId));
 
         // when & then
@@ -69,7 +69,7 @@ class NoticeServiceImplFileDownloadTest {
                 .isInstanceOf(NoSuchElementException.class)
                 .hasMessageContaining("파일을 찾을 수 없습니다");
 
-        verify(noticeFileManagementService).downloadNoticeFile(fileId);
+        verify(noticeFileService).downloadNoticeFile(fileId);
     }
 
     @Test
@@ -78,7 +78,7 @@ class NoticeServiceImplFileDownloadTest {
         // given
         String fileId = "test-file-id";
 
-        given(noticeFileManagementService.downloadNoticeFile(fileId))
+        given(noticeFileService.downloadNoticeFile(fileId))
                 .willThrow(new RuntimeException("스토리지 서비스 오류"));
 
         // when & then
@@ -86,7 +86,7 @@ class NoticeServiceImplFileDownloadTest {
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("스토리지 서비스 오류");
 
-        verify(noticeFileManagementService).downloadNoticeFile(fileId);
+        verify(noticeFileService).downloadNoticeFile(fileId);
     }
 
     @Test
@@ -103,7 +103,7 @@ class NoticeServiceImplFileDownloadTest {
                 "application/pdf"
         );
 
-        given(noticeFileManagementService.downloadNoticeFile(fileId))
+        given(noticeFileService.downloadNoticeFile(fileId))
                 .willReturn(expectedResponse);
 
         // when
@@ -115,6 +115,6 @@ class NoticeServiceImplFileDownloadTest {
         assertThat(result.getFilename()).isEqualTo("corrupted-file.pdf");
         assertThat(result.getContentType()).isEqualTo("application/pdf");
 
-        verify(noticeFileManagementService).downloadNoticeFile(fileId);
+        verify(noticeFileService).downloadNoticeFile(fileId);
     }
 }

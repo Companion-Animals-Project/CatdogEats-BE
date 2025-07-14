@@ -28,6 +28,12 @@ public class MyBatisConfig {
 
     @Bean
     public SqlSessionFactory sqlSessionFactory(DataSource dataSource) {
+        // MyBatis Configuration 설정
+        org.apache.ibatis.session.Configuration configuration = new org.apache.ibatis.session.Configuration();
+
+        //ZonedDateTime TypeHandler 등록
+        configuration.getTypeHandlerRegistry().register(com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class);
+
         SqlSessionFactoryBean factoryBean = new SqlSessionFactoryBean();
         factoryBean.setDataSource(dataSource);
 

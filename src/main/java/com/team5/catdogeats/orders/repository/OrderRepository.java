@@ -1,7 +1,8 @@
 package com.team5.catdogeats.orders.repository;
 
 import com.team5.catdogeats.orders.domain.Orders;
-import com.team5.catdogeats.users.domain.Users;
+import com.team5.catdogeats.orders.dto.common.GroupOrdersAndPayments;
+import com.team5.catdogeats.users.domain.mapping.Buyers;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,41 +12,51 @@ import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 
 /**
- * 주문 엔티티 Repository (타입 수정됨)
- * JPA를 사용한 주문 관련 데이터 접근 계층입니다.
- * 기본 CRUD 기능과 주문 관련 조회 기능을 제공합니다.
- * Orders 엔티티의 실제 ID 타입(String)에 맞게 수정되었습니다.
+ * 주문 엔티티 Repository
+ * 기본 CRUD + 주문/결제/배송 조회 메서드를 제공합니다.
  */
 public interface OrderRepository extends JpaRepository<Orders, String> {
-    /**
-     * 주문 상세 조회 (OrderItems와 Products 함께 조회)
-     * @param user 사용자 엔티티
-     * @param orderNumber 주문 번호
-     * @return 연관 데이터를 포함한 주문 정보 (Optional)
-     */
-    @Query("""
-    SELECT DISTINCT o FROM Orders o
-    LEFT JOIN FETCH o.orderItems oi
-    LEFT JOIN FETCH oi.products p
-    WHERE o.user = :user
-    AND o.orderNumber = :orderNumber
-    """)
-    Optional<Orders> findOrderDetailByUserAndOrderNumber(@Param("user") Users user, @Param("orderNumber") String orderNumber);
 
     /**
-     * 구매자 주문 목록 조회 (페이징, 연관 데이터 포함)
-     * 숨김 처리되지 않은 주문만 조회하며, OrderItems와 Shipments를 함께 조회
-     * @param user 구매자 사용자 엔티티
-     * @param pageable 페이징 정보
-     * @return 연관 데이터를 포함한 주문 목록 (Page)
+     * 주문 상세 조회 (OrderItems·Products 포함)
      */
     @Query("""
-    SELECT DISTINCT o FROM Orders o
-    LEFT JOIN FETCH o.orderItems oi
-    LEFT JOIN FETCH oi.products p
-    LEFT JOIN FETCH o.shipment s
-    WHERE o.user = :user
-    AND o.isHidden = false
+        SELECT DISTINCT o
+        FROM Orders o
+        LEFT JOIN FETCH o.orderItems oi
+        LEFT JOIN FETCH oi.products p
+        WHERE o.buyers = :buyer
+          AND o.orderNumber = :orderNumber
     """)
-    Page<Orders> findBuyerOrdersWithDetails(@Param("user") Users user, Pageable pageable);
+    Optional<Orders> findOrderDetailByUserAndOrderNumber(
+                                                           @Param("buyer") Buyers buyer,
+                                                           @Param("orderNumber") String orderNumber);
+
+    /**
+     * 구매자 주문 목록 조회 (페이징, OrderItems·Shipment 포함)
+     */
+    @Query("""
+        SELECT DISTINCT o
+        FROM Orders o
+        LEFT JOIN FETCH o.orderItems oi
+        LEFT JOIN FETCH oi.products p
+        LEFT JOIN FETCH o.shipment s
+        WHERE o.buyers = :buyer
+          AND o.isHidden = false
+    """)
+    Page<Orders> findBuyerOrdersWithDetails(
+                                                          @Param("buyer") Buyers buyer,
+                                                          Pageable pageable);
+
+    /**
+     * 주문·결제 정보 DTO 투영 조회
+     */
+    @Query("""
+        SELECT new com.team5.catdogeats.orders.dto.common.GroupOrdersAndPayments(o, p)
+        FROM Payments p
+        JOIN p.orders o
+        WHERE o.id = :orderId
+    """)
+    Optional<GroupOrdersAndPayments> findGroupByOrdersAndPaymentsOrderId(
+                                                                           @Param("orderId") String orderId);
 }

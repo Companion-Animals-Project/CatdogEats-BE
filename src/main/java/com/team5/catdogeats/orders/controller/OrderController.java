@@ -10,7 +10,9 @@ import com.team5.catdogeats.orders.dto.response.OrderCreateResponse;
 import com.team5.catdogeats.orders.dto.response.OrderDeleteResponse;
 import com.team5.catdogeats.orders.dto.response.OrderDetailResponse;
 import com.team5.catdogeats.orders.service.BuyerOrderQueryService;
-import com.team5.catdogeats.orders.service.OrderService;
+import com.team5.catdogeats.orders.service.OrderCreateService;
+import com.team5.catdogeats.orders.service.OrderDeleteService;
+import com.team5.catdogeats.orders.service.OrderDetailService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,9 +37,10 @@ import java.util.NoSuchElementException;
 @RequiredArgsConstructor
 public class OrderController {
 
-    private final OrderService orderService;
     private final BuyerOrderQueryService buyerOrderQueryService;
-
+    private final OrderCreateService orderCreateService;
+    private final OrderDetailService orderDetailService;
+    private final OrderDeleteService orderDeleteService;
 
     /**
      * 주문 생성 (구매자) - 기존 메서드 유지
@@ -51,7 +54,7 @@ public class OrderController {
             log.info("주문 생성 요청: userProvider={}, providerId={}, 상품 개수={}",
                     userPrincipal.provider(), userPrincipal.providerId(), request.getOrderItems().size());
 
-            OrderCreateResponse response = orderService.createOrderByUserPrincipal(userPrincipal, request);
+            OrderCreateResponse response = orderCreateService.createOrderByUserPrincipal(userPrincipal, request);
 
             log.info("주문 생성 성공 (재고 차감 완료): orderId={}, orderNumber={}",
                     response.getOrderId(), response.getOrderNumber());
@@ -139,7 +142,7 @@ public class OrderController {
             log.info("주문 상세 조회 요청 - provider: {}, providerId: {}, orderNumber: {}",
                     userPrincipal.provider(), userPrincipal.providerId(), orderNumber);
 
-            OrderDetailResponse response = orderService.getOrderDetail(userPrincipal, orderNumber);
+            OrderDetailResponse response = orderDetailService.getOrderDetail(userPrincipal, orderNumber);
 
             log.info("주문 상세 조회 성공 - orderNumber: {}, orderId: {}",
                     orderNumber, response.orderId());
@@ -183,7 +186,7 @@ public class OrderController {
             log.info("주문 내역 삭제 요청 - provider: {}, providerId: {}, orderNumber: {}",
                     userPrincipal.provider(), userPrincipal.providerId(), request.orderNumber());
 
-            OrderDeleteResponse response = orderService.deleteOrder(userPrincipal, request.orderNumber());
+            OrderDeleteResponse response = orderDeleteService.deleteOrder(userPrincipal, request.orderNumber());
 
             if (response.success()) {
                 log.info("주문 내역 삭제 성공 - orderNumber: {}, orderId: {}",
