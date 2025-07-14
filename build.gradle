@@ -72,6 +72,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-mail'  // 이메일 발송용 추가
 	implementation 'org.springframework.session:spring-session-data-redis'  // Redis 세션 추가
 
+	//AI
+	implementation 'dev.langchain4j:langchain4j:1.0.0-alpha1'
+	implementation 'dev.langchain4j:langchain4j-google-ai-gemini:1.0.0-alpha1'
+	implementation 'dev.langchain4j:langchain4j-spring-boot-starter:1.0.0-alpha1'
 }
 
 tasks.named('test') {

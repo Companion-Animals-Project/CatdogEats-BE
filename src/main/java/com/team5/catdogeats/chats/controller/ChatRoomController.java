@@ -6,7 +6,7 @@ import com.team5.catdogeats.chats.domain.dto.*;
 import com.team5.catdogeats.chats.service.ChatMessageListService;
 import com.team5.catdogeats.chats.service.ChatRoomCreateService;
 import com.team5.catdogeats.chats.service.ChatRoomListService;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,20 +33,20 @@ public class ChatRoomController {
 
     @Operation(summary = "채팅방 생성", description = "채팅방을 생성하는 API입니다.")
     @PostMapping("/rooms")
-    public ResponseEntity<ApiResponse<ChatRoomResponseDTO>> createRoom(
+    public ResponseEntity<APIResponse<ChatRoomResponseDTO>> createRoom(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody ChatRoomRequestDTO requestDTO) {
         if (userPrincipal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
         }
 
         try {
             ChatRooms room = ChatRoomCreateService.createRoom(userPrincipal, requestDTO.vendorName());
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, new ChatRoomResponseDTO(room.getId(), room.getCreatedAt(), room.getUpdatedAt())));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, new ChatRoomResponseDTO(room.getId(), room.getCreatedAt(), room.getUpdatedAt())));
         } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(ResponseCode.ACCESS_DENIED));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(APIResponse.error(ResponseCode.ACCESS_DENIED));
         } catch (Exception e) {
             log.error("Error creating chat room", e);
             return ResponseEntity.badRequest().build();
@@ -56,7 +56,7 @@ public class ChatRoomController {
 
     @Operation(summary = "채팅방 목록 조화", description = "채팅방 목록을 조하는 API입니다.")
     @GetMapping("/rooms")
-    public ResponseEntity<ApiResponse<ChatRoomPageResponseDTO<ChatRoomListDTO>>> getChatHistory(
+    public ResponseEntity<APIResponse<ChatRoomPageResponseDTO<ChatRoomListDTO>>> getChatHistory(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "20") Integer size) {
@@ -64,7 +64,7 @@ public class ChatRoomController {
         if (principal == null) {
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error(ResponseCode.UNAUTHORIZED));
+                    .body(APIResponse.error(ResponseCode.UNAUTHORIZED));
         }
 
         try {
@@ -77,37 +77,37 @@ public class ChatRoomController {
                                                     chatRoomListService.getChatRooms(principal, pageRequest);
 
 
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
 
         }  catch (NoSuchElementException e) {
-           return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND));
+           return ResponseEntity.status(HttpStatus.NOT_FOUND).body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND));
         } catch (IllegalArgumentException e){
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(ResponseCode.ACCESS_DENIED));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(APIResponse.error(ResponseCode.ACCESS_DENIED));
         } catch (Exception e) {
            log.error("Error getting chat history", e);
-           return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+           return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
        }
 
 
     }
 
     @GetMapping("/rooms/{roomId}")
-    public ResponseEntity<ApiResponse<ChatMessagePageResponseDTO<ChatMessageListDTO>>> getMessages(
+    public ResponseEntity<APIResponse<ChatMessagePageResponseDTO<ChatMessageListDTO>>> getMessages(
             @PathVariable String roomId,
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "30") int size) {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
 
         try {
             ChatMessagePageRequestDTO requestDTO = new ChatMessagePageRequestDTO(cursor, size);
             ChatMessagePageResponseDTO<ChatMessageListDTO> response = chatMessageListService.getMessagesWithCursor(roomId, requestDTO, principal);
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
 
     }

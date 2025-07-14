@@ -21,4 +21,8 @@ public class HomeController {
         return ResponseEntity.ok("You have been withdrawn from CatDogeats");
     }
 
+    @GetMapping("/health")
+    public ResponseEntity<?> health() {
+        return ResponseEntity.ok("Healthy");
+    }
 }
