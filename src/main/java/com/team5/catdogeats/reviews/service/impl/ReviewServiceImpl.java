@@ -4,12 +4,14 @@ import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.pets.domain.dto.PetInfoResponseDto;
 import com.team5.catdogeats.pets.domain.enums.Gender;
+import com.team5.catdogeats.pets.domain.enums.PetCategory;
 import com.team5.catdogeats.products.domain.Products;
+import com.team5.catdogeats.products.domain.enums.ProductCategory;
 import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.reviews.domain.Reviews;
 import com.team5.catdogeats.reviews.domain.dto.*;
 import com.team5.catdogeats.reviews.mapper.ReviewMapper;
-import com.team5.catdogeats.reviews.repository.ReviewRepository;
+import com.team5.catdogeats.reviews.repository.*;
 import com.team5.catdogeats.reviews.service.ReviewService;
 import com.team5.catdogeats.storage.domain.dto.ReviewImageResponseDto;
 import com.team5.catdogeats.storage.domain.mapping.ReviewsImages;
@@ -39,6 +41,10 @@ public class ReviewServiceImpl implements ReviewService {
     private final ReviewImageRepository reviewImageRepository;
     private final ReviewImageService reviewImageService;
     private final ReviewMapper reviewMapper;
+    private final ReviewClassificationLLMCatHandmadeRepository reviewClassificationLLMCatHandmadeRepository;
+    private final ReviewClassificationLLMCatFinishedRepository reviewClassificationLLMCatFinishedRepository;
+    private final ReviewClassificationLLMDogHandmadeRepository reviewClassificationLLMDogHandmadeRepository;
+    private final ReviewClassificationLLMDogFinishedRepository reviewClassificationLLMDogFinishedRepository;
 
     @Override
     public String registerReview(UserPrincipal userPrincipal, ReviewCreateRequestDto dto) {
@@ -156,7 +162,20 @@ public class ReviewServiceImpl implements ReviewService {
     public void deleteReview(ReviewDeleteRequestDto dto) {
         Reviews review = reviewRepository.findById(dto.reviewId())
                 .orElseThrow(() -> new NoSuchElementException("해당 리뷰를 찾을 수 없습니다."));
+        Products product = review.getProduct(); // 리뷰에 연결된 상품
+        PetCategory petCategory = product.getPetCategory();
+        ProductCategory productCategory = product.getProductCategory();
 
+        // 0. classification 결과 먼저 삭제
+        if (petCategory == PetCategory.CAT && productCategory == ProductCategory.HANDMADE) {
+            reviewClassificationLLMCatHandmadeRepository.deleteAllByReview(review);
+        } else if (petCategory == PetCategory.CAT && productCategory == ProductCategory.FINISHED) {
+            reviewClassificationLLMCatFinishedRepository.deleteAllByReview(review);
+        } else if (petCategory == PetCategory.DOG && productCategory == ProductCategory.HANDMADE) {
+            reviewClassificationLLMDogHandmadeRepository.deleteAllByReview(review);
+        } else if (petCategory == PetCategory.DOG && productCategory == ProductCategory.FINISHED) {
+            reviewClassificationLLMDogFinishedRepository.deleteAllByReview(review);
+        }
         // 1. 리뷰와 연결된 모든 이미지 매핑 조회
         List<ReviewsImages> mappings = reviewImageRepository.findAllByReviewsId(dto.reviewId());
         // 2. 이미지 삭제 서비스 호출
