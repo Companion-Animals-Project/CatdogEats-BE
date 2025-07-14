@@ -51,7 +51,10 @@ public record SellerStoreInfoDTO(
         Double avgDeliveryDays,
 
         @Schema(description = "총 리뷰 수", example = "85")
-        Long totalReviews
+        Long totalReviews,
+
+        @Schema(description = "평균 리뷰 점수", example = "4.2")
+        Double avgReviewRating
 
 ) {
 
@@ -101,6 +104,7 @@ public record SellerStoreInfoDTO(
         Long totalSalesCount = stats != null ? stats.totalSalesCount() : 0L;
         Double avgDeliveryDays = stats != null ? stats.avgDeliveryDays() : 0.0;
         Long totalReviews = stats != null ? stats.totalReviews() : 0L;
+        Double avgReviewRating = stats != null ? stats.avgReviewRating() : 0.0;
 
         return new SellerStoreInfoDTO(
                 seller.getUserId(),
@@ -115,7 +119,8 @@ public record SellerStoreInfoDTO(
                 totalProducts,
                 totalSalesCount,
                 avgDeliveryDays,
-                totalReviews
+                totalReviews,
+                avgReviewRating
         );
     }
 
