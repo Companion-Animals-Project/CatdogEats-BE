@@ -73,8 +73,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        // 관리자 경로에서는 필터를 적용하지 않음
-        return request.getRequestURI().startsWith("/v1/admin/");
+        String uri = request.getRequestURI();
+        return uri.startsWith("/v1/admin/")
+                || uri.startsWith("/login/oauth2/code/")
+                || uri.equals("/v1/auth/refresh");
     }
 
 }

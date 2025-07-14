@@ -31,11 +31,15 @@ public class CustomOAuth2UserServiceImpl implements OAuth2UserService<OAuth2User
     private final DefaultOAuth2UserService defaultOAuth2UserService;
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) {
+        String provider = userRequest.getClientRegistration().getRegistrationId();
+        log.debug("=========== OAuth 인증 시작: {} ===========", provider);
+
         try {
             OAuth2User oAuth2User = defaultOAuth2UserService.loadUser(userRequest);
             OAuthDTO dto = oAuthDTOFactory.create(userRequest, oAuth2User);
             validateOAuthInfo(dto);
-
+            log.debug("에러 테스트 여기");
+            log.debug("oAuth2User: {}, dto: {}", oAuth2User, dto);
             Users savedUsers = userFactory.createFromOAuth(dto);
             Users users = userDuplicateService.isDuplicate(savedUsers);
             return new DefaultOAuth2User(
@@ -49,6 +53,9 @@ public class CustomOAuth2UserServiceImpl implements OAuth2UserService<OAuth2User
         }  catch (OAuth2AuthenticationException e) {
             log.error("OAuth2User loadUser error", e);
             throw e;
+        } catch (Exception e) {
+            log.error("OAuth2User loadUser error", e);
+            throw new RuntimeException(e);
         }
     }
 

@@ -2,14 +2,15 @@ package com.team5.catdogeats.global.config;
 
 import com.team5.catdogeats.auth.filter.JwtAuthenticationFilter;
 import com.team5.catdogeats.auth.filter.PreventDuplicateLoginFilter;
-import com.team5.catdogeats.auth.handler.*;
+import com.team5.catdogeats.auth.handler.CustomLogoutSuccessHandler;
+import com.team5.catdogeats.auth.handler.OAuth2AuthenticationFailureHandler;
+import com.team5.catdogeats.auth.handler.OAuth2AuthenticationSuccessHandler;
+import com.team5.catdogeats.auth.handler.SseSilentAccessDeniedHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -23,12 +24,10 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequest
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-@EnableRedisHttpSession(maxInactiveIntervalInSeconds = 1800)
 @Slf4j
 @RequiredArgsConstructor
 public class SecurityConfig {
@@ -72,7 +71,7 @@ public class SecurityConfig {
                             .deleteCookies("SESSION")
                             .permitAll())
                     .securityContext(securityContext ->
-                            securityContext.requireExplicitSave(false))                // SecurityContext 자동 저장 활성화
+                            securityContext.requireExplicitSave(true))                // SecurityContext 자동 저장 활성화
                     .exceptionHandling(exceptions -> exceptions
                             .authenticationEntryPoint((request, response, authException) -> {
                                 // 인증되지 않은 사용자를 로그인 페이지로 리다이렉트
@@ -100,7 +99,7 @@ public class SecurityConfig {
             http
                     .csrf(AbstractHttpConfigurer::disable)
                     .sessionManagement(session
-                            -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                            -> session.sessionCreationPolicy(SessionCreationPolicy.NEVER)
                             .sessionFixation().none())
                     .authorizeHttpRequests(authorize
                             -> authorize
@@ -147,7 +146,6 @@ public class SecurityConfig {
                     )
                     .httpBasic(AbstractHttpConfigurer::disable)
                     .formLogin(AbstractHttpConfigurer::disable)
-
                     .exceptionHandling(ex -> ex
                             .accessDeniedHandler(sseSilentAccessDeniedHandler)
                     )
@@ -168,10 +166,6 @@ public class SecurityConfig {
         }
     }
 
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
-        return authenticationConfiguration.getAuthenticationManager();
-    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
