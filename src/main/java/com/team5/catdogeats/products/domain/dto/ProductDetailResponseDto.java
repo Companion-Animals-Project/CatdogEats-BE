@@ -1,5 +1,7 @@
 package com.team5.catdogeats.products.domain.dto;
 
+import com.fasterxml.jackson.annotation.JsonRawValue;
+
 import java.util.List;
 
 public record ProductDetailResponseDto(
@@ -10,6 +12,7 @@ public record ProductDetailResponseDto(
         boolean isDiscounted,
         Double discountRate,
         Long price,
+        @JsonRawValue
         List<String> images,
         String vendorName,
         Double averageStar,

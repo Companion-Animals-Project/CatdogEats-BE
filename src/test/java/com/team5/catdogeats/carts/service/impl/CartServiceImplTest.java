@@ -3,6 +3,7 @@ package com.team5.catdogeats.carts.service.impl;
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.carts.domain.Carts;
 import com.team5.catdogeats.carts.domain.mapping.CartItems;
+import com.team5.catdogeats.carts.dto.TestBuyerDTO;
 import com.team5.catdogeats.carts.dto.request.AddCartItemRequest;
 import com.team5.catdogeats.carts.dto.request.UpdateCartItemRequest;
 import com.team5.catdogeats.carts.dto.response.CartResponse;
@@ -11,11 +12,12 @@ import com.team5.catdogeats.carts.repository.CartRepository;
 import com.team5.catdogeats.pets.domain.enums.PetCategory;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.domain.enums.ProductCategory;
-import com.team5.catdogeats.products.domain.enums.StockStatus;
 import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.domain.enums.Role;
+import com.team5.catdogeats.users.domain.mapping.Buyers;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
+import com.team5.catdogeats.users.repository.BuyerRepository;
 import com.team5.catdogeats.users.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,7 +34,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("CartServiceImpl 테스트")
@@ -46,6 +49,8 @@ class CartServiceImplTest {
 
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private BuyerRepository buyerRepository;
 
     @Mock
     private ProductRepository productRepository;
@@ -55,6 +60,7 @@ class CartServiceImplTest {
 
     private UserPrincipal userPrincipal;
     private Users testUser;
+    private Buyers testBuyer;
     private Users testSeller;
     private Sellers seller;
     private Carts testCart;
@@ -74,6 +80,12 @@ class CartServiceImplTest {
                 .role(Role.ROLE_BUYER)
                 .build();
 
+        testBuyer = Buyers.builder()
+                .userId("test-user-id")
+                .nameMaskingStatus(true)
+                .isDeleted(false)
+                .build();
+
         testSeller = Users.builder()
                 .id("test-seller-id")
                 .provider("google")
@@ -89,7 +101,7 @@ class CartServiceImplTest {
 
         testCart = Carts.builder()
                 .id("test-cart-id")
-                .user(testUser)
+                .buyers(testBuyer)
                 .build();
 
         testProduct = Products.builder()
@@ -100,8 +112,7 @@ class CartServiceImplTest {
                 .contents("테스트 상품 설명")
                 .petCategory(PetCategory.DOG)
                 .productCategory(ProductCategory.HANDMADE)
-                .stockStatus(StockStatus.IN_STOCK)
-                .isDiscounted(false)
+                .discounted(false)
                 .price(10000L)
                 .leadTime((short) 3)
                 .stock(100)
@@ -119,9 +130,10 @@ class CartServiceImplTest {
     @DisplayName("사용자 장바구니 조회 - 성공")
     void getCartByUserPrincipal_Success() {
         // given
-        given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
-                .willReturn(Optional.of(testUser));
-        given(cartRepository.findByUserId("test-user-id"))
+
+        given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "test-provider-id"))
+                .willReturn(Optional.of(TestBuyerDTO.from(testBuyer)));
+        given(cartRepository.findByBuyerId("test-user-id"))
                 .willReturn(Optional.of(testCart));
         given(cartItemRepository.findByCartsIdWithProduct("test-cart-id"))
                 .willReturn(Arrays.asList(testCartItem));
@@ -132,7 +144,7 @@ class CartServiceImplTest {
         // then
         assertThat(response).isNotNull();
         assertThat(response.getCartId()).isEqualTo("test-cart-id");
-        assertThat(response.getUserId()).isEqualTo("test-user-id");
+        assertThat(response.getBuyerId()).isEqualTo("test-user-id");
         assertThat(response.getItems()).hasSize(1);
         assertThat(response.getTotalAmount()).isEqualTo(10000L);
         assertThat(response.getTotalItemCount()).isEqualTo(1);
@@ -142,12 +154,12 @@ class CartServiceImplTest {
     @DisplayName("사용자 장바구니 조회 - 장바구니가 없는 경우 새로 생성")
     void getCartByUserPrincipal_CreateNewCart() {
         // given
-        given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
-                .willReturn(Optional.of(testUser));
-        given(cartRepository.findByUserId("test-user-id"))
+        given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "test-provider-id"))
+                .willReturn(Optional.of(TestBuyerDTO.from(testBuyer)));
+        given(cartRepository.findByBuyerId("test-user-id"))
                 .willReturn(Optional.empty());
-        given(userRepository.findById("test-user-id"))
-                .willReturn(Optional.of(testUser));
+        given(buyerRepository.findById("test-user-id"))
+                .willReturn(Optional.of(testBuyer));
         given(cartRepository.save(any(Carts.class)))
                 .willReturn(testCart);
         given(cartItemRepository.findByCartsIdWithProduct("test-cart-id"))
@@ -159,7 +171,7 @@ class CartServiceImplTest {
         // then
         assertThat(response).isNotNull();
         assertThat(response.getCartId()).isEqualTo("test-cart-id");
-        assertThat(response.getUserId()).isEqualTo("test-user-id");
+        assertThat(response.getBuyerId()).isEqualTo("test-user-id");
         assertThat(response.getItems()).isEmpty();
         assertThat(response.getTotalAmount()).isEqualTo(0L);
         assertThat(response.getTotalItemCount()).isEqualTo(0);
@@ -174,9 +186,9 @@ class CartServiceImplTest {
         request.setProductId("test-product-id");
         request.setQuantity(2);
 
-        given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
-                .willReturn(Optional.of(testUser));
-        given(cartRepository.findByUserId("test-user-id"))
+        given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "test-provider-id"))
+                .willReturn(Optional.of(TestBuyerDTO.from(testBuyer)));
+        given(cartRepository.findByBuyerId("test-user-id"))
                 .willReturn(Optional.of(testCart));
         given(productRepository.findById("test-product-id"))
                 .willReturn(Optional.of(testProduct));
@@ -220,9 +232,9 @@ class CartServiceImplTest {
                 .quantity(1)
                 .build();
 
-        given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
-                .willReturn(Optional.of(testUser));
-        given(cartRepository.findByUserId("test-user-id"))
+        given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "test-provider-id"))
+                .willReturn(Optional.of(TestBuyerDTO.from(testBuyer)));
+        given(cartRepository.findByBuyerId("test-user-id"))
                 .willReturn(Optional.of(testCart));
         given(productRepository.findById("test-product-id"))
                 .willReturn(Optional.of(testProduct));
@@ -249,11 +261,11 @@ class CartServiceImplTest {
         UpdateCartItemRequest request = new UpdateCartItemRequest();
         request.setQuantity(5);
 
-        given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
-                .willReturn(Optional.of(testUser));
-        given(cartRepository.findByUserId("test-user-id"))
+        given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "test-provider-id"))
+                .willReturn(Optional.of(TestBuyerDTO.from(testBuyer)));
+        given(cartRepository.findByBuyerId("test-user-id"))
                 .willReturn(Optional.of(testCart));
-        given(cartItemRepository.findByIdAndUserId("test-cart-item-id", "test-user-id"))
+        given(cartItemRepository.findByIdAndBuyerId("test-cart-item-id", "test-user-id"))
                 .willReturn(Optional.of(testCartItem));
         given(cartItemRepository.save(testCartItem))
                 .willReturn(testCartItem);
@@ -276,11 +288,11 @@ class CartServiceImplTest {
         UpdateCartItemRequest request = new UpdateCartItemRequest();
         request.setQuantity(5);
 
-        given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
-                .willReturn(Optional.of(testUser));
+        given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "test-provider-id"))
+                .willReturn(Optional.of(TestBuyerDTO.from(testBuyer)));
 //        given(cartRepository.findByUserId("test-user-id"))
 //                .willReturn(Optional.of(testCart));
-        given(cartItemRepository.findByIdAndUserId("other-cart-item-id", "test-user-id"))
+        given(cartItemRepository.findByIdAndBuyerId("other-cart-item-id", "test-user-id"))
                 .willReturn(Optional.empty());
 
         // when & then
@@ -295,11 +307,11 @@ class CartServiceImplTest {
     @DisplayName("장바구니 아이템 삭제 - 성공")
     void removeCartItem_Success() {
         // given
-        given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
-                .willReturn(Optional.of(testUser));
-        given(cartRepository.findByUserId("test-user-id"))
+        given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "test-provider-id"))
+                .willReturn(Optional.of(TestBuyerDTO.from(testBuyer)));
+        given(cartRepository.findByBuyerId("test-user-id"))
                 .willReturn(Optional.of(testCart));
-        given(cartItemRepository.findByIdAndUserId("test-cart-item-id", "test-user-id"))
+        given(cartItemRepository.findByIdAndBuyerId("test-cart-item-id", "test-user-id"))
                 .willReturn(Optional.of(testCartItem));
         willDoNothing().given(cartItemRepository).delete(testCartItem);
         given(cartItemRepository.findByCartsIdWithProduct("test-cart-id"))
@@ -329,9 +341,15 @@ class CartServiceImplTest {
                 .role(Role.ROLE_BUYER)
                 .build();
 
+        Buyers otherBuyer = Buyers.builder()
+                .user(otherUser)
+                .nameMaskingStatus(true)
+                .userId(otherUser.getId())
+                .build();
+
         Carts otherCart = Carts.builder()
                 .id("other-cart-id")
-                .user(otherUser)
+                .buyers(otherBuyer)
                 .build();
 
         CartItems otherCartItem = CartItems.builder()
@@ -340,12 +358,11 @@ class CartServiceImplTest {
                 .product(testProduct)
                 .quantity(1)
                 .build();
-
-        given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
-                .willReturn(Optional.of(testUser));
+        given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "test-provider-id"))
+                .willReturn(Optional.of(TestBuyerDTO.from(testBuyer)));
 //        given(cartRepository.findByUserId("test-user-id"))
 //                .willReturn(Optional.of(testCart));
-        given(cartItemRepository.findByIdAndUserId("other-cart-item-id", "test-user-id"))
+        given(cartItemRepository.findByIdAndBuyerId("other-cart-item-id", "test-user-id"))
                 .willReturn(Optional.empty());
 
         // when & then
@@ -362,9 +379,9 @@ class CartServiceImplTest {
         // given
         List<CartItems> cartItems = Arrays.asList(testCartItem);
 
-        given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
-                .willReturn(Optional.of(testUser));
-        given(cartRepository.findByUserId("test-user-id"))
+        given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "test-provider-id"))
+                .willReturn(Optional.of(TestBuyerDTO.from(testBuyer)));
+        given(cartRepository.findByBuyerId("test-user-id"))
                 .willReturn(Optional.of(testCart));
         given(cartItemRepository.findByCartsId("test-cart-id"))
                 .willReturn(cartItems);
@@ -381,9 +398,9 @@ class CartServiceImplTest {
     @DisplayName("빈 장바구니 비우기")
     void clearCart_EmptyCart() {
         // given
-        given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
-                .willReturn(Optional.of(testUser));
-        given(cartRepository.findByUserId("test-user-id"))
+        given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "test-provider-id"))
+                .willReturn(Optional.of(TestBuyerDTO.from(testBuyer)));
+        given(cartRepository.findByBuyerId("test-user-id"))
                 .willReturn(Optional.of(testCart));
         given(cartItemRepository.findByCartsId("test-cart-id"))
                 .willReturn(Collections.emptyList());
@@ -400,7 +417,7 @@ class CartServiceImplTest {
     @DisplayName("존재하지 않는 사용자로 장바구니 조회")
     void getCartByUserPrincipal_UserNotFound() {
         // given
-        given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
+        given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "test-provider-id"))
                 .willReturn(Optional.empty());
 
         // when & then
@@ -417,9 +434,9 @@ class CartServiceImplTest {
         request.setProductId("nonexistent-product-id");
         request.setQuantity(1);
 
-        given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
-                .willReturn(Optional.of(testUser));
-        given(cartRepository.findByUserId("test-user-id"))
+        given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "test-provider-id"))
+                .willReturn(Optional.of(TestBuyerDTO.from(testBuyer)));
+        given(cartRepository.findByBuyerId("test-user-id"))
                 .willReturn(Optional.of(testCart));
         given(productRepository.findById("nonexistent-product-id"))
                 .willReturn(Optional.empty());
@@ -437,11 +454,11 @@ class CartServiceImplTest {
         UpdateCartItemRequest request = new UpdateCartItemRequest();
         request.setQuantity(3);
 
-        given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
-                .willReturn(Optional.of(testUser));
+        given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "test-provider-id"))
+                .willReturn(Optional.of(TestBuyerDTO.from(testBuyer)));
 //        given(cartRepository.findByUserId("test-user-id"))
 //                .willReturn(Optional.of(testCart));
-        given(cartItemRepository.findByIdAndUserId("nonexistent-item-id", "test-user-id"))
+        given(cartItemRepository.findByIdAndBuyerId("nonexistent-item-id", "test-user-id"))
                 .willReturn(Optional.empty());
 
         // when & then
@@ -454,11 +471,11 @@ class CartServiceImplTest {
     @DisplayName("존재하지 않는 장바구니 아이템 삭제")
     void removeCartItem_ItemNotFound() {
         // given
-        given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
-                .willReturn(Optional.of(testUser));
+        given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "test-provider-id"))
+                .willReturn(Optional.of(TestBuyerDTO.from(testBuyer)));
 //        given(cartRepository.findByUserId("test-user-id"))
 //                .willReturn(Optional.of(testCart));
-        given(cartItemRepository.findByIdAndUserId("nonexistent-item-id", "test-user-id"))
+        given(cartItemRepository.findByIdAndBuyerId("nonexistent-item-id", "test-user-id"))
                 .willReturn(Optional.empty());
 
         // when & then
@@ -479,8 +496,7 @@ class CartServiceImplTest {
                 .contents("비싼 상품 설명")
                 .petCategory(PetCategory.CAT)
                 .productCategory(ProductCategory.FINISHED)
-                .stockStatus(StockStatus.IN_STOCK)
-                .isDiscounted(false)
+                .discounted(false)
                 .price(50000L)
                 .leadTime((short) 5)
                 .stock(20)
@@ -495,9 +511,9 @@ class CartServiceImplTest {
 
         List<CartItems> multipleItems = Arrays.asList(testCartItem, expensiveCartItem);
 
-        given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
-                .willReturn(Optional.of(testUser));
-        given(cartRepository.findByUserId("test-user-id"))
+        given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "test-provider-id"))
+                .willReturn(Optional.of(TestBuyerDTO.from(testBuyer)));
+        given(cartRepository.findByBuyerId("test-user-id"))
                 .willReturn(Optional.of(testCart));
         given(cartItemRepository.findByCartsIdWithProduct("test-cart-id"))
                 .willReturn(multipleItems);
@@ -524,9 +540,8 @@ class CartServiceImplTest {
                 .contents("할인 상품 설명")
                 .petCategory(PetCategory.DOG)
                 .productCategory(ProductCategory.HANDMADE)
-                .stockStatus(StockStatus.IN_STOCK)
-                .isDiscounted(true)
-                .discountRate(20.0)
+                .discounted(true)
+                .discountRate((short) 20)
                 .price(20000L) // 할인 전 가격
                 .leadTime((short) 3)
                 .stock(50)
@@ -539,9 +554,9 @@ class CartServiceImplTest {
                 .quantity(1)
                 .build();
 
-        given(userRepository.findByProviderAndProviderId("google", "test-provider-id"))
-                .willReturn(Optional.of(testUser));
-        given(cartRepository.findByUserId("test-user-id"))
+        given(buyerRepository.findOnlyBuyerByProviderAndProviderId("google", "test-provider-id"))
+                .willReturn(Optional.of(TestBuyerDTO.from(testBuyer)));
+        given(cartRepository.findByBuyerId("test-user-id"))
                 .willReturn(Optional.of(testCart));
         given(cartItemRepository.findByCartsIdWithProduct("test-cart-id"))
                 .willReturn(Arrays.asList(discountedCartItem));
