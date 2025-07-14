@@ -47,6 +47,9 @@ public class DebeziumConfig {
     @Value("${debezium.offset.storage-file}")
     private String offsetFilePath;
 
+    @Value("${debezium.connector.poll-interval-ms}")
+    private String pollIntervalMs;
+
     @Bean
     public io.debezium.config.Configuration createConnectorConfiguration() {
         try {
@@ -70,6 +73,7 @@ public class DebeziumConfig {
 
 
                     .with("table.include.list", tableIncludeList)
+                    .with("poll.interval.ms", pollIntervalMs)
 
                     .with("topic.prefix", "outbox-events")
                     .with("transforms.outbox.route.topic.replacement", "outbox.events")

@@ -17,6 +17,10 @@ spring:
       enabled: true
       max-file-size: 20MB
       max-request-size: 20MB
+  langchain4j:
+    google-ai-gemini:
+      api-key: ${API_KEY}
+      model-name: gemini-2.0-flash
   batch:
     jdbc:
       initialize-schema: always
