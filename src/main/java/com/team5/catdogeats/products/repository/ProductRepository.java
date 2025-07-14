@@ -3,10 +3,12 @@ package com.team5.catdogeats.products.repository;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.domain.dto.MainProductProjection;
 import com.team5.catdogeats.products.domain.dto.ProductDetailProjection;
+import com.team5.catdogeats.products.domain.dto.ProductInventoryProjection;
 import com.team5.catdogeats.products.domain.dto.ProductListProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -28,7 +30,8 @@ public interface ProductRepository extends JpaRepository<Products, String> {
 
     // 최신순 정렬
     @Query(value = """
-        SELECT 
+
+            SELECT 
             p.id AS productId,
             (
                 SELECT i.image_url
@@ -112,7 +115,7 @@ public interface ProductRepository extends JpaRepository<Products, String> {
         """,
             nativeQuery = true
     )
-    Page<ProductListProjection> findAllByOrderByPriceDesc(
+    Page<ProductListProjection> findAllByOrderByDiscountedPriceDesc(
             @Param("petCategory") String petCategory,
             @Param("productCategory") String productCategory,
             Pageable pageable
@@ -357,5 +360,56 @@ public interface ProductRepository extends JpaRepository<Products, String> {
         nativeQuery = true
     )
     List<MainProductProjection> findTop8ByBestScoreDesc();
+
+
+    @Modifying(clearAutomatically = true)
+    @Query("""
+    UPDATE Products p
+    SET p.stock =:stock
+    WHERE p.id =:id
+    """)
+    void updateStock(@Param("id") String id,
+                     @Param("stock") int stock);
+
+    @Query("""
+    SELECT p
+      FROM Products p
+      JOIN p.seller s
+      JOIN s.user u
+     WHERE p.id           = :id
+       AND u.provider     = :provider
+       AND u.providerId   = :providerId
+    """)
+    Optional<Products> findProductsByIdAndProviderId(@Param("id") String id,
+                                             @Param("provider") String provider,
+                                             @Param("providerId") String providerId);
+
+    @Query("""
+        SELECT p.id AS id,
+               p.title AS title,
+               p.productNumber AS productNumber,
+               p.stock AS stock,
+               p.safetyStock AS safetyStock,
+               p.price AS price,
+               p.discountedPrice AS discountedPrice,
+               p.discounted AS discounted
+        FROM Products p
+        """)
+    Page<ProductInventoryProjection> findProducts(Pageable pageable);
+
+    @Query("""
+    SELECT p.id AS id,
+           p.title AS title,
+           p.productNumber AS productNumber,
+           p.stock AS stock,
+           p.safetyStock AS safetyStock,
+           p.price AS price,
+           p.discountedPrice AS discountedPrice,
+           p.discounted AS discounted
+    FROM Products p
+    WHERE lower(p.title) LIKE lower(concat('%', :keyword, '%'))
+       OR lower(p.subTitle) LIKE lower(concat('%', :keyword, '%'))
+    """)
+    Page<ProductInventoryProjection> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
 
 }

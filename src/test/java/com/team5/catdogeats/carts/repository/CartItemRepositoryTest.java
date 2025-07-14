@@ -5,13 +5,14 @@ import com.team5.catdogeats.carts.domain.mapping.CartItems;
 import com.team5.catdogeats.pets.domain.enums.PetCategory;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.domain.enums.ProductCategory;
-import com.team5.catdogeats.products.domain.enums.StockStatus;
 import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.domain.enums.Role;
+import com.team5.catdogeats.users.domain.mapping.Buyers;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
-import com.team5.catdogeats.users.repository.UserRepository;
+import com.team5.catdogeats.users.repository.BuyerRepository;
 import com.team5.catdogeats.users.repository.SellersRepository;
+import com.team5.catdogeats.users.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,8 @@ class CartItemRepositoryTest {
 
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private BuyerRepository buyerRepository;
 
     @Autowired
     private ProductRepository productRepository;
@@ -47,6 +50,7 @@ class CartItemRepositoryTest {
     private SellersRepository sellersRepository;
 
     private Users testUser;
+    private Buyers testBuyer;
     private Users testSeller;
     private Sellers seller;
     private Carts testCart;
@@ -64,7 +68,12 @@ class CartItemRepositoryTest {
                 .role(Role.ROLE_BUYER)
                 .build();
         testUser = userRepository.save(testUser);
-
+        testBuyer = Buyers.builder()
+                .user(testUser)
+                .nameMaskingStatus(true)
+                .userId(testUser.getId())
+                .build();
+        testBuyer = buyerRepository.save(testBuyer);
         // 테스트용 판매자 생성
         testSeller = Users.builder()
                 .provider("google")
@@ -85,7 +94,7 @@ class CartItemRepositoryTest {
 
         // 테스트용 장바구니 생성
         testCart = Carts.builder()
-                .user(testUser)
+                .buyers(testBuyer)
                 .build();
         testCart = cartRepository.save(testCart);
 
@@ -99,8 +108,7 @@ class CartItemRepositoryTest {
                 .contents("테스트 상품 1 설명")
                 .petCategory(PetCategory.DOG)
                 .productCategory(ProductCategory.HANDMADE)
-                .stockStatus(StockStatus.IN_STOCK)
-                .isDiscounted(false)
+                .discounted(false)
                 .price(10000L)
                 .leadTime((short) 3)
                 .stock(100)
@@ -116,9 +124,8 @@ class CartItemRepositoryTest {
                 .contents("테스트 상품 2 설명")
                 .petCategory(PetCategory.CAT)
                 .productCategory(ProductCategory.FINISHED)
-                .stockStatus(StockStatus.IN_STOCK)
-                .isDiscounted(true)
-                .discountRate(10.0)
+                .discounted(true)
+                .discountRate((short) 10)
                 .price(15000L)
                 .leadTime((short) 5)
                 .stock(50)
@@ -303,8 +310,15 @@ class CartItemRepositoryTest {
                 .build();
         anotherUser = userRepository.save(anotherUser);
 
-        Carts anotherCart = Carts.builder()
+        Buyers antherBuyer = Buyers.builder()
                 .user(anotherUser)
+                .nameMaskingStatus(true)
+                .userId(anotherUser.getId())
+                .build();
+        antherBuyer = buyerRepository.save(antherBuyer);
+
+        Carts anotherCart = Carts.builder()
+                .buyers(antherBuyer)
                 .build();
         anotherCart = cartRepository.save(anotherCart);
 

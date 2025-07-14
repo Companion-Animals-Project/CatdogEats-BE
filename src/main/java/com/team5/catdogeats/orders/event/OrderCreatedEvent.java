@@ -23,7 +23,7 @@ public record OrderCreatedEvent(
         String orderNumber,
 
         // 사용자 정보 (결제 정보 생성용)
-        String userId,
+        String buyerId,
         String userProvider,
         String userProviderId,
 
@@ -43,7 +43,7 @@ public record OrderCreatedEvent(
     public static OrderCreatedEvent of(
             String orderId,
             String orderNumber,
-            String userId,
+            String buyerId,
             String userProvider,
             String userProviderId,
             Long finalTotalPrice,
@@ -52,7 +52,7 @@ public record OrderCreatedEvent(
         return new OrderCreatedEvent(
                 orderId,
                 orderNumber,
-                userId,
+                buyerId,
                 userProvider,
                 userProviderId,
                 finalTotalPrice,
@@ -68,26 +68,10 @@ public record OrderCreatedEvent(
         return orderItems != null ? orderItems.size() : 0;
     }
 
-    public String getFirstProductName() {
-        return orderItems != null && !orderItems.isEmpty()
-                ? orderItems.get(0).productName()
-                : "상품";
-    }
-
-    public Long getTotalQuantity() {
-        return orderItems != null
-                ? orderItems.stream().mapToLong(OrderItemInfo::quantity).sum()
-                : 0L;
-    }
 
     // 하위 호환성을 위한 메서드
     public Long getTotalPrice() {
         return finalTotalPrice;
     }
 
-    // 간단한 알림용 메서드들
-    public String getOrderSummary() {
-        return getFirstProductName() +
-                (getOrderItemCount() > 1 ? String.format(" 외 %d개", getOrderItemCount() - 1) : "");
-    }
 }

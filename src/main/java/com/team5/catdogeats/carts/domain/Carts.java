@@ -1,7 +1,7 @@
 package com.team5.catdogeats.carts.domain;
 
 import com.team5.catdogeats.baseEntity.BaseEntity;
-import com.team5.catdogeats.users.domain.Users;
+import com.team5.catdogeats.users.domain.mapping.Buyers;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -20,7 +20,7 @@ public class Carts extends BaseEntity {
     private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false,
-            foreignKey = @ForeignKey(name = "fk_carts_user"))
-    private Users user;
+    @JoinColumn(name = "buyer_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_carts_buyer"))
+    private Buyers buyers;
 }

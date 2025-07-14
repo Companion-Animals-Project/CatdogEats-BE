@@ -4,6 +4,7 @@ import com.team5.catdogeats.baseEntity.BaseEntity;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.payments.domain.enums.PaymentMethod;
 import com.team5.catdogeats.payments.domain.enums.PaymentStatus;
+import com.team5.catdogeats.payments.dto.response.TossPaymentConfirmResponse;
 import com.team5.catdogeats.users.domain.mapping.Buyers;
 import jakarta.persistence.*;
 import lombok.*;
@@ -51,4 +52,14 @@ public class Payments extends BaseEntity {
 
     @Column(name = "paid_at")
     private ZonedDateTime paidAt;
+
+    public void updatePaymentStatus(TossPaymentConfirmResponse response) {
+        this.status=PaymentStatus.SUCCESS;
+        this.tossPaymentKey= response.getPaymentKey();;
+        this.paidAt=ZonedDateTime.now();
+    }
+
+    public void updatePaymentStatus(PaymentStatus status) {
+        this.status=status;
+    }
 }

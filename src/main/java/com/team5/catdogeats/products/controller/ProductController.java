@@ -9,6 +9,7 @@ import com.team5.catdogeats.products.domain.dto.*;
 import com.team5.catdogeats.products.domain.enums.BuyerProductSortType;
 import com.team5.catdogeats.products.domain.enums.MainProductSortType;
 import com.team5.catdogeats.products.domain.enums.ProductCategory;
+import com.team5.catdogeats.products.service.InventoryAdjustmentService;
 import com.team5.catdogeats.products.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -17,6 +18,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -31,6 +33,64 @@ import java.util.NoSuchElementException;
 @Tag(name = "Product", description = "상품 정보 관련 API")
 public class ProductController {
     private final ProductService productService;
+    private final InventoryAdjustmentService inventoryAdjustmentService;
+
+    @GetMapping("/sellers/products/inventory/record")
+    public ResponseEntity<APIResponse<Page<InventoryAdjustmentProjection>>> updateList(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestParam(defaultValue="0") int page,
+            @RequestParam(defaultValue="10") int size) {
+        if (userPrincipal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
+        }
+        if (page < 0) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE));
+        }
+        try {
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS,inventoryAdjustmentService.adjustment(userPrincipal, page, size)));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(APIResponse.error(ResponseCode.ACCESS_DENIED));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+        }
+    }
+
+    @PostMapping("/sellers/products/inventory/record")
+    public ResponseEntity<APIResponse<Void>> updateList(
+            @AuthenticationPrincipal UserPrincipal userPrincipal, @RequestBody @Valid AdjustmentRequestDTO dto) {
+        if (userPrincipal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
+        }
+        try {
+            inventoryAdjustmentService.updateAdjustment(userPrincipal, dto);
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(APIResponse.error(ResponseCode.ACCESS_DENIED));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+        }
+    }
+
+    @GetMapping("/sellers/products/inventory/List")
+    public ResponseEntity<APIResponse<Page<ProductInventoryProjection>>> list(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestParam(required = false) String title,
+            @RequestParam(defaultValue="0") int page,
+            @RequestParam(defaultValue="10") int size) {
+        if (userPrincipal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
+        }
+        if (page < 0) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE));
+        }
+        try {
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS,inventoryAdjustmentService.productInventoryList(userPrincipal, page, size, title)));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(APIResponse.error(ResponseCode.ACCESS_DENIED));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+        }
+    }
 
     @Operation(
             summary = "상품 등록",

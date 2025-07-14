@@ -1,4 +1,4 @@
-package com.team5.catdogeats.products.dto;
+package com.team5.catdogeats.products.domain.dto;
 
 import lombok.Builder;
 import lombok.Getter;

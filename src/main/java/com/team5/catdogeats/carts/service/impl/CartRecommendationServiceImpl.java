@@ -44,7 +44,7 @@ public class CartRecommendationServiceImpl implements CartRecommendationService 
             Users user = getUserByPrincipal(userPrincipal);
 
             // 2. 사용자의 장바구니 아이템들 조회 (상품 정보 포함)
-            List<CartItems> cartItems = cartItemRepository.findCartItemsWithProductByUserId(user.getId());
+            List<CartItems> cartItems = cartItemRepository.findCartItemsWithProductByBuyerId(user.getId());
 
             // 3. 장바구니가 비어있으면 전체 인기 상품 추천
             if (cartItems.isEmpty()) {
