@@ -1,8 +1,13 @@
 batch:
   withdrawn:
-    cron: "${WITHDRAW_CRON:0 30 2 * * ?}"
+    cron: ${WITHDRAW_CRON:0 30 2 * * ?}
     chunk-size: ${WITHDRAW_CHUNK:1000}
 spring:
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 20MB
+      max-request-size: 20MB
   langchain4j:
     google-ai-gemini:
       api-key: ${API_KEY}
@@ -92,6 +97,9 @@ spring:
             token-uri: https://kauth.kakao.com/oauth/token
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
+      success: null
+      fail: null
+      duplicated: null
 
   jpa:
     hibernate:
@@ -113,9 +121,9 @@ spring:
           max-active: 8
           max-idle: 8
           min-idle: 0
-      mongodb:
-        uri: ${MONGO_URL}
-        database: ${MONGO_DATABASE}
+    mongodb:
+      uri: ${MONGO_URL}
+      database: ${MONGO_DATABASE}
   rabbitmq:
     host: localhost
     port: 5672
@@ -136,10 +144,10 @@ jwt:
 
   cookie:
     secure: true
-    same-site: Strict
+    same-site: none
     http-only: true
     max-age: 3600
-    domain: null
+    domain: .catdogeats.shop
     path: /
 
 logging:
@@ -210,3 +218,25 @@ admin:
 app:
   admin:
     base-url: ${APP_BASE_URL}  # 이메일 링크용 (운영 도메인)
+
+websocket:
+  endpoint: /v1/users/chat
+
+#url:  #예시입니다 서버 개발 하실 떄는 8080 포트로 바꾸시고 프론트 개발하실때는 5173포트를 사용해 주세요
+#  success: http://localhost:5173/
+#  fail: http://localhost:5173/login
+#  logout: http://localhost:5173/
+#  duplicate: http://localhost:5173/login?error=already_authenticated
+#  withdrawn: http://localhost:5173/withdrawn
+#  login: http://localhost:5173/login
+#  role-selection: http://localhost:5173/role-selection
+
+
+url:
+  success: https://www.catdogeats.shop
+  fail: https://www.catdogeats.shop/login
+  duplicate: https://www.catdogeats.shop/
+  logout: https://www.catdogeats.shop/
+  login: https://www.catdogeats.shop/
+  withdrawn: https://www.catdogeats.shop/withdrawn
+  role-selection: https://www.catdogeats.shop/role-selection

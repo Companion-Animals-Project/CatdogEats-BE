@@ -67,6 +67,14 @@ public enum ResponseCode {
     NOTIFICATION_SUCCESS(HttpStatus.OK, "알림이 성공적으로 전송되었습니다."),
     NOTIFICATION_READ_SUCCESS(HttpStatus.OK, "알림을 읽음 처리했습니다."),
 
+    // === 장바구니 관련 응답 ===
+    CART_SUCCESS(HttpStatus.OK, "장바구니 조회 성공"),
+    CART_ITEM_ADDED(HttpStatus.OK, "장바구니에 상품이 추가되었습니다"),
+    CART_ITEM_UPDATED(HttpStatus.OK, "장바구니 상품이 수정되었습니다"),
+    CART_ITEM_REMOVED(HttpStatus.OK, "장바구니 상품이 삭제되었습니다"),
+    CART_CLEARED(HttpStatus.OK, "장바구니가 비워졌습니다"),
+    CART_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "장바구니 아이템을 찾을 수 없습니다"),
+
     // === JSON 파싱 에러 ===
     JSON_PARSING_FAIL(HttpStatus.BAD_REQUEST, "JSON 형식이 올바르지 않습니다."),
 

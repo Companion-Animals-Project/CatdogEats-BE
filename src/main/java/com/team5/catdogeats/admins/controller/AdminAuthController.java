@@ -3,7 +3,7 @@ package com.team5.catdogeats.admins.controller;
 import com.team5.catdogeats.admins.domain.dto.*;
 import com.team5.catdogeats.admins.service.AdminAuthenticationService;
 import com.team5.catdogeats.admins.util.AdminControllerUtils;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -61,7 +61,7 @@ public class AdminAuthController {
     @PostMapping("/login")
     @ResponseBody
     @Operation(summary = "관리자 로그인", description = "관리자 계정으로 로그인합니다.")
-    public ResponseEntity<ApiResponse<AdminLoginResponseDTO>> login(
+    public ResponseEntity<APIResponse<AdminLoginResponseDTO>> login(
             @Valid @RequestBody AdminLoginRequestDTO request,
             HttpServletRequest servletRequest) {
 
@@ -69,7 +69,7 @@ public class AdminAuthController {
         HttpSession session = servletRequest.getSession(true);
         AdminLoginResponseDTO response = authService.login(request, session);
 
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, response));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
     }
 
     /**
@@ -122,18 +122,18 @@ public class AdminAuthController {
     @PostMapping("/change-password")
     @ResponseBody
     @Operation(summary = "관리자 비밀번호 변경", description = "관리자의 비밀번호를 변경합니다.")
-    public ResponseEntity<ApiResponse<String>> changePassword(
+    public ResponseEntity<APIResponse<String>> changePassword(
             @Valid @RequestBody AdminPasswordChangeRequestDTO request,
             HttpServletRequest servletRequest) {
 
         HttpSession session = servletRequest.getSession(false);
         if (session == null) {
             return ResponseEntity.status(401)
-                    .body(ApiResponse.error(ResponseCode.UNAUTHORIZED, "로그인이 필요합니다."));
+                    .body(APIResponse.error(ResponseCode.UNAUTHORIZED, "로그인이 필요합니다."));
         }
 
         authService.changePassword(request, session);
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, "비밀번호가 성공적으로 변경되었습니다."));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, "비밀번호가 성공적으로 변경되었습니다."));
     }
 
     /**
@@ -162,15 +162,15 @@ public class AdminAuthController {
     @GetMapping("/profile")
     @ResponseBody
     @Operation(summary = "관리자 정보 조회", description = "현재 로그인한 관리자의 정보를 조회합니다.")
-    public ResponseEntity<ApiResponse<AdminInfo>> getAdminProfile(HttpServletRequest request) {
+    public ResponseEntity<APIResponse<AdminInfo>> getAdminProfile(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
             return ResponseEntity.status(401)
-                    .body(ApiResponse.error(ResponseCode.UNAUTHORIZED, "로그인이 필요합니다."));
+                    .body(APIResponse.error(ResponseCode.UNAUTHORIZED, "로그인이 필요합니다."));
         }
 
         AdminInfo sessionInfo = controllerUtils.requireSessionInfo(session);
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, sessionInfo));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, sessionInfo));
     }
 
     /**
