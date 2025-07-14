@@ -1,7 +1,7 @@
 package com.team5.catdogeats.support.domain.inquiry.controller;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.support.domain.inquiry.dto.request.InquiryCreateRequestDTO;
 import com.team5.catdogeats.support.domain.inquiry.dto.request.InquiryUserCloseRequestDTO;
@@ -46,7 +46,7 @@ public class InquiryController {
             summary = "내 문의 목록 조회",
             description = "로그인한 사용자의 문의 목록을 페이징으로 조회합니다. 제목, 내용 미리보기, 상태, 작성일만 표시됩니다."
     )
-    public ResponseEntity<ApiResponse<Page<InquiryListResponseDTO>>> getUserInquiries(
+    public ResponseEntity<APIResponse<Page<InquiryListResponseDTO>>> getUserInquiries(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
             @RequestParam(defaultValue = "0") int page,
@@ -69,17 +69,17 @@ public class InquiryController {
                     userPrincipal.provider(), userPrincipal.providerId(), page, size);
 
             return ResponseEntity.ok(
-                    ApiResponse.success(ResponseCode.SUCCESS, inquiries)
+                    APIResponse.success(ResponseCode.SUCCESS, inquiries)
             );
         } catch (IllegalArgumentException e) {
             log.warn("사용자 문의 목록 조회 실패 - error: {}", e.getMessage());
             return ResponseEntity.badRequest().body(
-                    ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
+                    APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
             log.error("사용자 문의 목록 조회 중 서버 오류", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                    ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
+                    APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
         }
     }
@@ -89,7 +89,7 @@ public class InquiryController {
             summary = "내 문의 상세 조회",
             description = "로그인한 사용자의 특정 문의 상세 내용을 조회합니다. 제목, 전체 내용, 상태, 답변을 확인할 수 있습니다."
     )
-    public ResponseEntity<ApiResponse<InquiryDetailResponseDTO>> getInquiryDetail(
+    public ResponseEntity<APIResponse<InquiryDetailResponseDTO>> getInquiryDetail(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @PathVariable String inquiryId) {
 
@@ -101,27 +101,27 @@ public class InquiryController {
                     inquiryId, userPrincipal.provider(), userPrincipal.providerId());
 
             return ResponseEntity.ok(
-                    ApiResponse.success(ResponseCode.SUCCESS, inquiry)
+                    APIResponse.success(ResponseCode.SUCCESS, inquiry)
             );
         } catch (EntityNotFoundException e) {
             log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                    ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
+                    APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
             );
         } catch (AccessDeniedException e) {
             log.warn("접근 권한 없음 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
-                    ApiResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage())
+                    APIResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage())
             );
         } catch (IllegalArgumentException e) {
             log.warn("문의 상세 조회 실패 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
             return ResponseEntity.badRequest().body(
-                    ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
+                    APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
             log.error("문의 상세 조회 중 서버 오류 - inquiryId: {}", inquiryId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                    ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
+                    APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
         }
     }
@@ -134,7 +134,7 @@ public class InquiryController {
                     + "문의 유형: PRODUCT, ORDER, PAYMENT, DELIVERY, RETURN, ACCOUNT, ETC<br/>"
                     + "이미지 파일 첨부 가능 (JPG, PNG, WebP, 최대 5MB)"
     )
-    public ResponseEntity<ApiResponse<InquiryResponseDTO>> createInquiry(
+    public ResponseEntity<APIResponse<InquiryResponseDTO>> createInquiry(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "문의 등록 정보 (파일 포함)")
             @Valid @ModelAttribute InquiryCreateRequestDTO request) {
@@ -149,17 +149,17 @@ public class InquiryController {
                     request.imageFiles() != null ? request.imageFiles().length : 0);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
-                    ApiResponse.success(ResponseCode.CREATED, response)
+                    APIResponse.success(ResponseCode.CREATED, response)
             );
         } catch (IllegalArgumentException e) {
             log.warn("문의 등록 실패 - error: {}", e.getMessage());
             return ResponseEntity.badRequest().body(
-                    ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
+                    APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
             log.error("문의 등록 중 서버 오류", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                    ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
+                    APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
         }
     }
@@ -170,7 +170,7 @@ public class InquiryController {
             description = "사용자가 답글을 등록합니다. 파일 첨부는 선택사항입니다.<br/>" +
                     "이미지 파일 첨부 가능 (JPG, PNG, WebP, 최대 5MB)"
     )
-    public ResponseEntity<ApiResponse<InquiryResponseDTO>> createFollowup(
+    public ResponseEntity<APIResponse<InquiryResponseDTO>> createFollowup(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "답글 등록 정보 (파일 포함)")
             @Valid @ModelAttribute InquiryUserFollowupRequestDTO request) {
@@ -185,34 +185,34 @@ public class InquiryController {
                     request.imageFiles() != null ? request.imageFiles().length : 0);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
-                    ApiResponse.success(ResponseCode.CREATED, response)
+                    APIResponse.success(ResponseCode.CREATED, response)
             );
 
         } catch (EntityNotFoundException e) {
             log.warn("문의를 찾을 수 없음 - inquiryId: {}", request.inquiryId());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                    ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
+                    APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
             );
         } catch (AccessDeniedException e) {
             log.warn("접근 권한 없음 - inquiryId: {}, provider: {}, providerId: {}",
                     request.inquiryId(), userPrincipal.provider(), userPrincipal.providerId());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
-                    ApiResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage())
+                    APIResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage())
             );
         } catch (IllegalStateException e) {
             log.warn("종료된 문의에 답글 시도 - inquiryId: {}", request.inquiryId());
             return ResponseEntity.badRequest().body(
-                    ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
+                    APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (IllegalArgumentException e) {
             log.warn("답글 등록 실패 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.badRequest().body(
-                    ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
+                    APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
             log.error("답글 등록 중 서버 오류 - inquiryId: {}", request.inquiryId(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                    ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
+                    APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
         }
     }
@@ -224,7 +224,7 @@ public class InquiryController {
                     + "문의가 해결되었거나 더 이상 답변이 필요하지 않을 때 사용합니다.<br/>"
                     + "이미 종료된 문의는 종료할 수 없습니다."
     )
-    public ResponseEntity<ApiResponse<InquiryResponseDTO>> closeInquiry(
+    public ResponseEntity<APIResponse<InquiryResponseDTO>> closeInquiry(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Parameter(description = "문의 종료 요청")
             @Valid @RequestBody InquiryUserCloseRequestDTO request) {
@@ -237,27 +237,27 @@ public class InquiryController {
                     request.inquiryId(), userPrincipal.provider(), userPrincipal.providerId());
 
             return ResponseEntity.ok(
-                    ApiResponse.success(ResponseCode.SUCCESS, response)
+                    APIResponse.success(ResponseCode.SUCCESS, response)
             );
         } catch (EntityNotFoundException e) {
             log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                    ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
+                    APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
             );
         } catch (AccessDeniedException e) {
             log.warn("접근 권한 없음 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
-                    ApiResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage())
+                    APIResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage())
             );
         } catch (IllegalStateException e) {
             log.warn("문의 종료 실패 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.badRequest().body(
-                    ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
+                    APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
             log.error("문의 종료 중 서버 오류 - inquiryId: {}", request.inquiryId(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                    ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
+                    APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
         }
     }

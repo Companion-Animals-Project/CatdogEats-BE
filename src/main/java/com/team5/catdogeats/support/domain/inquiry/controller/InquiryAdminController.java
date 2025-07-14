@@ -2,20 +2,18 @@ package com.team5.catdogeats.support.domain.inquiry.controller;
 
 import com.team5.catdogeats.admins.domain.dto.AdminInfo;
 import com.team5.catdogeats.admins.util.AdminControllerUtils;
-import com.team5.catdogeats.global.dto.ApiResponse;
+import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
+import com.team5.catdogeats.storage.service.InquiryFileService;
+import com.team5.catdogeats.support.domain.enums.InquiryStatus;
+import com.team5.catdogeats.support.domain.enums.InquiryType;
+import com.team5.catdogeats.support.domain.enums.InquiryUrgentLevel;
 import com.team5.catdogeats.support.domain.inquiry.dto.request.InquiryCloseRequestDTO;
 import com.team5.catdogeats.support.domain.inquiry.dto.request.InquiryReplyRequestDTO;
 import com.team5.catdogeats.support.domain.inquiry.dto.request.InquiryUrgentLevelRequestDTO;
 import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryDetailResponseDTO;
 import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryListResponseDTO;
 import com.team5.catdogeats.support.domain.inquiry.dto.response.InquiryResponseDTO;
-import com.team5.catdogeats.storage.service.InquiryFileService;
-import com.team5.catdogeats.support.domain.enums.InquiryStatus;
-import com.team5.catdogeats.support.domain.enums.InquiryType;
-import com.team5.catdogeats.support.domain.enums.InquiryUrgentLevel;
-import com.team5.catdogeats.support.domain.inquiry.dto.request.*;
-import com.team5.catdogeats.support.domain.inquiry.dto.response.*;
 import com.team5.catdogeats.support.domain.inquiry.service.InquiryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -27,14 +25,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.*;
 
@@ -44,7 +40,7 @@ import java.time.LocalDate;
 @RestController
 @RequestMapping("/v1/admin/inquiries")
 @RequiredArgsConstructor
-//@PreAuthorize("hasRole('ADMIN')") // 스웨거 테스트용 주석 처리
+@PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Inquiry (Admin)", description = "1:1 문의 관리자 API - 관리자만 접근 가능")
 public class InquiryAdminController {
 
@@ -65,7 +61,7 @@ public class InquiryAdminController {
                     "- startDate/endDate: 날짜 범위 (yyyy-MM-dd 형식)<br/><br/>" +
                     "모든 조건은 선택사항이며, 조건이 없으면 전체 조회합니다."
     )
-    public ResponseEntity<ApiResponse<Page<InquiryListResponseDTO>>> getAllInquiries(
+    public ResponseEntity<APIResponse<Page<InquiryListResponseDTO>>> getAllInquiries(
             HttpSession session,
             // 검색 조건들
             @Parameter(description = "검색 키워드 (제목 + 내용)")
@@ -105,24 +101,27 @@ public class InquiryAdminController {
             // 세션 인증 추가
             AdminInfo adminInfo = controllerUtils.requireSessionInfo(session);
 
+            log.info("관리자 문의 목록 조회 - adminId: {}, adminName: {}",
+                    adminInfo.adminId(), adminInfo.name());
+
             Page<InquiryListResponseDTO> inquiries = inquiryService.getAllInquiriesWithSearchAndPaging(
                     keyword, status, type, urgentLevel, startDate, endDate,
                     page, size, sort, direction
             );
-            return ResponseEntity.ok(ApiResponse.success(ResponseCode.SUCCESS, inquiries));
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, inquiries));
         } catch (BadCredentialsException e) {
             log.warn("관리자 로그인 필요 - 목록 조회 시도, error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                    ApiResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
+                    APIResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
             );
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(
-                    ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
+                    APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
             log.error("관리자 문의 목록 조회 중 서버 오류", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                    ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
+                    APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
         }
     }
@@ -132,7 +131,7 @@ public class InquiryAdminController {
             summary = "문의 상세 조회 (관리자)",
             description = "관리자가 특정 문의의 상세 내용을 조회합니다."
     )
-    public ResponseEntity<ApiResponse<InquiryDetailResponseDTO>> getInquiryDetailForAdmin(
+    public ResponseEntity<APIResponse<InquiryDetailResponseDTO>> getInquiryDetailForAdmin(
             HttpSession session,
             @Parameter(description = "문의 ID")
             @PathVariable String inquiryId) {
@@ -142,25 +141,27 @@ public class InquiryAdminController {
             AdminInfo adminInfo = controllerUtils.requireSessionInfo(session);
 
             InquiryDetailResponseDTO inquiry = inquiryService.getInquiryDetailForAdmin(inquiryId);
-            log.info("관리자 문의 상세 조회 완료 - inquiryId: {}", inquiryId);
+
+            log.info("관리자 문의 상세 조회 완료 - inquiryId: {}, adminId: {}, adminName: {}",
+                    inquiryId, adminInfo.adminId(), adminInfo.name());
 
             return ResponseEntity.ok(
-                    ApiResponse.success(ResponseCode.SUCCESS, inquiry)
+                    APIResponse.success(ResponseCode.SUCCESS, inquiry)
             );
         } catch (BadCredentialsException e) {
             log.warn("관리자 로그인 필요 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                    ApiResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
+                    APIResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
             );
         } catch (IllegalArgumentException e) {
             log.warn("관리자 문의 상세 조회 실패 - inquiryId: {}, error: {}", inquiryId, e.getMessage());
             return ResponseEntity.badRequest().body(
-                    ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
+                    APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
             log.error("관리자 문의 상세 조회 중 서버 오류 - inquiryId: {}", inquiryId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                    ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
+                    APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
         }
     }
@@ -171,7 +172,7 @@ public class InquiryAdminController {
             description = "관리자가 특정 문의의 긴급도를 별도로 수정합니다.<br />"
                     + "긴급도 레벨: HIGH, MIDDLE, LOW"
     )
-    public ResponseEntity<ApiResponse<InquiryResponseDTO>> updateUrgentLevel(
+    public ResponseEntity<APIResponse<InquiryResponseDTO>> updateUrgentLevel(
             HttpSession session,
             @Parameter(description = "긴급도 수정 요청")
             @Valid @RequestBody InquiryUrgentLevelRequestDTO request) {
@@ -183,21 +184,25 @@ public class InquiryAdminController {
             InquiryResponseDTO response = inquiryService.updateUrgentLevel(
                     request.inquiryId(), request.urgentLevel());
 
+            log.info("관리자 긴급도 수정 완료 - inquiryId: {}, urgentLevel: {}, adminId: {}, adminName: {}",
+                    request.inquiryId(), request.urgentLevel(),
+                    adminInfo.adminId(), adminInfo.name());
+
             return ResponseEntity.ok(
-                    ApiResponse.success(ResponseCode.SUCCESS, response)
+                    APIResponse.success(ResponseCode.SUCCESS, response)
             );
         } catch (BadCredentialsException e) {
             log.warn("관리자 로그인 필요 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                    ApiResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
+                    APIResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
             );
         } catch (EntityNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                    ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
+                    APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
             );
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                    ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
+                    APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
         }
     }
@@ -212,7 +217,7 @@ public class InquiryAdminController {
                     + "- 이미지: JPG, PNG, WebP (최대 5MB)<br/>"
                     + "- 문서: PDF, DOC, DOCX, XLS, XLSX, HWP (최대 10MB)"
     )
-    public ResponseEntity<ApiResponse<InquiryResponseDTO>> createReply(
+    public ResponseEntity<APIResponse<InquiryResponseDTO>> createReply(
             HttpSession session,
             @Parameter(description = "답변 등록 정보 (파일 포함)")
             @Valid @ModelAttribute InquiryReplyRequestDTO request) {
@@ -236,32 +241,32 @@ public class InquiryAdminController {
                     request.documentFiles() != null ? request.documentFiles().length : 0);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
-                    ApiResponse.success(ResponseCode.CREATED, response)
+                    APIResponse.success(ResponseCode.CREATED, response)
             );
         } catch (BadCredentialsException e) {
             log.warn("관리자 로그인 필요 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                    ApiResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
+                    APIResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
             );
         } catch (EntityNotFoundException e) {
             log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                    ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
+                    APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
             );
         } catch (IllegalStateException e) {
             log.warn("종료된 문의에 답변 시도 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.badRequest().body(
-                    ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
+                    APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (IllegalArgumentException e) {
             log.warn("관리자 답변 등록 실패 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.badRequest().body(
-                    ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
+                    APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
             log.error("관리자 답변 등록 중 서버 오류 - inquiryId: {}", request.inquiryId(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                    ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
+                    APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
         }
     }
@@ -273,7 +278,7 @@ public class InquiryAdminController {
                     + "악성 문의, 장기간 미응답, 스팸, 부적절한 내용 등을 차단할 때 사용합니다.<br/>"
                     + "종료 사유는 필수입니다."
     )
-    public ResponseEntity<ApiResponse<InquiryResponseDTO>> forceCloseInquiry(
+    public ResponseEntity<APIResponse<InquiryResponseDTO>> forceCloseInquiry(
             HttpSession session,
             @Parameter(description = "강제 종료 요청")
             @Valid @RequestBody InquiryCloseRequestDTO request) {
@@ -290,28 +295,28 @@ public class InquiryAdminController {
                     request.inquiryId(), adminId, adminInfo.name(), request.reason());
 
             return ResponseEntity.ok(
-                    ApiResponse.success(ResponseCode.SUCCESS, response)
+                    APIResponse.success(ResponseCode.SUCCESS, response)
             );
         } catch (BadCredentialsException e) {
             log.warn("관리자 로그인 필요 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                    ApiResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
+                    APIResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
             );
         } catch (EntityNotFoundException e) {
             log.warn("문의를 찾을 수 없음 - inquiryId: {}, error: {}", request.inquiryId(), e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                    ApiResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
+                    APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage())
             );
         } catch (IllegalStateException e) {
             log.warn("문의 강제 종료 실패 - inquiryId: {}, error: {}",
                     request.inquiryId(), e.getMessage());
             return ResponseEntity.badRequest().body(
-                    ApiResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
+                    APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage())
             );
         } catch (Exception e) {
             log.error("문의 강제 종료 중 서버 오류 - inquiryId: {}", request.inquiryId(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                    ApiResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
+                    APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR)
             );
         }
     }
@@ -334,6 +339,9 @@ public class InquiryAdminController {
 
             // 파일명 생성을 서비스에 위임
             String fileName = inquiryFileService.generateAdminDownloadFileName(fileId);
+
+            log.info("관리자 파일 다운로드 완료 - inquiryId: {}, fileId: {}, fileName: {}, adminId: {}, adminName: {}",
+                    inquiryId, fileId, fileName, adminInfo.adminId(), adminInfo.name());
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
