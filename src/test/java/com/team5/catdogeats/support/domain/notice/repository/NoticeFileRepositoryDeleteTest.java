@@ -2,7 +2,7 @@ package com.team5.catdogeats.support.domain.notice.repository;
 
 import com.team5.catdogeats.storage.domain.Files;
 import com.team5.catdogeats.storage.domain.mapping.NoticeFiles;
-import com.team5.catdogeats.storage.repository.FilesRepository;
+import com.team5.catdogeats.storage.repository.FileRepository;
 import com.team5.catdogeats.support.domain.Notices;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.*;
 @DataJpaTest
 @ActiveProfiles("test")
 @DisplayName("공지사항-파일 매핑 Repository 삭제 테스트")
-class NoticeFilesRepositoryDeleteTest {
+class NoticeFileRepositoryDeleteTest {
 
     @Autowired
     private TestEntityManager entityManager;
@@ -31,7 +31,7 @@ class NoticeFilesRepositoryDeleteTest {
     private NoticeRepository noticeRepository;
 
     @Autowired
-    private FilesRepository filesRepository;
+    private FileRepository fileRepository;
 
     private Notices notice1;
     private Notices notice2;

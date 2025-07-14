@@ -3,7 +3,7 @@ package com.team5.catdogeats.support.domain.notice.service.impl;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.storage.domain.Files;
 import com.team5.catdogeats.storage.domain.mapping.NoticeFiles;
-import com.team5.catdogeats.storage.service.NoticeFileManagementService;
+import com.team5.catdogeats.storage.service.NoticeFileService;
 import com.team5.catdogeats.support.domain.Notices;
 import com.team5.catdogeats.support.domain.notice.dto.*;
 import com.team5.catdogeats.support.domain.notice.repository.NoticeFilesRepository;
@@ -28,7 +28,7 @@ public class NoticeServiceImpl implements NoticeService {
 
     private final NoticeRepository noticeRepository;
     private final NoticeFilesRepository noticeFilesRepository;
-    private final NoticeFileManagementService noticeFileManagementService;
+    private final NoticeFileService noticeFileService;
 
     private Sort createSort(String sortBy) {
         return switch (sortBy) {
@@ -129,7 +129,7 @@ public class NoticeServiceImpl implements NoticeService {
                 log.info("S3 파일 삭제 시도 - URL: {}", fileUrl);
 
                 try {
-                    noticeFileManagementService.deleteNoticeFileCompletely(fileId);
+                    noticeFileService.deleteNoticeFileCompletely(fileId);
                 } catch (Exception e) {
                     log.warn("파일 삭제 실패 (계속 진행) - ID: {}, 오류: {}", fileId, e.getMessage());
                 }
@@ -153,7 +153,7 @@ public class NoticeServiceImpl implements NoticeService {
                 .orElseThrow(() -> new NoSuchElementException("공지사항을 찾을 수 없습니다. ID: " + noticeId));
 
         // 🆕 파일 관리 서비스에 위임
-        Files savedFile = noticeFileManagementService.uploadNoticeFile(file);
+        Files savedFile = noticeFileService.uploadNoticeFile(file);
 
         // 공지사항과 파일 연결 (Notice 도메인 책임)
         NoticeFiles noticeFile = NoticeFiles.builder()
@@ -170,7 +170,7 @@ public class NoticeServiceImpl implements NoticeService {
     // ========== 파일 다운로드 ==========
     @Override
     public NoticeFileDownloadResponseDTO downloadFile(String fileId) {
-        return noticeFileManagementService.downloadNoticeFile(fileId);
+        return noticeFileService.downloadNoticeFile(fileId);
     }
 
     // ========== 파일 삭제 ==========
@@ -185,7 +185,7 @@ public class NoticeServiceImpl implements NoticeService {
         noticeFilesRepository.deleteById(noticeFile.getId());
 
         // 🆕 파일 관리 서비스에 위임 (Storage + Files DB 삭제)
-        noticeFileManagementService.deleteNoticeFileCompletely(fileId);
+        noticeFileService.deleteNoticeFileCompletely(fileId);
 
         log.info("파일 삭제 완료 - noticeId: {}, fileId: {}", noticeId, fileId);
     }
@@ -205,7 +205,7 @@ public class NoticeServiceImpl implements NoticeService {
         Notices notice = noticeFile.getNotices();
 
         // 🆕 파일 관리 서비스에 위임
-        noticeFileManagementService.replaceNoticeFile(fileId, newFile);
+        noticeFileService.replaceNoticeFile(fileId, newFile);
 
         log.info("파일 교체 완료 - noticeId: {}, fileId: {}", noticeId, fileId);
 
