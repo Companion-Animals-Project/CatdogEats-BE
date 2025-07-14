@@ -71,7 +71,7 @@ public class AddressServiceImpl implements AddressService {
     @Override
     @JpaTransactional
     public AddressResponseDto createAddress(AddressRequestDto requestDto, UserPrincipal userPrincipal) {
-        String userId = findUserIdByPrincipalFromUsers(userPrincipal);
+        String userId = findUserIdByPrincipal(userPrincipal);
 
         // 주소 개수 제한 검증
         validateAddressLimit(userId, requestDto.getAddressType());
@@ -108,7 +108,7 @@ public class AddressServiceImpl implements AddressService {
     @Override
     @JpaTransactional
     public AddressResponseDto updateAddress(String addressId, AddressUpdateRequestDto updateDto, UserPrincipal userPrincipal) {
-        String userId = findUserIdByPrincipalFromUsers(userPrincipal);
+        String userId = findUserIdByPrincipal(userPrincipal);
 
         Addresses address = findAddressById((addressId));
         validateAddressOwnership(address, userId);
@@ -191,6 +191,7 @@ public class AddressServiceImpl implements AddressService {
         }
 
         try {
+            // 1. 기본 주소 우선 조회
             var addressOpt = addressRepository.findByUserIdAndAddressTypeAndIsDefaultTrue(userId, addressType);
 
             if (addressOpt.isPresent()) {
@@ -199,18 +200,18 @@ public class AddressServiceImpl implements AddressService {
                         userId, addressType, result.getId(), result.getTitle());
                 return result;
             } else {
-                log.info("기본 주소가 없음 - userId: {}, addressType: {}", userId, addressType);
-
-                // 기본 주소가 없으면 해당 타입의 모든 주소를 조회해서 확인
+                // 2. 기본 주소가 없으면 해당 타입의 첫 번째 주소 반환 (사업자 주소는 1개만 있음)
                 List<Addresses> allAddresses = addressRepository.findByUserIdAndAddressTypeOrderByIsDefaultDescCreatedAtDesc(userId, addressType);
-                log.debug("해당 사용자의 {} 타입 주소 총 개수: {}", addressType, allAddresses.size());
 
                 if (!allAddresses.isEmpty()) {
-                    log.debug("첫 번째 주소 정보 - id: {}, title: {}, isDefault: {}",
-                            allAddresses.get(0).getId(), allAddresses.get(0).getTitle(), allAddresses.get(0).isDefault());
+                    AddressResponseDto result = AddressResponseDto.from(allAddresses.get(0));
+                    log.info("첫 번째 주소 반환 - userId: {}, addressType: {}, addressId: {}, isDefault: {}",
+                            userId, addressType, result.getId(), allAddresses.get(0).isDefault());
+                    return result;
+                } else {
+                    log.info("주소가 없음 - userId: {}, addressType: {}", userId, addressType);
+                    return null;
                 }
-
-                return null;
             }
         } catch (Exception e) {
             log.error("주소 조회 중 예외 발생 - userId: {}, addressType: {}, error: {}",
@@ -222,15 +223,6 @@ public class AddressServiceImpl implements AddressService {
     // Private 헬퍼 메서드
     // UserPrincipal에서 userId 조회
     private String findUserIdByPrincipal(UserPrincipal userPrincipal) {
-        BuyerDTO buyerDTO = buyerRepository.findOnlyBuyerByProviderAndProviderId(
-                userPrincipal.provider(),
-                userPrincipal.providerId()
-        ).orElseThrow(() -> new UserNotFoundException("해당 유저 정보를 찾을 수 없습니다."));
-
-        return buyerDTO.userId();
-    }
-    // UserPrincipal에서 userId 조회 - Seller,Buyer 둘다 호환되는 버전
-    private String findUserIdByPrincipalFromUsers(UserPrincipal userPrincipal) {
         Users user = userRepository.findByProviderAndProviderId(
                 userPrincipal.provider(),
                 userPrincipal.providerId()
