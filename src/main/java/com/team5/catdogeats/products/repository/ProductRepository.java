@@ -1,10 +1,7 @@
 package com.team5.catdogeats.products.repository;
 
 import com.team5.catdogeats.products.domain.Products;
-import com.team5.catdogeats.products.domain.dto.MainProductProjection;
-import com.team5.catdogeats.products.domain.dto.ProductDetailProjection;
-import com.team5.catdogeats.products.domain.dto.ProductInventoryProjection;
-import com.team5.catdogeats.products.domain.dto.ProductListProjection;
+import com.team5.catdogeats.products.domain.dto.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -414,5 +411,38 @@ public interface ProductRepository extends JpaRepository<Products, String> {
        OR lower(p.subTitle) LIKE lower(concat('%', :keyword, '%'))
     """)
     Page<ProductInventoryProjection> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
+
+    @Query(value = """
+    SELECT 
+        (
+            SELECT i.image_url
+            FROM products_images pi
+            JOIN images i ON i.id = pi.product_image_id
+            WHERE pi.product_id = p.id
+            ORDER BY pi.created_at
+            LIMIT 1
+        ) AS imageUrl,
+        p.title AS title,
+        p.id AS productId,
+        p.product_number AS productNumber,
+        p.petcategory::text AS petCategory,
+        p.productcategory::text AS productCategory,
+        CAST(p.price AS bigint) AS price,         -- ★ 반드시 CAST!
+        CAST(p.stock AS integer) AS stock,        -- ★ 반드시 CAST!
+        p.updated_at AS updatedAt
+    FROM products p
+    WHERE p.seller_id = :sellerId
+    ORDER BY p.updated_at DESC
+    """,
+            countQuery = """
+        SELECT COUNT(*)
+        FROM products p
+        WHERE p.seller_id = :sellerId
+    """,
+            nativeQuery = true)
+    Page<SellerProductListProjection> findSellerProductsBySellerId(
+            @Param("sellerId") String sellerId,
+            Pageable pageable
+    );
 
 }

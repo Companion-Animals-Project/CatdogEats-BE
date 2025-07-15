@@ -22,6 +22,7 @@ import com.team5.catdogeats.users.repository.SellersRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -161,6 +162,15 @@ public class ProductServiceImpl implements ProductService {
                         p.getCreatedAt()
                 ))
                 .toList();
+    }
+
+    @Override
+    public Page<SellerProductListProjection> getSellerProductList(UserPrincipal userPrincipal, int page, int size) {
+        String sellerId = sellerRepository.findSellerDtoByProviderAndProviderId(
+                        userPrincipal.provider(), userPrincipal.providerId()
+                ).orElseThrow(() -> new NoSuchElementException("해당 유저 정보를 찾을 수 없습니다."))
+                .userId();
+        return productRepository.findSellerProductsBySellerId(sellerId, PageRequest.of(page, size));
     }
 
 
