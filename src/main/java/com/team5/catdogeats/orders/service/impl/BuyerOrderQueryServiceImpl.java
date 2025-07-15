@@ -1,0 +1,314 @@
+package com.team5.catdogeats.orders.service.impl;
+
+import com.team5.catdogeats.auth.dto.UserPrincipal;
+import com.team5.catdogeats.global.annotation.JpaTransactional;
+import com.team5.catdogeats.orders.domain.Orders;
+import com.team5.catdogeats.orders.domain.Shipments;
+import com.team5.catdogeats.orders.domain.enums.OrderStatus;
+import com.team5.catdogeats.orders.domain.mapping.OrderItems;
+import com.team5.catdogeats.orders.dto.response.BuyerOrderListResponse;
+import com.team5.catdogeats.orders.dto.response.BuyerShipmentDetailResponse;
+import com.team5.catdogeats.orders.dto.response.TrackingResponse;
+import com.team5.catdogeats.orders.repository.OrderRepository;
+import com.team5.catdogeats.orders.repository.ShipmentRepository;
+import com.team5.catdogeats.orders.service.BuyerOrderQueryService;
+import com.team5.catdogeats.orders.service.LogisticsTrackingService;
+import com.team5.catdogeats.orders.service.ShipmentSyncService;
+import com.team5.catdogeats.users.domain.dto.BuyerDTO;
+import com.team5.catdogeats.users.domain.mapping.Buyers;
+import com.team5.catdogeats.users.repository.BuyerRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import java.time.ZonedDateTime;
+import java.util.List;
+import java.util.NoSuchElementException;
+
+/**
+ * 구매자용 주문/배송 조회 전용 서비스 구현체
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class BuyerOrderQueryServiceImpl implements BuyerOrderQueryService {
+
+    private final OrderRepository orderRepository;
+    private final ShipmentRepository shipmentRepository;
+    private final BuyerRepository buyerRepository;
+    private final LogisticsTrackingService logisticsTrackingService;
+    private final ShipmentSyncService shipmentSyncService; // 자동 동기화 서비스 추가
+
+    /**
+     * 구매자 주문 목록 조회 (배송 정보 포함)
+     */
+    @Override
+    @JpaTransactional(readOnly = true)
+    public BuyerOrderListResponse getBuyerOrderList(UserPrincipal userPrincipal, Pageable pageable) {
+        log.info("구매자 주문 목록 조회 시작 - provider: {}, providerId: {}, page: {}, size: {}",
+                userPrincipal.provider(), userPrincipal.providerId(),
+                pageable.getPageNumber(), pageable.getPageSize());
+
+        try {
+            // 1. 구매자 인증 및 조회
+            Buyers buyer = findBuyerByPrincipal(userPrincipal);
+
+            // 2. 페이징 정보 검증
+            validatePageable(pageable);
+
+            // 3. 구매자 주문 목록 조회 (연관 데이터 포함)
+            Page<Orders> orderPage = orderRepository.findBuyerOrdersWithDetails(buyer, pageable);
+
+            // 4. DTO 변환
+            List<BuyerOrderListResponse.BuyerOrderSummary> orderSummaries =
+                    orderPage.getContent().stream()
+                            .map(this::convertToBuyerOrderSummary)
+                            .toList();
+
+            // 5. 응답 DTO 생성
+            BuyerOrderListResponse response = BuyerOrderListResponse.of(
+                    orderSummaries,
+                    orderPage.getNumber(),
+                    orderPage.getTotalPages(),
+                    orderPage.getTotalElements(),
+                    orderPage.getSize(),
+                    orderPage.hasNext(),
+                    orderPage.hasPrevious()
+            );
+
+            log.info("구매자 주문 목록 조회 성공 - page={}, size={}, totalElements={}",
+                    pageable.getPageNumber(), pageable.getPageSize(), orderPage.getTotalElements());
+
+            return response;
+
+        } catch (IllegalArgumentException e) {
+            log.warn("구매자 주문 목록 조회 인자 오류 - reason={}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("구매자 주문 목록 조회 중 오류 - provider={}, providerId={}",
+                    userPrincipal.provider(), userPrincipal.providerId(), e);
+            throw new RuntimeException("주문 목록 조회 중 오류가 발생했습니다", e);
+        }
+    }
+
+    /**
+     * 구매자 배송 정보 상세 조회
+     */
+    @Override
+    @JpaTransactional(readOnly = true)
+    public BuyerShipmentDetailResponse getBuyerShipmentDetail(UserPrincipal userPrincipal, String orderNumber) {
+        log.info("구매자 배송 정보 상세 조회 시작 - provider: {}, providerId: {}, orderNumber: {}",
+                userPrincipal.provider(), userPrincipal.providerId(), orderNumber);
+
+        try {
+            // 1. 구매자 인증 및 조회
+            Buyers buyer = findBuyerByPrincipal(userPrincipal);
+
+            // 2. 주문 조회 및 권한 확인
+            Orders order = orderRepository.findOrderDetailByUserAndOrderNumber(buyer, orderNumber)
+                    .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없거나 접근 권한이 없습니다."));
+
+            // 3. 배송 정보 조회
+            Shipments shipment = shipmentRepository.findByOrders(order)
+                    .orElseThrow(() -> new IllegalStateException("배송 정보가 없는 주문입니다."));
+
+            // ===== 4. [신규] 자동 동기화 수행 =====
+            try {
+                boolean isSynced = shipmentSyncService.syncSingleOrderDeliveryStatus(orderNumber);
+                if (isSynced) {
+                    log.info("배송 상태 자동 동기화 완료 - orderNumber: {}, 상태 업데이트됨", orderNumber);
+
+                    // 동기화 후 최신 정보 다시 조회
+                    order = orderRepository.findOrderDetailByUserAndOrderNumber(buyer, orderNumber)
+                            .orElseThrow(() -> new NoSuchElementException("주문을 찾을 수 없습니다."));
+                    shipment = shipmentRepository.findByOrders(order)
+                            .orElseThrow(() -> new IllegalStateException("배송 정보가 없습니다."));
+                } else {
+                    log.debug("배송 상태 동기화 불필요 - orderNumber: {}", orderNumber);
+                }
+            } catch (Exception syncError) {
+                // 동기화 실패 시에도 기존 데이터로 계속 진행
+                log.warn("배송 상태 자동 동기화 실패, 기존 데이터로 진행 - orderNumber: {}, error: {}",
+                        orderNumber, syncError.getMessage());
+            }
+
+            // 5. 물류 서버에서 실시간 배송 추적 로그 조회
+            List<BuyerShipmentDetailResponse.TrackingLog> trackingLogs =
+                    getTrackingLogsFromLogisticsServer(shipment.getTrackingNumber());
+
+            // 6. 운송장 정보 생성
+            BuyerShipmentDetailResponse.TrackingInfo trackingInfo = null;
+            if (shipment.getTrackingNumber() != null && shipment.getCourier() != null) {
+                trackingInfo = BuyerShipmentDetailResponse.TrackingInfo.of(
+                        shipment.getTrackingNumber(),
+                        shipment.getCourier()
+                );
+            }
+
+            // 7. 수취인 정보 생성
+            BuyerShipmentDetailResponse.RecipientInfo recipientInfo =
+                    BuyerShipmentDetailResponse.RecipientInfo.of(
+                            shipment.getRecipientName(),
+                            shipment.getRecipientPhone(),
+                            shipment.getPostalCode(),
+                            shipment.getStreetAddress(),
+                            shipment.getDetailAddress(),
+                            shipment.getDeliveryRequest()
+                    );
+
+            // ===== 8. [복원] 배송 상태에 따른 응답 분기 로직 =====
+            BuyerShipmentDetailResponse response;
+            OrderStatus currentOrderStatus = order.getOrderStatus();
+
+            log.info("응답 분기 판단 - orderNumber: {}, orderStatus: {}, deliveredAt: {}",
+                    orderNumber, currentOrderStatus, shipment.getDeliveredAt());
+
+            if (OrderStatus.DELIVERED.equals(currentOrderStatus)) {
+                // 주문 상태가 배송완료인 경우 - 도착일 표시
+                ZonedDateTime arrivalDate = shipment.getDeliveredAt() != null
+                        ? shipment.getDeliveredAt()
+                        : shipment.getTrackingUpdatedAt(); // fallback
+
+                response = BuyerShipmentDetailResponse.withArrivalDate(
+                        orderNumber,
+                        arrivalDate,
+                        trackingInfo,
+                        recipientInfo,
+                        trackingLogs
+                );
+
+                log.info("배송완료 응답 생성 - orderNumber: {}, arrivalDate: {}", orderNumber, arrivalDate);
+            } else {
+                // 배송 중인 경우 - 현재 배송 상태 표시
+                response = BuyerShipmentDetailResponse.withDeliveryStatus(
+                        orderNumber,
+                        currentOrderStatus,
+                        trackingInfo,
+                        recipientInfo,
+                        trackingLogs
+                );
+
+                log.info("배송중 응답 생성 - orderNumber: {}, deliveryStatus: {}", orderNumber, currentOrderStatus);
+            }
+
+            log.info("구매자 배송 정보 상세 조회 성공 - orderNumber={}, finalStatus={}, logsCount={}",
+                    orderNumber, currentOrderStatus, trackingLogs.size());
+
+            return response;
+
+        } catch (NoSuchElementException | IllegalStateException e) {
+            log.warn("구매자 배송 정보 상세 조회 실패 - orderNumber: {}, reason: {}", orderNumber, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("구매자 배송 정보 상세 조회 중 오류 - orderNumber: {}", orderNumber, e);
+            throw new RuntimeException("배송 정보 상세 조회 중 오류가 발생했습니다", e);
+        }
+    }
+
+    // ===== 내부 헬퍼 메서드들 =====
+
+    /**
+     * UserPrincipal로 구매자 엔티티 조회 (기존 코드와 동일)
+     */
+    private Buyers findBuyerByPrincipal(UserPrincipal userPrincipal) {
+        BuyerDTO buyerDTO = buyerRepository.findOnlyBuyerByProviderAndProviderId(
+                        userPrincipal.provider(), userPrincipal.providerId())
+                .orElseThrow(() -> new NoSuchElementException("구매자를 찾을 수 없습니다"));
+        return BuyerDTO.toEntity(buyerDTO);
+    }
+
+    /**
+     * 구매자용 주문 요약 정보 변환
+     */
+    private BuyerOrderListResponse.BuyerOrderSummary convertToBuyerOrderSummary(Orders order) {
+        // 주문 상품 정보 요약 생성 ("상품명 외 N건")
+        String orderItemsInfo = buildOrderItemsInfo(order.getOrderItems());
+
+        // 배송 상태에 따른 분기 처리
+        if (order.getShipment() != null && order.getShipment().getDeliveredAt() != null) {
+            // 배송 완료된 경우 - 도착일 표시
+            return BuyerOrderListResponse.BuyerOrderSummary.withArrivalDate(
+                    order.getOrderNumber(),
+                    order.getCreatedAt(),
+                    order.getShipment().getDeliveredAt(),
+                    orderItemsInfo,
+                    order.getDiscountedTotalPrice() // getTotalPrice() → getDiscountedTotalPrice() 변경
+            );
+        } else {
+            // 배송 중인 경우 - 배송 상태 표시
+            return BuyerOrderListResponse.BuyerOrderSummary.withDeliveryStatus(
+                    order.getOrderNumber(),
+                    order.getCreatedAt(),
+                    order.getOrderStatus(),
+                    orderItemsInfo,
+                    order.getDiscountedTotalPrice() // getTotalPrice() → getDiscountedTotalPrice() 변경
+            );
+        }
+    }
+
+    /**
+     * 주문 상품 정보 요약 생성 ("상품명 외 N건")
+     */
+    private String buildOrderItemsInfo(List<OrderItems> orderItems) {
+        if (orderItems == null || orderItems.isEmpty()) {
+            return "상품 정보 없음";
+        }
+
+        String firstProductName = orderItems.get(0).getProducts().getTitle();
+        int additionalCount = orderItems.size() - 1;
+
+        if (additionalCount > 0) {
+            return firstProductName + " 외 " + additionalCount + "건";
+        } else {
+            return firstProductName;
+        }
+    }
+
+    /**
+     * 물류 서버에서 배송 추적 로그 조회 (기존 방식 유지)
+     */
+    private List<BuyerShipmentDetailResponse.TrackingLog> getTrackingLogsFromLogisticsServer(String trackingNumber) {
+        if (trackingNumber == null || trackingNumber.trim().isEmpty()) {
+            log.warn("운송장 번호가 없어 배송 추적 로그를 조회할 수 없습니다");
+            return List.of();
+        }
+
+        try {
+            return logisticsTrackingService.getTrackingInfo(trackingNumber)
+                    .map(this::convertTrackingLogs)
+                    .orElse(List.of());
+        } catch (Exception e) {
+            log.warn("물류 서버 배송 추적 로그 조회 실패 - trackingNumber: {}, error: {}",
+                    trackingNumber, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * 물류 서버 응답을 BuyerShipmentDetailResponse.TrackingLog로 변환 (기존 방식 유지)
+     */
+    private List<BuyerShipmentDetailResponse.TrackingLog> convertTrackingLogs(TrackingResponse trackingResponse) {
+        return trackingResponse.logs().stream()
+                .map(log -> BuyerShipmentDetailResponse.TrackingLog.of(
+                        log.timestamp(),
+                        log.status(),
+                        "", // 물류 서버 응답에 location 정보가 없으므로 빈 문자열
+                        log.description()
+                ))
+                .toList();
+    }
+
+    /**
+     * 페이징 정보 검증 (기존 방식 유지)
+     */
+    private void validatePageable(Pageable pageable) {
+        if (pageable.getPageSize() > 100) {
+            throw new IllegalArgumentException("페이지 크기는 100을 초과할 수 없습니다");
+        }
+        if (pageable.getPageNumber() < 0) {
+            throw new IllegalArgumentException("페이지 번호는 0 이상이어야 합니다");
+        }
+    }
+}
