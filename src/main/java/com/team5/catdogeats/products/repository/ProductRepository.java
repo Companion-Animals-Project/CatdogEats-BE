@@ -45,12 +45,18 @@ public interface ProductRepository extends JpaRepository<Products, String> {
                 FROM reviews r
                 WHERE r.product_id = p.id
             ) AS averageStar,
+            (
+              SELECT COUNT(*)
+              FROM reviews r
+              WHERE r.product_id = p.id
+            ) AS reviewCount,
             p.price,
+            p.product_number as productNumber,
             p.discount_rate AS discountRate,
-            p.is_discounted AS isDiscounted,
+            p.discounted AS isDiscounted,
+            p.discounted_price AS discountedPrice,
             p.petCategory,
             p.productCategory,
-            p.stock_status AS stockStatus,
             p.created_at AS createdAt
         FROM products p
         JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
@@ -92,12 +98,18 @@ public interface ProductRepository extends JpaRepository<Products, String> {
                 FROM reviews r
                 WHERE r.product_id = p.id
             ) AS averageStar,
+            (
+              SELECT COUNT(*)
+              FROM reviews r
+              WHERE r.product_id = p.id
+            ) AS reviewCount,
             p.price,
+            p.product_number as productNumber,
             p.discount_rate AS discountRate,
-            p.is_discounted AS isDiscounted,
+            p.discounted AS isDiscounted,
+            p.discounted_price AS discountedPrice,
             p.petCategory,
             p.productCategory,
-            p.stock_status AS stockStatus,
             p.created_at AS createdAt
         FROM products p
         JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
@@ -139,12 +151,18 @@ public interface ProductRepository extends JpaRepository<Products, String> {
                 FROM reviews r
                 WHERE r.product_id = p.id
             ) AS averageStar,
+            (
+              SELECT COUNT(*)
+              FROM reviews r
+              WHERE r.product_id = p.id
+            ) AS reviewCount,
             p.price,
+            p.product_number as productNumber,
             p.discount_rate AS discountRate,
-            p.is_discounted AS isDiscounted,
+            p.discounted AS isDiscounted,
+            p.discounted_price AS discountedPrice,
             p.petCategory,
             p.productCategory,
-            p.stock_status AS stockStatus,
             p.created_at AS createdAt
         FROM products p
         JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
@@ -179,9 +197,10 @@ public interface ProductRepository extends JpaRepository<Products, String> {
                 p.subtitle AS subTitle,
                 p.productinfo AS productInfo,
                 p.contents AS contents,
-                p.is_discounted AS isDiscounted,
+                p.discounted AS isDiscounted,
                 p.discount_rate AS discountRate,
                 p.price AS price,
+                p.discounted_price AS discountedPrice,
                 -- 이미지 여러 장 json 배열로
                 (
                   SELECT COALESCE(json_agg(i.image_url), '[]')
@@ -233,9 +252,12 @@ public interface ProductRepository extends JpaRepository<Products, String> {
                 FROM reviews r
                 WHERE r.product_id = p.id
             ) AS reviewCount,
+            p.id AS productId,
+            p.product_number AS productNumber,
             p.price,
-            p.is_discounted AS isDiscounted,
+            p.discounted AS isDiscounted,
             p.discount_rate AS discountRate,
+            p.discounted_price AS discountedPrice,
             p.created_at AS createdAt
         FROM products p
         JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
@@ -271,12 +293,15 @@ public interface ProductRepository extends JpaRepository<Products, String> {
                 WHERE r.product_id = p.id
             ) AS reviewCount,
             p.price,
-            p.is_discounted AS isDiscounted,
+            p.id AS productId,
+            p.product_number AS productNumber,
+            p.discounted AS isDiscounted,
             p.discount_rate AS discountRate,
+            p.discounted_price AS discountedPrice,
             p.created_at AS createdAt
         FROM products p
         JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
-        WHERE p.is_discounted = true
+        WHERE p.discounted = true
         ORDER BY p.discount_rate DESC NULLS LAST
         LIMIT 8
     """,
@@ -331,11 +356,14 @@ public interface ProductRepository extends JpaRepository<Products, String> {
             ) AS imageUrl,
             s.vendor_name AS vendorName,
             p.title AS title,
+            p.id AS productId,
+            p.product_number AS productNumber,
             COALESCE(rd.avg_rating, 0.0) AS averageStar,
             COALESCE(rd.review_count, 0) AS reviewCount,
             p.price,
-            p.is_discounted AS isDiscounted,
+            p.discounted AS isDiscounted,
             p.discount_rate AS discountRate,
+            p.discounted_price AS discountedPrice,
             p.created_at AS createdAt,
             (
                 -- 판매량 정규화(0~100) * 0.4

@@ -135,6 +135,7 @@ public class ProductServiceImpl implements ProductService {
                 projection.getIsDiscounted() != null && projection.getIsDiscounted(),
                 projection.getDiscountRate(),
                 projection.getPrice(),
+                projection.getDiscountedPrice(),
                 projection.getImages(),
                 projection.getVendorName(),
                 projection.getAverageStar(),
@@ -151,6 +152,8 @@ public class ProductServiceImpl implements ProductService {
         };
         return projections.stream()
                 .map(p -> new MainProductResponseDto(
+                        p.getProductId(),
+                        p.getProductNumber(),
                         p.getImageUrl(),
                         p.getVendorName(),
                         p.getTitle(),
@@ -159,6 +162,7 @@ public class ProductServiceImpl implements ProductService {
                         p.getPrice(),
                         p.getIsDiscounted(),
                         p.getDiscountRate(),
+                        p.getDiscountedPrice(),
                         p.getCreatedAt()
                 ))
                 .toList();

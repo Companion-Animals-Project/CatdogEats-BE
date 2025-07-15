@@ -18,4 +18,5 @@ public interface ProductListProjection{
     String getProductCategory();
     String get();
     Instant getCreatedAt();
+    Integer getReviewCount();
 }
