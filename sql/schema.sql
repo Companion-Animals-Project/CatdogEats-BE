@@ -416,6 +416,7 @@ CREATE TABLE shipments (
 
     -- 판매자 배송 관리 추가 필드
                            expected_ship_date TIMESTAMP WITH TIME ZONE,            -- 예상 배송일 (출고 지연 시 사용)
+                           is_delayed BOOLEAN DEFAULT FALSE,
                            delay_reason VARCHAR(500),                              -- 배송 지연 사유
                            is_hidden_by_seller BOOLEAN DEFAULT FALSE,              -- 판매자 목록 숨김 여부
                            hidden_at TIMESTAMP WITH TIME ZONE,                     -- 판매자 숨김 처리 시각 (hidden_by_seller_at → hidden_at)

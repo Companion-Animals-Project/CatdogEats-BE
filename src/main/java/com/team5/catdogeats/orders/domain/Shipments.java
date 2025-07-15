@@ -59,7 +59,12 @@ public class Shipments extends BaseEntity {
      */
     @Column(name = "expected_ship_date")
     private ZonedDateTime expectedShipDate;
-
+    /**
+     * 출고 지연 여부
+     */
+    @Column(name = "is_delayed")
+    @Builder.Default
+    private Boolean isDelayed = Boolean.FALSE;
     /**
      * 배송 지연 사유
      */

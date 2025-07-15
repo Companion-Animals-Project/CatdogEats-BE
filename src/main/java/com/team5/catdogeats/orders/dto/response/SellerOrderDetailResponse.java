@@ -19,7 +19,9 @@ public record SellerOrderDetailResponse(
         List<SellerOrderDetailItem> orderItems,
         OrderSummary orderSummary,
         ShipmentInfo shipmentInfo,
-        StatusManagement statusManagement
+        StatusManagement statusManagement,
+        Boolean isDelayed,        // 📍 추가: 출고 지연 여부
+        String delayReason        // 📍 추가: 출고 지연 사유
 ) {
 
     /**

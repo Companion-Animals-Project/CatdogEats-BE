@@ -220,6 +220,8 @@ public class SellerOrderQueryServiceImpl implements SellerOrderQueryService {
                 .orderSummary(orderSummary)
                 .shipmentInfo(shipmentInfo)
                 .statusManagement(statusManagement)
+                .isDelayed(shipment.getIsDelayed())
+                .delayReason(shipment.getDelayReason())
                 .build();
     }
 
@@ -337,6 +339,8 @@ public class SellerOrderQueryServiceImpl implements SellerOrderQueryService {
                 .orderItems(orderItems)
                 .orderSummary(orderSummary)
                 .shipmentInfo(shipmentInfo)
+                .isDelayed(shipment.getIsDelayed())
+                .delayReason(shipment.getDelayReason())
                 .build();
     }
 

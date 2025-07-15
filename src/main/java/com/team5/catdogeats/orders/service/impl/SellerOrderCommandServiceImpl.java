@@ -366,6 +366,21 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
      */
     private void handleStatusSpecificActions(Shipments shipment, OrderStatusUpdateRequest request, OrderStatus oldStatus) {
         switch (request.newStatus()) {
+            case PREPARING -> {
+                // 📍 추가: 출고 지연 정보 저장/해제 처리
+                if (request.isDelayRequest()) {
+                    // 출고 지연 요청 시
+                    shipment.setIsDelayed(true);
+                    shipment.setDelayReason(request.reason());
+                    log.info("출고 지연 정보 저장 - 주문번호: {}, 사유: {}",
+                            request.orderNumber(), request.reason());
+                } else {
+                    // 일반 상품준비중 상태 (지연 해제)
+                    shipment.setIsDelayed(false);
+                    shipment.setDelayReason(null);
+                    log.info("출고 지연 정보 해제 - 주문번호: {}", request.orderNumber());
+                }
+            }
             case DELIVERED -> {
                 // 배송 완료 시 배송 완료 시간 설정
                 shipment.setDeliveredAt(ZonedDateTime.now());
@@ -380,6 +395,15 @@ public class SellerOrderCommandServiceImpl implements SellerOrderCommandService 
             }
             case CANCELLED -> // 취소 시 취소 시간 설정
                     shipment.setTrackingUpdatedAt(ZonedDateTime.now());
+            default -> {
+                // 📍 추가: 상품준비중이 아닌 다른 상태로 변경 시 지연 정보 초기화
+                if (oldStatus == OrderStatus.PREPARING) {
+                    shipment.setIsDelayed(false);
+                    shipment.setDelayReason(null);
+                    log.info("상태 변경으로 지연 정보 초기화 - 주문번호: {}, {} -> {}",
+                            request.orderNumber(), oldStatus, request.newStatus());
+                }
+            }
         }
     }
 

@@ -36,7 +36,9 @@ public record SellerOrderListResponse(
             String maskedBuyerName,
             List<SellerOrderItem> orderItems,
             OrderSummaryInfo orderSummary,
-            ShipmentBasicInfo shipmentInfo
+            ShipmentBasicInfo shipmentInfo,
+            Boolean isDelayed,        // 📍 추가
+            String delayReason
     ) {}
 
     /**
