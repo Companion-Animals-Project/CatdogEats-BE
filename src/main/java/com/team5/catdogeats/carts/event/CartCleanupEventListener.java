@@ -33,25 +33,25 @@ public class CartCleanupEventListener {
             // 입력값 검증
             if (purchasedProductIds == null || purchasedProductIds.isEmpty()) {
                 log.warn("구매 상품 목록이 비어있음 - paymentId: {}, userId: {}",
-                        event.paymentId(), event.userId());
+                        event.paymentId(), event.buyerId());
                 return;
             }
 
             // 구매한 상품들만 선별적으로 삭제
             cartService.clearPurchasedItemsFromCart(
-                    event.userId(),
+                    event.buyerId(),
                     purchasedProductIds
             );
 
             long processingTime = System.currentTimeMillis() - startTime;
             log.info("구매 상품들 장바구니 삭제 완료 - userId: {}, paymentId: {}, 상품수: {}, 처리시간: {}ms",
-                    event.userId(), event.paymentId(),
+                    event.buyerId(), event.paymentId(),
                     purchasedProductIds.size(), processingTime);
 
         } catch (Exception e) {
             long processingTime = System.currentTimeMillis() - startTime;
             log.error("구매 상품들 장바구니 삭제 실패 - userId: {}, paymentId: {}, 상품수: {}, 처리시간: {}ms, error: {}",
-                    event.userId(), event.paymentId(),
+                    event.buyerId(), event.paymentId(),
                     event.orderItems() != null ? event.orderItems().size() : 0,
                     processingTime, e.getMessage(), e);
 
@@ -92,7 +92,7 @@ public class CartCleanupEventListener {
         // 4. 수동 처리를 위한 별도 테이블에 기록
 
         log.warn("장바구니 정리 실패에 대한 수동 확인 필요 - paymentId: {}, userId: {}, error: {}",
-                event.paymentId(), event.userId(), exception.getMessage());
+                event.paymentId(), event.buyerId(), exception.getMessage());
 
         // 현재는 로깅만 수행하고, 실패 정보를 관리자가 확인할 수 있도록 함
     }
