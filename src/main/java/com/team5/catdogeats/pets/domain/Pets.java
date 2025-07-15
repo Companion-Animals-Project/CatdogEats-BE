@@ -42,6 +42,15 @@ public class Pets extends BaseEntity {
     @Column
     private Short age;
 
+    @Column
+    private boolean isAllergy;
+
+    @Column
+    private String healthState;
+
+    @Column
+    private String requestion;
+
     public static Pets fromDto(PetCreateRequestDto dto, Buyers buyer) {
         return Pets.builder()
                 .buyer(buyer)
@@ -50,6 +59,9 @@ public class Pets extends BaseEntity {
                 .gender(dto.gender())
                 .breed(dto.breed())
                 .age(dto.age())
+                .isAllergy(dto.isAllergy())
+                .healthState(dto.healthState())
+                .requestion(dto.requestion())
                 .build();
     }
 
@@ -59,5 +71,8 @@ public class Pets extends BaseEntity {
         if (dto.gender() != null) this.gender = dto.gender();
         if (dto.breed() != null) this.breed = dto.breed();
         if (dto.age() != null) this.age = dto.age();
+        if (dto.isAllergy() != null) this.isAllergy = dto.isAllergy();
+        if (dto.healthState() != null) this.healthState = dto.healthState();
+        if (dto.requestion() != null) this.requestion = dto.requestion();
     }
 }

@@ -2,8 +2,8 @@ package com.team5.catdogeats.support.domain.notice.service.impl;
 
 import com.team5.catdogeats.storage.domain.Files;
 import com.team5.catdogeats.storage.domain.mapping.NoticeFiles;
-import com.team5.catdogeats.storage.repository.FilesRepository;
-import com.team5.catdogeats.storage.service.NoticeFileManagementService;
+import com.team5.catdogeats.storage.repository.FileRepository;
+import com.team5.catdogeats.storage.service.NoticeFileService;
 import com.team5.catdogeats.storage.service.ObjectStorageService;
 import com.team5.catdogeats.support.domain.Notices;
 import com.team5.catdogeats.support.domain.notice.dto.NoticeCreateRequestDTO;
@@ -40,7 +40,7 @@ class NoticeServiceImplCRUDTest {
     private NoticeRepository noticeRepository;
 
     @Mock
-    private FilesRepository filesRepository;
+    private FileRepository fileRepository;
 
     @Mock
     private NoticeFilesRepository noticeFilesRepository;
@@ -49,7 +49,7 @@ class NoticeServiceImplCRUDTest {
     private ObjectStorageService objectStorageService;
 
     @Mock
-    private NoticeFileManagementService noticeFileManagementService;
+    private NoticeFileService noticeFileService;
 
     @Mock
     private EntityManager entityManager; // ✅ EntityManager Mock 추가
@@ -234,7 +234,7 @@ class NoticeServiceImplCRUDTest {
         verify(noticeRepository).deleteById(noticeId);
 
         // 첨부파일이 없으므로 파일 삭제 서비스 호출되지 않음
-        verify(noticeFileManagementService, never()).deleteNoticeFileCompletely(anyString());
+        verify(noticeFileService, never()).deleteNoticeFileCompletely(anyString());
     }
 
     @Test
@@ -277,8 +277,8 @@ class NoticeServiceImplCRUDTest {
         verify(noticeFilesRepository).findByNoticesId(noticeId);
 
         // NoticeFileManagementService를 통한 파일 삭제 확인
-        verify(noticeFileManagementService).deleteNoticeFileCompletely("file-1");
-        verify(noticeFileManagementService).deleteNoticeFileCompletely("file-2");
+        verify(noticeFileService).deleteNoticeFileCompletely("file-1");
+        verify(noticeFileService).deleteNoticeFileCompletely("file-2");
 
         verify(noticeFilesRepository).deleteByNoticesId(noticeId);
         verify(noticeRepository).deleteById(noticeId);
@@ -319,14 +319,14 @@ class NoticeServiceImplCRUDTest {
 
         // 파일 삭제 실패 시뮬레이션
         doThrow(new RuntimeException("파일 삭제 실패"))
-                .when(noticeFileManagementService).deleteNoticeFileCompletely("file-1");
+                .when(noticeFileService).deleteNoticeFileCompletely("file-1");
 
         // when
         noticeService.deleteNotice(noticeId);
 
         // then
         // 파일 삭제가 실패해도 공지사항 삭제는 계속 진행되어야 함
-        verify(noticeFileManagementService).deleteNoticeFileCompletely("file-1");
+        verify(noticeFileService).deleteNoticeFileCompletely("file-1");
         verify(noticeFilesRepository).deleteByNoticesId(noticeId);
         verify(noticeRepository).deleteById(noticeId);
     }
