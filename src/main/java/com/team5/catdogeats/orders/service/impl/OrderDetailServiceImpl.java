@@ -62,7 +62,8 @@ public class OrderDetailServiceImpl implements OrderDetailService {
                 .mapToLong(OrderDetailResponse.OrderItemDetail::totalPrice)
                 .sum();
 
-        Long discountAmount = order.getTotalDiscountAmount() != null ? order.getTotalDiscountAmount() : 0L;
+        Long discountAmount = order.getTotalDiscountAmount() != null ?
+                order.getTotalDiscountAmount() : 0L;
         Long deliveryFee = order.getTotalDeliveryFee() != null ? order.getTotalDeliveryFee() : 0L;
 
         OrderDetailResponse.RecipientInfo recipientInfo = createRecipientInfoFromShipment(shipment);
@@ -72,7 +73,7 @@ public class OrderDetailServiceImpl implements OrderDetailService {
         return new OrderDetailResponse(
                 order.getId(),
                 order.getOrderNumber(),
-                order.getCreatedAt().toLocalDateTime(),
+                order.getCreatedAt(), // toLocalDateTime() 제거 (ZonedDateTime 그대로 사용)
                 order.getOrderStatus(),
                 recipientInfo,
                 paymentInfo,
@@ -92,10 +93,37 @@ public class OrderDetailServiceImpl implements OrderDetailService {
             return new OrderDetailResponse.RecipientInfo(
                     shipment.getRecipientName(),
                     shipment.getRecipientPhone(),
-                    shipment.getFullShippingAddress(),
-                    shipment.getDeliveryNote() != null ? shipment.getDeliveryNote() : "배송 요청사항 없음"
+                    buildFullShippingAddress(shipment), // getFullShippingAddress() → buildFullShippingAddress() 변경
+                    shipment.getDeliveryRequest() != null ? shipment.getDeliveryRequest() : "배송 요청사항 없음" // getDeliveryNote() → getDeliveryRequest() 변경
             );
         }
         return new OrderDetailResponse.RecipientInfo("수령인 미등록", "연락처 미등록", "주소 미등록", "배송 요청사항 없음");
+    }
+
+    /**
+     * 배송 주소 조합 헬퍼 메서드 (Shipments 엔티티의 실제 필드 사용)
+     */
+    private String buildFullShippingAddress(Shipments shipment) {
+        StringBuilder fullAddress = new StringBuilder();
+
+        // 우편번호 추가
+        if (shipment.getPostalCode() != null && !shipment.getPostalCode().trim().isEmpty()) {
+            fullAddress.append("(").append(shipment.getPostalCode()).append(") ");
+        }
+
+        // 도로명 주소 추가
+        if (shipment.getStreetAddress() != null && !shipment.getStreetAddress().trim().isEmpty()) {
+            fullAddress.append(shipment.getStreetAddress());
+        }
+
+        // 상세 주소 추가
+        if (shipment.getDetailAddress() != null && !shipment.getDetailAddress().trim().isEmpty()) {
+            if (fullAddress.length() > 0) {
+                fullAddress.append(" ");
+            }
+            fullAddress.append(shipment.getDetailAddress());
+        }
+
+        return fullAddress.length() > 0 ? fullAddress.toString() : "주소 정보 없음";
     }
 }
