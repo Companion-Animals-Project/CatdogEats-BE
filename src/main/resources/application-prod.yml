@@ -267,3 +267,16 @@ url:
   login: https://www.catdogeats.shop/
   withdrawn: https://www.catdogeats.shop/withdrawn
   role-selection: https://www.catdogeats.shop/role-selection
+
+# ----------------------------------------
+# 물류 API
+# ----------------------------------------
+logistics:
+  api:
+    url: ${LOGISTICS_API_URL}
+    timeout:
+      connect-timeout-ms: 5000
+      read-timeout-ms: 10000
+    retry:
+      max-attempts: 3
+      delay-ms: 1000
