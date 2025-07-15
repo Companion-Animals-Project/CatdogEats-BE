@@ -3,17 +3,16 @@ package com.team5.catdogeats.orders.mapper;
 import com.team5.catdogeats.orders.domain.dto.MonthlySalesRawDataDTO;
 import com.team5.catdogeats.orders.domain.dto.ProductSalesRawDataDTO;
 import com.team5.catdogeats.orders.domain.dto.TotalSalesAmountDTO;
+import com.team5.catdogeats.orders.domain.dto.YearTotalSalesDTO;
 import org.apache.ibatis.annotations.*;
 
 import java.util.List;
 
 /**
- * 매출 분석 조회를
+ * 매출 분석 조회 매퍼
  */
 @Mapper
 public interface SalesAnalyticsMapper {
-
-
 
     /**
      * 특정 판매자의 특정 년도 월별 매출 집계 조회
@@ -56,6 +55,7 @@ public interface SalesAnalyticsMapper {
 
     /**
      * 특정 판매자의 특정 년도 총 매출 요약 조회
+     * YearTotalSalesDTO 사용 (3개 파라미터)
      */
     @Select("""
         SELECT 
@@ -71,11 +71,10 @@ public interface SalesAnalyticsMapper {
             @Arg(column = "order_count", javaType = Long.class),
             @Arg(column = "total_quantity", javaType = Long.class)
     })
-    MonthlySalesRawDataDTO findYearTotalSalesBySellerAndYear(
+    YearTotalSalesDTO findYearTotalSalesBySellerAndYear(
             @Param("sellerId") String sellerId,
             @Param("year") Integer year
     );
-
 
     /**
      * 특정 판매자의 연도별 상품별 매출 조회 (페이징)
@@ -202,5 +201,4 @@ public interface SalesAnalyticsMapper {
             @Param("year") Integer year,
             @Param("month") Integer month
     );
-
 }
