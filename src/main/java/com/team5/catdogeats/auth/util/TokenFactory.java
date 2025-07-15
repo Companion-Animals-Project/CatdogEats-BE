@@ -38,6 +38,6 @@ public class TokenFactory {
         ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         ZonedDateTime expiration = now.plus(jwtConfig.getExpiration(), ChronoUnit.MILLIS);
 
-        return new TokenDTO(providerId, authorities, registrationId, now, expiration);
+        return new TokenDTO(providerId, authorities, registrationId,  now, expiration);
     }
 }
