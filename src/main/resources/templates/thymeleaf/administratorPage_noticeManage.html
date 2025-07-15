@@ -514,301 +514,7 @@
                         </tr>
                       </thead>
                       <tbody class="bg-white divide-y divide-slate-200">
-                        <tr class="hover:bg-slate-50 transition-colors">
-                          <td class="table-cell table-cell-highlight">
-                            <button
-                              onclick="openNoticeDetailModal('notice1')"
-                              class="text-left hover:text-blue-600 hover:underline"
-                            >
-                              예정된 시스템 점검 안내
-                            </button>
-                          </td>
-                          <td class="table-cell">2024-07-26</td>
-                          <td class="table-cell">1,234</td>
-                          <td class="table-cell">
-                            <span class="status-published">게시됨</span>
-                          </td>
-                          <td class="table-cell text-center">
-                            <div class="flex items-center justify-center gap-1">
-                              <button
-                                class="icon-button"
-                                title="보기"
-                                onclick="openNoticeDetailModal('notice1')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-blue-600"
-                                  >visibility</span
-                                >
-                              </button>
-                              <button
-                                class="icon-button"
-                                title="편집"
-                                onclick="editNotice('notice1')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-amber-600"
-                                  >edit</span
-                                >
-                              </button>
-                              <button
-                                class="icon-button"
-                                title="삭제"
-                                onclick="deleteNotice('notice1')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-red-600"
-                                  >delete</span
-                                >
-                              </button>
-                              <button
-                                class="icon-button"
-                                title="복사"
-                                onclick="copyNotice('notice1')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-slate-600"
-                                  >content_copy</span
-                                >
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                        <tr class="hover:bg-slate-50 transition-colors">
-                          <td class="table-cell table-cell-highlight">
-                            <button
-                              onclick="openNoticeDetailModal('notice2')"
-                              class="text-left hover:text-blue-600 hover:underline"
-                            >
-                              새로운 기능 출시: 향상된 분석 도구
-                            </button>
-                          </td>
-                          <td class="table-cell">2024-07-20</td>
-                          <td class="table-cell">2,567</td>
-                          <td class="table-cell">
-                            <span class="status-published">게시됨</span>
-                          </td>
-                          <td class="table-cell text-center">
-                            <div class="flex items-center justify-center gap-1">
-                              <button
-                                class="icon-button"
-                                title="보기"
-                                onclick="openNoticeDetailModal('notice2')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-blue-600"
-                                  >visibility</span
-                                >
-                              </button>
-                              <button
-                                class="icon-button"
-                                title="편집"
-                                onclick="editNotice('notice2')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-amber-600"
-                                  >edit</span
-                                >
-                              </button>
-                              <button
-                                class="icon-button"
-                                title="삭제"
-                                onclick="deleteNotice('notice2')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-red-600"
-                                  >delete</span
-                                >
-                              </button>
-                              <button
-                                class="icon-button"
-                                title="복사"
-                                onclick="copyNotice('notice2')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-slate-600"
-                                  >content_copy</span
-                                >
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                        <tr class="hover:bg-slate-50 transition-colors">
-                          <td class="table-cell table-cell-highlight">
-                            <button
-                              onclick="openNoticeDetailModal('notice3')"
-                              class="text-left hover:text-blue-600 hover:underline"
-                            >
-                              보안 업데이트: 비밀번호 정책 변경
-                            </button>
-                          </td>
-                          <td class="table-cell">2024-07-15</td>
-                          <td class="table-cell">1,890</td>
-                          <td class="table-cell">
-                            <span class="status-draft">초안</span>
-                          </td>
-                          <td class="table-cell text-center">
-                            <div class="flex items-center justify-center gap-1">
-                              <button
-                                class="icon-button"
-                                title="보기"
-                                onclick="openNoticeDetailModal('notice3')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-blue-600"
-                                  >visibility</span
-                                >
-                              </button>
-                              <button
-                                class="icon-button"
-                                title="편집"
-                                onclick="editNotice('notice3')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-amber-600"
-                                  >edit</span
-                                >
-                              </button>
-                              <button
-                                class="icon-button"
-                                title="삭제"
-                                onclick="deleteNotice('notice3')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-red-600"
-                                  >delete</span
-                                >
-                              </button>
-                              <button
-                                class="icon-button"
-                                title="복사"
-                                onclick="copyNotice('notice3')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-slate-600"
-                                  >content_copy</span
-                                >
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                        <tr class="hover:bg-slate-50 transition-colors">
-                          <td class="table-cell table-cell-highlight">
-                            <button
-                              onclick="openNoticeDetailModal('notice4')"
-                              class="text-left hover:text-blue-600 hover:underline"
-                            >
-                              서버 업그레이드를 위한 예정된 다운타임
-                            </button>
-                          </td>
-                          <td class="table-cell">2024-07-10</td>
-                          <td class="table-cell">3,210</td>
-                          <td class="table-cell">
-                            <span class="status-archived">보관됨</span>
-                          </td>
-                          <td class="table-cell text-center">
-                            <div class="flex items-center justify-center gap-1">
-                              <button
-                                class="icon-button"
-                                title="보기"
-                                onclick="openNoticeDetailModal('notice4')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-blue-600"
-                                  >visibility</span
-                                >
-                              </button>
-                              <button
-                                class="icon-button"
-                                title="편집"
-                                onclick="editNotice('notice4')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-amber-600"
-                                  >edit</span
-                                >
-                              </button>
-                              <button
-                                class="icon-button"
-                                title="삭제"
-                                onclick="deleteNotice('notice4')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-red-600"
-                                  >delete</span
-                                >
-                              </button>
-                              <button
-                                class="icon-button"
-                                title="복사"
-                                onclick="copyNotice('notice4')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-slate-600"
-                                  >content_copy</span
-                                >
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                        <tr class="hover:bg-slate-50 transition-colors">
-                          <td class="table-cell table-cell-highlight">
-                            <button
-                              onclick="openNoticeDetailModal('notice5')"
-                              class="text-left hover:text-blue-600 hover:underline"
-                            >
-                              중요: 서비스 약관 업데이트
-                            </button>
-                          </td>
-                          <td class="table-cell">2024-07-05</td>
-                          <td class="table-cell">2,109</td>
-                          <td class="table-cell">
-                            <span class="status-published">게시됨</span>
-                          </td>
-                          <td class="table-cell text-center">
-                            <div class="flex items-center justify-center gap-1">
-                              <button
-                                class="icon-button"
-                                title="보기"
-                                onclick="openNoticeDetailModal('notice5')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-blue-600"
-                                  >visibility</span
-                                >
-                              </button>
-                              <button
-                                class="icon-button"
-                                title="편집"
-                                onclick="editNotice('notice5')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-amber-600"
-                                  >edit</span
-                                >
-                              </button>
-                              <button
-                                class="icon-button"
-                                title="삭제"
-                                onclick="deleteNotice('notice5')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-red-600"
-                                  >delete</span
-                                >
-                              </button>
-                              <button
-                                class="icon-button"
-                                title="복사"
-                                onclick="copyNotice('notice5')"
-                              >
-                                <span
-                                  class="material-icons-outlined text-lg text-slate-600"
-                                  >content_copy</span
-                                >
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+
                       </tbody>
                     </table>
                   </div>
@@ -1090,311 +796,445 @@
     </div>
 
     <script>
+      // 관리자 공지사항 페이지 JavaScript (실제 API 연결)
+
+      // ========== API 호출 함수들 ==========
+
+      // 공지사항 목록 조회
+      async function fetchNotices() {
+        try {
+          const response = await fetch('/v1/admin/notices/test', {  // ← /test 추가
+            method: 'GET',
+            credentials: 'include', // 세션 쿠키 포함
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          console.log('공지사항 목록 조회 성공:', result);
+
+          // 테이블 업데이트
+          updateNoticeTable(result.data.notices);
+
+          return result.data;
+        } catch (error) {
+          console.error('공지사항 목록 조회 실패:', error);
+          alert('공지사항 목록을 불러오는데 실패했습니다.');
+        }
+      }
+
+      // 공지사항 생성
+      async function createNotice(noticeData) {
+        try {
+          const response = await fetch('/v1/admin/notices/test', {  // ← /test 추가
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(noticeData)
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          console.log('공지사항 생성 성공:', result);
+
+          return result.data;
+        } catch (error) {
+          console.error('공지사항 생성 실패:', error);
+          alert('공지사항 등록에 실패했습니다.');
+          throw error;
+        }
+      }
+
+      // 공지사항 상세 조회
+      async function fetchNoticeDetail(noticeId) {
+        try {
+          const response = await fetch(`/v1/admin/notices/test/${noticeId}`, {  // ← /test 추가
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          console.log('공지사항 상세 조회 성공:', result);
+
+          return result.data;
+        } catch (error) {
+          console.error('공지사항 상세 조회 실패:', error);
+          alert('공지사항을 불러오는데 실패했습니다.');
+        }
+      }
+
+      // 공지사항 수정
+      async function updateNotice(noticeId, noticeData) {
+        try {
+          const response = await fetch(`/v1/admin/notices/test/${noticeId}`, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(noticeData)
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          console.log('공지사항 수정 성공:', result);
+
+          return result.data;
+        } catch (error) {
+          console.error('공지사항 수정 실패:', error);
+          alert('공지사항 수정에 실패했습니다.');
+          throw error;
+        }
+      }
+      async function deleteNoticeById(noticeId) {
+        try {
+          const response = await fetch(`/v1/admin/notices/test/${noticeId}`, {  // ← /test 추가
+            method: 'DELETE',
+            credentials: 'include'
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          console.log('공지사항 삭제 성공');
+          return true;
+        } catch (error) {
+          console.error('공지사항 삭제 실패:', error);
+          alert('공지사항 삭제에 실패했습니다.');
+          return false;
+        }
+      }
+
+      // ========== UI 업데이트 함수들 ==========
+
+      // 테이블 업데이트
+      function updateNoticeTable(notices) {
+        const tbody = document.querySelector('tbody');
+        if (!tbody) return;
+
+        // 기존 더미 데이터 행들 제거
+        tbody.innerHTML = '';
+
+        // 실제 데이터로 테이블 생성
+        notices.forEach(notice => {
+          const row = createNoticeRow(notice);
+          tbody.appendChild(row);
+        });
+      }
+
+      // 공지사항 행 생성
+      function createNoticeRow(notice) {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-slate-50 transition-colors';
+
+        // 날짜 포맷팅 (yyyy-MM-dd HH:mm:ss → yyyy-MM-dd)
+        const formattedDate = notice.createdAt.split(' ')[0];
+
+        row.innerHTML = `
+    <td class="table-cell table-cell-highlight">
+      <button
+        onclick="openNoticeDetailModal('${notice.id}')"
+        class="text-left hover:text-blue-600 hover:underline"
+      >
+        ${notice.title}
+      </button>
+    </td>
+    <td class="table-cell">${formattedDate}</td>
+    <td class="table-cell">${notice.viewCount.toLocaleString()}</td>
+    <td class="table-cell">
+      <span class="status-published">게시됨</span>
+    </td>
+    <td class="table-cell text-center">
+      <div class="flex items-center justify-center gap-1">
+        <button
+          class="icon-button"
+          title="보기"
+          onclick="openNoticeDetailModal('${notice.id}')"
+        >
+          <span class="material-icons-outlined text-lg text-blue-600">visibility</span>
+        </button>
+        <button
+          class="icon-button"
+          title="편집"
+          onclick="editNotice('${notice.id}')"
+        >
+          <span class="material-icons-outlined text-lg text-amber-600">edit</span>
+        </button>
+        <button
+          class="icon-button"
+          title="삭제"
+          onclick="deleteNotice('${notice.id}')"
+        >
+          <span class="material-icons-outlined text-lg text-red-600">delete</span>
+        </button>
+      </div>
+    </td>
+  `;
+
+        return row;
+      }
+
+      // ========== 기존 함수들 수정 ==========
+
+      // 공지사항 작성 폼 제출 (실제 API 호출)
+      document.getElementById('noticeForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // 폼 데이터 수집
+        const formData = {
+          title: document.getElementById('noticeTitle').value.trim(),
+          content: document.getElementById('noticeContent').value.trim()
+        };
+
+        // 유효성 검사
+        if (!formData.title || !formData.content) {
+          alert('제목과 내용을 모두 입력해주세요.');
+          return;
+        }
+
+        try {
+          const form = e.target;
+          const mode = form.getAttribute('data-mode');
+          const noticeId = form.getAttribute('data-notice-id');
+
+          let result;
+
+          if (mode === 'edit' && noticeId) {
+            // 수정 모드
+            result = await updateNotice(noticeId, formData);
+            alert('공지사항이 성공적으로 수정되었습니다!');
+          } else {
+            // 등록 모드
+            result = await createNotice(formData);
+            alert('공지사항이 성공적으로 등록되었습니다!');
+          }
+
+          // 성공 시
+          closeModal();
+
+          // 목록 새로고침
+          await fetchNotices();
+
+        } catch (error) {
+          // 에러는 각 함수에서 이미 처리됨
+        }
+      });
+
+      // 공지사항 상세 모달 열기 (실제 API 호출)
+      async function openNoticeDetailModal(noticeId) {
+        try {
+          // 실제 API에서 데이터 가져오기
+          const notice = await fetchNoticeDetail(noticeId);
+
+          if (!notice) return;
+
+          // 모달 내용 설정
+          document.getElementById('detailNoticeTitle').textContent = notice.title;
+          document.getElementById('detailNoticeContent').innerHTML = notice.content.replace(/\n/g, '<br>');
+          document.getElementById('detailNoticeDate').textContent = notice.createdAt.split(' ')[0];
+          document.getElementById('detailNoticeViews').textContent = notice.viewCount.toLocaleString();
+          document.getElementById('detailNoticePriority').textContent = '일반';
+
+          // 상태 설정 (임시로 게시됨으로 고정)
+          const statusElement = document.getElementById('detailNoticeStatus');
+          statusElement.textContent = '게시됨';
+          statusElement.className = 'status-published font-medium';
+
+          // 첨부파일 처리
+          const attachmentSection = document.getElementById('detailAttachmentSection');
+          if (notice.attachments && notice.attachments.length > 0) {
+            attachmentSection.classList.remove('hidden');
+            const attachmentDiv = document.getElementById('detailAttachment');
+            attachmentDiv.innerHTML = notice.attachments.map(file => `
+        <div class="flex items-center gap-2 text-sm text-slate-600 mb-2">
+          <span class="material-icons-outlined text-base">attach_file</span>
+          <span>${file.fileName}</span>
+          <button
+            class="text-primary-text hover:underline ml-2"
+            onclick="downloadFile('${notice.id}', '${file.fileId}')"
+          >
+            다운로드
+          </button>
+        </div>
+      `).join('');
+          } else {
+            attachmentSection.classList.add('hidden');
+          }
+
+          // 현재 보고 있는 공지사항 ID 저장
+          document.getElementById('noticeDetailModal').setAttribute('data-notice-id', noticeId);
+
+          // 모달 열기
+          const modal = document.getElementById('noticeDetailModal');
+          modal.classList.add('active');
+          document.body.style.overflow = 'hidden';
+
+        } catch (error) {
+          // 에러는 fetchNoticeDetail 함수에서 이미 처리됨
+        }
+      }
+
+      // 공지사항 삭제 (실제 API 호출)
+      async function deleteNotice(noticeId) {
+        if (!confirm('정말로 이 공지사항을 삭제하시겠습니까?')) {
+          return;
+        }
+
+        const success = await deleteNoticeById(noticeId);
+        if (success) {
+          alert('공지사항이 성공적으로 삭제되었습니다.');
+          // 목록 새로고침
+          await fetchNotices();
+        }
+      }
+
+      // 상세보기에서 편집하기
+      function editNoticeFromDetail() {
+        const modal = document.getElementById('noticeDetailModal');
+        const noticeId = modal.getAttribute('data-notice-id');
+
+        if (noticeId) {
+          // 상세보기 모달 닫기
+          closeNoticeDetailModal();
+
+          // 편집 모달 열기
+          editNotice(noticeId);
+        } else {
+          alert('공지사항 ID를 찾을 수 없습니다.');
+        }
+      }
+      function downloadFile(noticeId, fileId) {
+        // 새 창에서 다운로드 URL 열기
+        window.open(`/v1/admin/notices/test/${noticeId}/files/${fileId}`, '_blank');  // ← /test 추가
+      }
+
+      // ========== 페이지 로드 시 초기화 ==========
+      document.addEventListener('DOMContentLoaded', async function() {
+        console.log('관리자 공지사항 페이지 로드됨');
+
+        // 페이지 로드 시 공지사항 목록 가져오기
+        await fetchNotices();
+      });
+
+      // ========== 기존 모달 관련 함수들 (수정 없음) ==========
+
       // 공지사항 작성 모달 열기
       function openModal() {
-        const modal = document.getElementById("noticeModal");
-        modal.classList.add("active");
-        document.body.style.overflow = "hidden"; // 배경 스크롤 방지
+        const modal = document.getElementById('noticeModal');
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
       }
 
       // 공지사항 작성 모달 닫기
       function closeModal() {
-        const modal = document.getElementById("noticeModal");
-        modal.classList.remove("active");
-        document.body.style.overflow = "auto"; // 배경 스크롤 복원
+        const modal = document.getElementById('noticeModal');
+        modal.classList.remove('active');
+        document.body.style.overflow = 'auto';
 
         // 폼 초기화
-        document.getElementById("noticeForm").reset();
-      }
+        const form = document.getElementById('noticeForm');
+        form.reset();
 
-      // 공지사항 데이터 (실제로는 서버에서 가져올 데이터)
-      const noticeData = {
-        notice1: {
-          title: "예정된 시스템 점검 안내",
-          content: `<p>안녕하세요. CatDogEats를 이용해 주시는 고객 여러분께 감사드립니다.</p>
-                   <br>
-                   <p>서비스 품질 향상을 위한 시스템 점검을 다음과 같이 실시하고자 합니다.</p>
-                   <br>
-                   <p><strong>점검 일시:</strong> 2024년 7월 30일(화) 오전 2시 ~ 오전 6시 (4시간)</p>
-                   <p><strong>점검 내용:</strong></p>
-                   <ul>
-                   <li>• 서버 성능 최적화</li>
-                   <li>• 보안 업데이트 적용</li>
-                   <li>• 결제 시스템 안정성 개선</li>
-                   </ul>
-                   <br>
-                   <p>점검 시간 동안 서비스 이용이 일시적으로 중단될 수 있습니다.</p>
-                   <p>이용에 불편을 드려 죄송하며, 보다 나은 서비스를 제공하기 위한 것이니 양해 부탁드립니다.</p>`,
-          date: "2024-07-26",
-          views: "1,234",
-          status: "published",
-          priority: "중요",
-        },
-        notice2: {
-          title: "새로운 기능 출시: 향상된 분석 도구",
-          content: `<p>CatDogEats의 새로운 기능이 출시되었습니다!</p>
-                   <br>
-                   <p><strong>주요 신기능:</strong></p>
-                   <ul>
-                   <li>• 주문 패턴 분석 대시보드</li>
-                   <li>• 개인맞춤 상품 추천</li>
-                   <li>• 실시간 배송 추적</li>
-                   <li>• 영양성분 분석 리포트</li>
-                   </ul>
-                   <br>
-                   <p>이제 더욱 스마트하게 반려동물을 위한 쇼핑을 즐기실 수 있습니다.</p>`,
-          date: "2024-07-20",
-          views: "2,567",
-          status: "published",
-          priority: "일반",
-        },
-        notice3: {
-          title: "보안 업데이트: 비밀번호 정책 변경",
-          content: `<p>계정 보안 강화를 위해 비밀번호 정책이 변경됩니다.</p>
-                   <br>
-                   <p><strong>새로운 비밀번호 요구사항:</strong></p>
-                   <ul>
-                   <li>• 최소 8자 이상</li>
-                   <li>• 영문 대/소문자, 숫자, 특수문자 조합</li>
-                   <li>• 개인정보 포함 금지</li>
-                   <li>• 90일마다 변경 권장</li>
-                   </ul>
-                   <br>
-                   <p>기존 사용자는 다음 로그인 시 비밀번호 변경이 필요합니다.</p>`,
-          date: "2024-07-15",
-          views: "1,890",
-          status: "draft",
-          priority: "중요",
-        },
-        notice4: {
-          title: "서버 업그레이드를 위한 예정된 다운타임",
-          content: `<p>서버 인프라 업그레이드로 인한 일시적 서비스 중단 안내</p>
-                   <br>
-                   <p><strong>업그레이드 일정:</strong> 2024년 7월 15일(월) 오전 1시 ~ 오전 5시</p>
-                   <p><strong>영향 서비스:</strong> 전체 웹사이트 및 모바일 앱</p>
-                   <br>
-                   <p>업그레이드 완료 후 더욱 빠르고 안정적인 서비스를 제공해드릴 예정입니다.</p>`,
-          date: "2024-07-10",
-          views: "3,210",
-          status: "archived",
-          priority: "일반",
-        },
-        notice5: {
-          title: "중요: 서비스 약관 업데이트",
-          content: `<p>CatDogEats 서비스 약관이 업데이트되었습니다.</p>
-                   <br>
-                   <p><strong>주요 변경사항:</strong></p>
-                   <ul>
-                   <li>• 개인정보 처리 방침 개선</li>
-                   <li>• 환불 정책 명확화</li>
-                   <li>• 배송 관련 약관 추가</li>
-                   </ul>
-                   <br>
-                   <p>변경된 약관은 2024년 8월 1일부터 적용됩니다.</p>
-                   <p>자세한 내용은 약관 페이지에서 확인하실 수 있습니다.</p>`,
-          date: "2024-07-05",
-          views: "2,109",
-          status: "published",
-          priority: "긴급",
-        },
-      };
+        // 수정 모드 속성 제거
+        form.removeAttribute('data-mode');
+        form.removeAttribute('data-notice-id');
 
-      // 공지사항 상세보기 모달 열기
-      function openNoticeDetailModal(noticeId) {
-        const notice = noticeData[noticeId];
-        if (!notice) return;
+        // 모달 제목 원래대로
+        const modalTitle = modal.querySelector('h2');
+        modalTitle.textContent = '공지사항 작성';
 
-        // 모달 내용 설정
-        document.getElementById("detailNoticeTitle").textContent = notice.title;
-        document.getElementById("detailNoticeContent").innerHTML =
-          notice.content;
-        document.getElementById("detailNoticeDate").textContent = notice.date;
-        document.getElementById("detailNoticeViews").textContent = notice.views;
-        document.getElementById("detailNoticePriority").textContent =
-          notice.priority;
-
-        // 상태에 따른 UI 설정
-        const statusElement = document.getElementById("detailNoticeStatus");
-        const statusNotice = document.getElementById("statusNotice");
-        const statusIcon = document.getElementById("statusIcon");
-        const statusTitle = document.getElementById("statusTitle");
-        const statusDescription = document.getElementById("statusDescription");
-        const publishButton = document.getElementById("publishButton");
-
-        switch (notice.status) {
-          case "published":
-            statusElement.textContent = "게시됨";
-            statusElement.className = "status-published font-medium";
-            statusNotice.className =
-              "p-4 rounded-lg border bg-green-50 border-green-200";
-            statusIcon.className = "material-icons-outlined text-green-600";
-            statusIcon.textContent = "check_circle";
-            statusTitle.textContent = "공개 상태";
-            statusTitle.className = "font-medium text-green-800";
-            statusDescription.textContent =
-              "이 공지사항은 현재 게시됨 상태로 사용자에게 공개되고 있습니다.";
-            statusDescription.className = "text-green-700 text-sm";
-            publishButton.classList.add("hidden");
-            break;
-          case "draft":
-            statusElement.textContent = "초안";
-            statusElement.className = "status-draft font-medium";
-            statusNotice.className =
-              "p-4 rounded-lg border bg-orange-50 border-orange-200";
-            statusIcon.className = "material-icons-outlined text-orange-600";
-            statusIcon.textContent = "edit";
-            statusTitle.textContent = "초안 상태";
-            statusTitle.className = "font-medium text-orange-800";
-            statusDescription.textContent =
-              "이 공지사항은 초안 상태입니다. 최종 등록하면 사용자에게 공개됩니다.";
-            statusDescription.className = "text-orange-700 text-sm";
-            publishButton.classList.remove("hidden");
-            break;
-          case "archived":
-            statusElement.textContent = "보관됨";
-            statusElement.className = "status-archived font-medium";
-            statusNotice.className =
-              "p-4 rounded-lg border bg-gray-50 border-gray-200";
-            statusIcon.className = "material-icons-outlined text-gray-600";
-            statusIcon.textContent = "archive";
-            statusTitle.textContent = "보관 상태";
-            statusTitle.className = "font-medium text-gray-800";
-            statusDescription.textContent =
-              "이 공지사항은 보관 상태입니다. 최종 등록하면 사용자에게 공개됩니다.";
-            statusDescription.className = "text-gray-700 text-sm";
-            publishButton.classList.remove("hidden");
-            break;
-        }
-
-        // 현재 보고 있는 공지사항 ID 저장
-        document
-          .getElementById("noticeDetailModal")
-          .setAttribute("data-notice-id", noticeId);
-
-        // 모달 열기
-        const modal = document.getElementById("noticeDetailModal");
-        modal.classList.add("active");
-        document.body.style.overflow = "hidden";
+        // 버튼 텍스트 원래대로
+        const submitButton = form.querySelector('button[type="submit"]');
+        submitButton.innerHTML = '<span class="material-icons-outlined text-base mr-2">save</span>저장';
       }
 
       // 공지사항 상세보기 모달 닫기
       function closeNoticeDetailModal() {
-        const modal = document.getElementById("noticeDetailModal");
-        modal.classList.remove("active");
-        document.body.style.overflow = "auto";
+        const modal = document.getElementById('noticeDetailModal');
+        modal.classList.remove('active');
+        document.body.style.overflow = 'auto';
       }
 
-      // 공지사항 최종 등록하기
-      function publishNotice() {
-        const modal = document.getElementById("noticeDetailModal");
-        const noticeId = modal.getAttribute("data-notice-id");
+      // 편집 기능 (실제 구현)
+      async function editNotice(noticeId) {
+        try {
+          // 기존 공지사항 데이터 가져오기
+          const notice = await fetchNoticeDetail(noticeId);
+          if (!notice) return;
 
-        if (
-          confirm(
-            "이 공지사항을 최종 등록하시겠습니까? 등록하면 사용자에게 즉시 공개됩니다."
-          )
-        ) {
-          // 실제로는 서버 API 호출
-          noticeData[noticeId].status = "published";
+          // 모달 폼에 기존 데이터 설정
+          document.getElementById('noticeTitle').value = notice.title;
+          document.getElementById('noticeContent').value = notice.content;
 
-          // 테이블의 상태 업데이트
-          const tableRows = document.querySelectorAll("tbody tr");
-          tableRows.forEach((row) => {
-            const button = row.querySelector(
-              'button[onclick*="' + noticeId + '"]'
-            );
-            if (button) {
-              const statusSpan = row.querySelector("td:nth-child(4) span");
-              statusSpan.textContent = "게시됨";
-              statusSpan.className = "status-published";
-            }
-          });
+          // 수정 모드 표시
+          const modal = document.getElementById('noticeModal');
+          const modalTitle = modal.querySelector('h2');
+          modalTitle.textContent = '공지사항 수정';
 
-          alert("공지사항이 성공적으로 등록되었습니다!");
+          // 폼에 수정 모드 표시 (data 속성 사용)
+          const form = document.getElementById('noticeForm');
+          form.setAttribute('data-mode', 'edit');
+          form.setAttribute('data-notice-id', noticeId);
+
+          // 버튼 텍스트 변경
+          const submitButton = form.querySelector('button[type="submit"]');
+          submitButton.innerHTML = '<span class="material-icons-outlined text-base mr-2">save</span>수정';
+
+          // 모달 열기
+          openModal();
+
+        } catch (error) {
+          console.error('수정 폼 로딩 실패:', error);
+        }
+      }
+
+      // 모달 외부 클릭 시 닫기
+      document.getElementById('noticeModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+          closeModal();
+        }
+      });
+
+      document.getElementById('noticeDetailModal').addEventListener('click', function(e) {
+        if (e.target === this) {
           closeNoticeDetailModal();
         }
-      }
-
-      // 편집 기능들 (실제 구현은 서버 연동 필요)
-      function editNotice(noticeId) {
-        alert(`${noticeId} 편집 기능 (개발 예정)`);
-      }
-
-      function editNoticeFromDetail() {
-        const modal = document.getElementById("noticeDetailModal");
-        const noticeId = modal.getAttribute("data-notice-id");
-        editNotice(noticeId);
-      }
-
-      function deleteNotice(noticeId) {
-        if (confirm("정말로 이 공지사항을 삭제하시겠습니까?")) {
-          alert(`${noticeId} 삭제 기능 (개발 예정)`);
-        }
-      }
-
-      function copyNotice(noticeId) {
-        alert(`${noticeId} 복사 기능 (개발 예정)`);
-      }
-
-      function copyNoticeFromDetail() {
-        const modal = document.getElementById("noticeDetailModal");
-        const noticeId = modal.getAttribute("data-notice-id");
-        copyNotice(noticeId);
-      }
-
-      // 기존 모달 관련 함수들
-      // 모달 외부 클릭 시 닫기
-      document
-        .getElementById("noticeModal")
-        .addEventListener("click", function (e) {
-          if (e.target === this) {
-            closeModal();
-          }
-        });
-
-      document
-        .getElementById("noticeDetailModal")
-        .addEventListener("click", function (e) {
-          if (e.target === this) {
-            closeNoticeDetailModal();
-          }
-        });
+      });
 
       // ESC 키로 모달 닫기
-      document.addEventListener("keydown", function (e) {
-        if (e.key === "Escape") {
-          const writeModal = document.getElementById("noticeModal");
-          const detailModal = document.getElementById("noticeDetailModal");
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          const writeModal = document.getElementById('noticeModal');
+          const detailModal = document.getElementById('noticeDetailModal');
 
-          if (writeModal.classList.contains("active")) {
+          if (writeModal.classList.contains('active')) {
             closeModal();
-          } else if (detailModal.classList.contains("active")) {
+          } else if (detailModal.classList.contains('active')) {
             closeNoticeDetailModal();
           }
         }
       });
-
-      // 폼 제출 처리
-      document
-        .getElementById("noticeForm")
-        .addEventListener("submit", function (e) {
-          e.preventDefault();
-
-          // 폼 데이터 수집
-          const formData = {
-            title: document.getElementById("noticeTitle").value,
-            content: document.getElementById("noticeContent").value,
-            status: document.getElementById("noticeStatus").value,
-            priority: document.querySelector('input[name="priority"]:checked')
-              .value,
-          };
-
-          console.log("공지사항 데이터:", formData);
-
-          // 여기에 실제 저장 로직 구현
-          alert("공지사항이 저장되었습니다!");
-          closeModal();
-        });
     </script>
   </body>
 </html>

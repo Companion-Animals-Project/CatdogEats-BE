@@ -56,11 +56,10 @@ public class NoticeServiceImpl implements NoticeService {
         return NoticeListResponseDTO.from(responsePage);
     }
 
-    // ✅ 추가
     @PersistenceContext
     private EntityManager em;
 
-    // ========== 공지사항 상세 조회 ==========
+    // ========== 공지사항 상세 조회 (일반 사용자용 - 조회수 증가) ==========
     @Override
     @JpaTransactional
     public NoticeResponseDTO getNotice(String noticeId) {
@@ -70,11 +69,29 @@ public class NoticeServiceImpl implements NoticeService {
         // 원자적 조회수 증가 (동시성 안전)
         noticeRepository.incrementViewCount(noticeId);
 
-        // ✅ 추가
         em.flush();      // DB 반영 (JPQL bulk-update 반영)
         em.refresh(notice);  // 엔티티 새로고침 (DB에서 다시 select 해서 엔티티 동기화)
 
         List<NoticeFiles> attachments = noticeFilesRepository.findByNoticesId(noticeId);
+
+        log.info("일반 사용자 공지사항 상세 조회 완료 (조회수 증가) - ID: {}, 조회수: {}",
+                noticeId, notice.getViewCount());
+
+        return NoticeResponseDTO.fromWithAttachments(notice, attachments);
+    }
+
+    // ========== 공지사항 상세 조회 (관리자용 - 조회수 증가 없음) ==========
+    @Override
+    @Transactional(value = "jpaTransactionManager", readOnly = true)
+    public NoticeResponseDTO getNoticeForAdmin(String noticeId) {
+        Notices notice = noticeRepository.findById(noticeId)
+                .orElseThrow(() -> new NoSuchElementException("공지사항을 찾을 수 없습니다. ID: " + noticeId));
+
+        // 조회수 증가 없음
+        List<NoticeFiles> attachments = noticeFilesRepository.findByNoticesId(noticeId);
+
+        log.info("관리자 공지사항 상세 조회 완료 (조회수 증가 없음) - ID: {}, 현재 조회수: {}",
+                noticeId, notice.getViewCount());
 
         return NoticeResponseDTO.fromWithAttachments(notice, attachments);
     }
@@ -118,10 +135,10 @@ public class NoticeServiceImpl implements NoticeService {
         }
 
         List<NoticeFiles> noticeFiles = noticeFilesRepository.findByNoticesId(noticeId);
-        log.info("=== 파일 삭제 디버깅 - 조회된 파일 개수: {} ===", noticeFiles.size()); // 🆕 추가
+        log.info("=== 파일 삭제 디버깅 - 조회된 파일 개수: {} ===", noticeFiles.size());
 
         if (noticeFiles.isEmpty()) {
-            log.info("연결된 파일이 없어서 S3 삭제 건너뜀"); // 🆕 추가
+            log.info("연결된 파일이 없어서 S3 삭제 건너뜀");
         } else {
             for (NoticeFiles noticeFile : noticeFiles) {
                 String fileUrl = noticeFile.getFiles().getFileUrl();
@@ -152,7 +169,7 @@ public class NoticeServiceImpl implements NoticeService {
         Notices notice = noticeRepository.findById(noticeId)
                 .orElseThrow(() -> new NoSuchElementException("공지사항을 찾을 수 없습니다. ID: " + noticeId));
 
-        // 🆕 파일 관리 서비스에 위임
+        // 파일 관리 서비스에 위임
         Files savedFile = noticeFileService.uploadNoticeFile(file);
 
         // 공지사항과 파일 연결 (Notice 도메인 책임)
@@ -184,7 +201,7 @@ public class NoticeServiceImpl implements NoticeService {
         // 매핑 관계 삭제
         noticeFilesRepository.deleteById(noticeFile.getId());
 
-        // 🆕 파일 관리 서비스에 위임 (Storage + Files DB 삭제)
+        // 파일 관리 서비스에 위임 (Storage + Files DB 삭제)
         noticeFileService.deleteNoticeFileCompletely(fileId);
 
         log.info("파일 삭제 완료 - noticeId: {}, fileId: {}", noticeId, fileId);
@@ -204,7 +221,7 @@ public class NoticeServiceImpl implements NoticeService {
         // 공지사항 정보가 필요하면
         Notices notice = noticeFile.getNotices();
 
-        // 🆕 파일 관리 서비스에 위임
+        // 파일 관리 서비스에 위임
         noticeFileService.replaceNoticeFile(fileId, newFile);
 
         log.info("파일 교체 완료 - noticeId: {}, fileId: {}", noticeId, fileId);

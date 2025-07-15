@@ -26,7 +26,7 @@ import org.springframework.http.MediaType;
 import java.util.*;
 
 @RestController
-@RequestMapping("/v1/admin/notices")
+@RequestMapping("/v1/admin/notices/test")
 @RequiredArgsConstructor
 @Slf4j
 @PreAuthorize("hasRole('ADMIN')")
@@ -72,11 +72,11 @@ public class NoticeAdminController {
         }
     }
 
-    // ========== 공지사항 상세 조회 ==========
+    // ========== 공지사항 상세 조회 (관리자용 - 조회수 증가 없음) ==========
     @GetMapping("/{noticeId}")
     @Operation(
-            summary = "공지사항 상세 조회",
-            description = "관리자 페이지에서 공지사항 상세 내용을 조회합니다."
+            summary = "공지사항 상세 조회 (관리자용)",
+            description = "관리자 페이지에서 공지사항 상세 내용을 조회합니다. 조회수가 증가하지 않습니다."
     )
     public ResponseEntity<APIResponse<NoticeResponseDTO>> getNotice(
             HttpSession session,
@@ -86,9 +86,10 @@ public class NoticeAdminController {
             // 세션 인증 추가
             AdminInfo adminInfo = controllerUtils.requireSessionInfo(session);
 
-            NoticeResponseDTO response = noticeService.getNotice(noticeId);
+            // 🔥 변경: 관리자용 메서드 사용 (조회수 증가 없음)
+            NoticeResponseDTO response = noticeService.getNoticeForAdmin(noticeId);
 
-            log.info("관리자 공지사항 상세 조회 완료 - noticeId: {}, adminId: {}, adminName: {}",
+            log.info("관리자 공지사항 상세 조회 완료 (조회수 증가 없음) - noticeId: {}, adminId: {}, adminName: {}",
                     noticeId, adminInfo.adminId(), adminInfo.name());
 
             return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
