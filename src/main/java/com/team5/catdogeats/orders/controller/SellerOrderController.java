@@ -13,6 +13,8 @@ import com.team5.catdogeats.orders.dto.response.TrackingNumberRegisterResponse;
 import com.team5.catdogeats.orders.service.SellerOrderCommandService;
 import com.team5.catdogeats.orders.service.SellerOrderService;
 import com.team5.catdogeats.orders.dto.request.OrderDeleteRequest;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +42,7 @@ import java.util.NoSuchElementException;
 @RestController
 @RequestMapping("/v1/sellers/orders")
 @RequiredArgsConstructor
+@Tag(name = "Seller-Order-Management", description = "판매자가 주문/배송 관리 페이지에서 할 수 있는 기능들")
 public class SellerOrderController {
 
     private final SellerOrderService sellerOrderService;
@@ -49,6 +52,7 @@ public class SellerOrderController {
      * 배송 관리 (판매자) - 주문 목록 조회
      * API: GET /v1/sellers/orders/list?page={}&sort={}
      */
+    @Operation(summary = "주문 목록 조회(판매자)", description = "판매자가 결제 완료된 주문 목록을 확인 할 수 있는 api")
     @GetMapping("/list")
     public ResponseEntity<APIResponse<SellerOrderListResponse>> getSellerOrders(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -89,6 +93,7 @@ public class SellerOrderController {
      * 배송 고객 주소 조회 (판매자)
      * API: GET /v1/sellers/orders/{order-number}
      */
+    @Operation(summary = "구매자 정보 조회(판매자)", description = "판매자가 주문한 구매자의 정보에 대해 조회하는 api")
     @GetMapping("/{order-number}")
     public ResponseEntity<APIResponse<SellerOrderDetailResponse>> getSellerOrderDetail(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -129,6 +134,8 @@ public class SellerOrderController {
      * 배송 상태 관리 (판매자)
      * API: POST /v1/sellers/orders/status
      */
+    @Operation(summary = "배송 상태 관리", description = "판매자가 주문의 배송 상태에 대해 관리 할 수 있는 api" +
+            "PAYMENT_COMPLETED(결제 완료), PREPARING (상품준비중), READY_FOR_SHIPMENT (배송준비완료)")
     @PostMapping("/status")
     public ResponseEntity<APIResponse<OrderStatusUpdateResponse>> updateOrderStatus(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -176,6 +183,7 @@ public class SellerOrderController {
      * 배송 운송장 등록 (판매자)
      * API: POST /v1/sellers/orders/tracking-number
      */
+    @Operation(summary = "배송 운송장 등록", description = "판매자가 물류 서버에서 받은 운송장 번호를 등록하여 주문 상태를 배송중으로 바꾸는 api")
     @PostMapping("/tracking-number")
     public ResponseEntity<APIResponse<TrackingNumberRegisterResponse>> registerTrackingNumber(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -224,6 +232,7 @@ public class SellerOrderController {
      * API: POST /v1/sellers/orders/sync-shipment-status
      * 판매자의 모든 배송 중 주문에 대해 물류 서버에서 상태를 조회하고 배송완료 주문을 자동 업데이트
      */
+    @Operation(summary = "배송중인 주문 상태 동기화", description = "물류서버로 부터 배송중인 주문에 대해 최신 상태를 업데이트 받을 수 있는 api")
     @PostMapping("/sync-shipment-status")
     public ResponseEntity<APIResponse<ShipmentSyncResponse>> syncAllShipmentStatus(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
@@ -262,6 +271,7 @@ public class SellerOrderController {
      * 주문 내역 삭제 (판매자)
      * API: DELETE /v1/sellers/orders
      */
+    @Operation(summary = "주문 내역 삭제(판매자)", description = "배송완료나 취소된 주문을 관리 차원에서 삭제하는 api")
     @DeleteMapping
     public ResponseEntity<APIResponse<String>> deleteOrder(
             @AuthenticationPrincipal UserPrincipal userPrincipal,

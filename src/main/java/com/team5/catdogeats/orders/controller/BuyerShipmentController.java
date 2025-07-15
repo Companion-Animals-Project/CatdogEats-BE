@@ -5,6 +5,8 @@ import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import com.team5.catdogeats.orders.dto.response.BuyerShipmentDetailResponse;
 import com.team5.catdogeats.orders.service.BuyerOrderQueryService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,7 @@ import java.util.NoSuchElementException;
 @RestController
 @RequestMapping("/v1/buyers/shipments")
 @RequiredArgsConstructor
+@Tag(name = "Buyer Shipments", description = "구매자 배송 정보 조회")
 public class BuyerShipmentController {
 
     private final BuyerOrderQueryService buyerOrderQueryService;
@@ -29,6 +32,7 @@ public class BuyerShipmentController {
      * 구매자 배송 정보 상세 조회 (물류 서버 연동)
      * API: GET /v1/buyers/shipments/{order-number}
      */
+    @Operation(summary = "배송 정보 상세 조회(구매자용)", description = "구매자가 상세한 배송 정보를 조회하는 api")
     @GetMapping("/{orderNumber}")
     public ResponseEntity<APIResponse<BuyerShipmentDetailResponse>> getBuyerShipmentDetail(
             @AuthenticationPrincipal UserPrincipal userPrincipal,

@@ -13,6 +13,8 @@ import com.team5.catdogeats.orders.service.BuyerOrderQueryService;
 import com.team5.catdogeats.orders.service.OrderCreateService;
 import com.team5.catdogeats.orders.service.OrderDeleteService;
 import com.team5.catdogeats.orders.service.OrderDetailService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +37,7 @@ import java.util.NoSuchElementException;
 @RestController
 @RequestMapping("/v1/buyers/orders")
 @RequiredArgsConstructor
+@Tag(name = "Order", description = "주문 관련 api")
 public class OrderController {
 
     private final BuyerOrderQueryService buyerOrderQueryService;
@@ -45,6 +48,7 @@ public class OrderController {
     /**
      * 주문 생성 (구매자) - 기존 메서드 유지
      */
+    @Operation(summary = "구매자 주문 기능", description = "주문 생성을 요청하는 api")
     @PostMapping
     public ResponseEntity<APIResponse<OrderCreateResponse>> createOrder(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -93,6 +97,7 @@ public class OrderController {
      * 구매자 주문 목록 조회 (배송 정보 포함)
      * API: GET /v1/buyers/orders/list?page={}&size={}
      */
+    @Operation(summary = "주문 목록 조회(구매자)", description = "구매자가 마이페이지에서 주문/배송 내역을 확인할 수 있는 api")
     @GetMapping("/list")
     public ResponseEntity<APIResponse<BuyerOrderListResponse>> getBuyerOrderList(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -133,6 +138,7 @@ public class OrderController {
     /**
      * 주문 상세 조회 (구매자) - 기존 메서드 유지
      */
+    @Operation(summary = "주문 상세 조회(구매자)", description = "구매자가 주문에 대한 상세 정보를 확인 할 수 있는 api")
     @GetMapping("/{orderNumber}")
     public ResponseEntity<APIResponse<OrderDetailResponse>> getOrderDetail(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -177,6 +183,7 @@ public class OrderController {
      * @param request 삭제할 주문 정보 (orderNumber 포함)
      * @return 삭제 처리 결과
      */
+    @Operation(summary = "주문 내역 삭제(구매자)", description = "구매자가 주문 목록에서 완료된 주문이나 취소된 주문을 삭제 할 수 있는 api")
     @DeleteMapping
     public ResponseEntity<APIResponse<OrderDeleteResponse>> deleteOrder(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
