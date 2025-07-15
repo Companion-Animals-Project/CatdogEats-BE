@@ -51,9 +51,13 @@ public class SellerStoreProductServiceImpl implements SellerStoreProductService 
             String productCategoryStr = productCategory != null ? productCategory.name() : null;
             String normalizedFilter = validateAndNormalizeFilter(filter);
 
-            // 2. 베스트 상품 특별 처리
+            // 2. 특별 필터 처리 (최대 10개 제한)
             if ("best".equals(normalizedFilter)) {
                 return getBestProducts(sellerId, categoryStr, productCategoryStr);
+            }
+
+            if ("new".equals(normalizedFilter)) {
+                return getNewProducts(sellerId, categoryStr, productCategoryStr);
             }
 
             // 3. 일반 상품 조회
@@ -198,8 +202,9 @@ public class SellerStoreProductServiceImpl implements SellerStoreProductService 
                             product.discountRate(),
                             product.mainImageUrl(),
                             product.petCategory(),
-                            product.productCategory(),  // 추가된 필드
-                            product.stockStatus(),
+                            product.productCategory(),
+                            product.stock(),
+                            product.safetyStock(),
                             product.avgRating(),
                             product.reviewCount(),
                             bestScoreMap.getOrDefault(product.productId(), 0.0)
@@ -217,6 +222,31 @@ public class SellerStoreProductServiceImpl implements SellerStoreProductService 
             //  베스트 상품 조회 실패 시 Products 도메인 예외로 변환
             log.error("베스트 상품 조회 실패 - sellerId: {}", sellerId, e);
             throw new ProductDataRetrievalException("베스트 상품 조회 실패 - sellerId: " + sellerId, e);
+        }
+    }
+
+    /**
+     * 신규 상품 조회 (최대 10개)
+     */
+    private Page<ProductStoreInfoDTO> getNewProducts(String sellerId, String petCategoryStr, String productCategoryStr) {
+        log.debug("신규 상품 조회 시작 - sellerId: {}, petCategory: {}, productCategory: {}",
+                sellerId, petCategoryStr, productCategoryStr);
+
+        try {
+            // 신규 상품 조회 (최대 10개)
+            List<ProductStoreInfoDTO> newProducts = productStoreMapper.findSellerProductsBaseInfo(
+                    sellerId, petCategoryStr, productCategoryStr, "new", 10, 0
+            );
+
+            long total = Math.min(newProducts.size(), 10);
+
+            log.debug("신규 상품 조회 완료 - total: {}, products: {}", total, newProducts.size());
+
+            return new PageImpl<>(newProducts, PageRequest.of(0, 10), total);
+
+        } catch (Exception e) {
+            log.error("신규 상품 조회 실패 - sellerId: {}", sellerId, e);
+            throw new ProductDataRetrievalException("신규 상품 조회 실패 - sellerId: " + sellerId, e);
         }
     }
 }

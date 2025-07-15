@@ -19,8 +19,24 @@ public record ProductStoreInfoDTO(
         String mainImageUrl,
         PetCategory petCategory,
         ProductCategory productCategory,
-        StockStatus stockStatus,
+        Integer stock,
+        Integer safetyStock,
         Double avgRating,
         Long reviewCount,
         Double bestScore
-) {}
+) {
+
+    /**
+     * 재고 상태를 계산하여 반환하는 메서드
+     * Products 엔티티의 getStockStatus() 로직과 동일
+     */
+    public StockStatus getStockStatus() {
+        if (stock == null || stock <= 0) {
+            return StockStatus.OUT_OF_STOCK;
+        }
+        if (safetyStock != null && stock <= safetyStock) {
+            return StockStatus.LOW_STOCK;
+        }
+        return StockStatus.IN_STOCK;
+    }
+}
