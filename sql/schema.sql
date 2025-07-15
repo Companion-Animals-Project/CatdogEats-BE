@@ -636,11 +636,11 @@ SELECT
     st.created_at as settlement_date,
     o.created_at as order_date,
 
-    -- 수량 및 금액 정보
-    oi.quantity,
-    oi.price as unit_price,                    -- 주문 시점 상품 단가
-    (oi.quantity * oi.price) as total_amount,  -- 총 주문 금액
-    st.settlement_amount,                      -- 정산 금액 (수수료 제외)
+    -- 수량 및 금액 정보 (정산 기준으로 수정)
+    1 as quantity,                             -- 정산은 개별 상품 단위 (항상 1)
+    st.item_price as unit_price,               -- 정산 기준 단가
+    st.settlement_amount as total_amount,      -- 정산 금액 (수수료 제외)
+    st.settlement_amount,                      -- 정산 금액 (수수료 제외) - 호환성 유지
     st.commission_amount,                      -- 수수료
     st.item_price                             -- 정산 기준 상품 금액
 FROM settlements st
@@ -656,20 +656,40 @@ WHERE
   AND o.is_hidden = false;
 
 
+
+
 -- View 성능 최적화를 위한 인덱스
 
--- 1. 매출 분석 조회 최적화 인덱스 (판매자별 + 연도별)
-CREATE INDEX IF NOT EXISTS idx_settlements_sales_analytics
+--- ==========================================
+-- 매출 분석용 인덱스 생성
+-- ==========================================
+
+-- 1. 매출 분석 기본 조회용 인덱스 (판매자 + 날짜 + 상태)
+CREATE INDEX IF NOT EXISTS idx_settlements_sales_analytics_basic
     ON settlements (seller_id, settlement_status, created_at)
     WHERE settlement_status = 'COMPLETED';
 
--- 2. 상품별 매출 분석 최적화 인덱스
-CREATE INDEX IF NOT EXISTS idx_order_items_product_analysis
-    ON order_items (product_id, quantity, price);
-
--- 3. 기간별 조회 최적화 인덱스
-CREATE INDEX IF NOT EXISTS idx_settlements_date_range
-    ON settlements (created_at, seller_id, settlement_status)
+-- 2. 매출 분석 날짜 범위 조회용 인덱스 (년도별/월별 검색 최적화)
+CREATE INDEX IF NOT EXISTS idx_settlements_sales_analytics_date
+    ON settlements (seller_id, created_at, settlement_status, settlement_amount)
     WHERE settlement_status = 'COMPLETED';
+
+-- 3. 상품별 매출 분석용 인덱스 (order_item_id로 products 조인 최적화)
+CREATE INDEX IF NOT EXISTS idx_settlements_order_item_analytics
+    ON settlements (order_item_id, seller_id, settlement_status, settlement_amount, created_at)
+    WHERE settlement_status = 'COMPLETED';
+
+-- 5. 주문 정보 조인 최적화용 인덱스 (order_items 테이블)
+CREATE INDEX IF NOT EXISTS idx_order_items_settlements_join
+    ON order_items (id, order_id, product_id);
+
+-- 6. 주문 상태 필터링용 인덱스 (orders 테이블)
+CREATE INDEX IF NOT EXISTS idx_orders_analytics_filter
+    ON orders (id, order_status, is_hidden)
+    WHERE order_status != 'CANCELLED' AND is_hidden = false;
+
+-- 7. 상품 정보 조인 최적화용 인덱스 (products 테이블)
+CREATE INDEX IF NOT EXISTS idx_products_analytics_join
+    ON products (id, title, seller_id);
 
 -- ===================================================================================

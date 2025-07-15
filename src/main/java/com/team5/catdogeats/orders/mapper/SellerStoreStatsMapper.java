@@ -24,9 +24,11 @@ public interface SellerStoreStatsMapper {
         delivery_data AS (
             SELECT 
                 COALESCE(AVG(EXTRACT(EPOCH FROM (s.delivered_at - o.created_at)) / 86400), 0) as avg_delivery_days
-            FROM shipments s
-            INNER JOIN orders o ON s.order_id = o.id
-            WHERE s.seller_id = #{sellerId}
+            FROM products p
+            INNER JOIN order_items oi ON p.id = oi.product_id
+            INNER JOIN orders o ON oi.order_id = o.id
+            INNER JOIN shipments s ON o.id = s.order_id
+            WHERE p.seller_id = #{sellerId}
             AND s.delivered_at IS NOT NULL
             AND o.created_at IS NOT NULL
             AND s.delivered_at > o.created_at
@@ -34,7 +36,14 @@ public interface SellerStoreStatsMapper {
         ),
         review_data AS (
             SELECT 
-                COALESCE(COUNT(r.id), 0) as total_reviews
+                COALESCE(COUNT(r.id), 0) as total_reviews,
+                COALESCE(
+                    CASE 
+                        WHEN COUNT(r.id) > 0 
+                        THEN ROUND(AVG(r.star), 1)
+                        ELSE 0.0 
+                    END, 0.0
+                ) as avg_review_rating
             FROM products p
             LEFT JOIN reviews r ON p.id = r.product_id
             WHERE p.seller_id = #{sellerId}
@@ -42,7 +51,8 @@ public interface SellerStoreStatsMapper {
         SELECT 
             COALESCE(sd.total_sales_count, 0) as totalSalesCount,
             COALESCE(dd.avg_delivery_days, 0) as avgDeliveryDays,
-            COALESCE(rd.total_reviews, 0) as totalReviews
+            COALESCE(rd.total_reviews, 0) as totalReviews,
+            COALESCE(rd.avg_review_rating, 0.0) as avgReviewRating
         FROM review_data rd
         LEFT JOIN sales_data sd ON 1=1
         LEFT JOIN delivery_data dd ON 1=1
