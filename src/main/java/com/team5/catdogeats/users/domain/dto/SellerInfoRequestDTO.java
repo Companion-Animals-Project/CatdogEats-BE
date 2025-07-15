@@ -1,7 +1,7 @@
 package com.team5.catdogeats.users.domain.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -41,6 +41,16 @@ public record SellerInfoRequestDTO(
         @Size(max = 20, message = "휴무일은 최대 20자까지 입력 가능합니다.")
         String closedDays,
 
+        // 배송비 관련 필드 추가
+        @Schema(description = "기본 배송비", example = "3000")
+        @Min(value = 0, message = "배송비는 0원 이상이어야 합니다.")
+        Long deliveryFee,
+
+        @Schema(description = "무료배송 최소 주문금액", example = "50000")
+        @Min(value = 0, message = "무료배송 최소 주문금액은 0원 이상이어야 합니다.")
+        Long freeShippingThreshold,
+
+        // 사업자 주소 정보
         @Schema(description = "사업자 주소 제목", example = "본사")
         @Size(max = 30, message = "주소 제목은 30자 이하여야 합니다")
         String addressTitle,

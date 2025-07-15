@@ -54,11 +54,12 @@ public class SellerInfoServiceImpl implements SellerInfoService {
         // Users 조회
         Users user = findUserByPrincipal(userPrincipal);
 
-        // 운영시간, 휴무일 유효성 검증
+        // 운영시간, 휴무일, 배송비 유효성 검증
         validateOperatingHours(request);
         validateClosedDays(request.closedDays());
+        validateDeliveryInfo(request); // 배송비 검증 추가
 
-        // 판매자 정보 등록/수정 (userPrincipal - 주소 생성/수정에 필요)
+        // 판매자 정보 등록/수정
         return upsertSellerInfoInternal(user, request, userPrincipal);
     }
 
@@ -77,7 +78,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
     }
 
     /**
-     * 판매자 정보 조회 로직 (주소 정보 포함) - userPrincipal 제거
+     * 판매자 정보 조회 로직
      */
     private SellerInfoResponseDTO getSellerInfoInternal(String userId) {
         Optional<Sellers> sellerOpt = sellersRepository.findByUserId(userId);
@@ -89,7 +90,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
 
         Sellers seller = sellerOpt.get();
 
-        // 사업자 주소 조회 (userId 기반 메서드 사용 - userPrincipal 불필요)
+        // 사업자 주소 조회
         AddressResponseDto businessAddress = null;
         try {
             businessAddress = addressService.getDefaultAddressByUserId(userId, AddressType.BUSINESS);
@@ -103,7 +104,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
     }
 
     /**
-     * 판매자 정보 등록/수정 로직 (주소 처리 포함) - userPrincipal (주소 생성/수정에 필요)
+     * 판매자 정보 등록/수정 로직 (주소 처리 포함)
      */
     private SellerInfoResponseDTO upsertSellerInfoInternal(Users user, SellerInfoRequestDTO request, UserPrincipal userPrincipal) {
         String userId = user.getId();
@@ -127,7 +128,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
             log.info("판매자 정보 신규 등록 완료 - userId: {}", userId);
             Sellers savedSeller = sellersRepository.save(seller);
 
-            // 주소 정보 처리 (신규 등록) - userPrincipal 필요
+            // 주소 정보 처리 (신규 등록)
             AddressResponseDto businessAddress = handleAddressForCreate(request, userPrincipal);
 
             return SellerInfoResponseDTO.from(savedSeller, businessAddress);
@@ -146,7 +147,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
     }
 
     /**
-     * 신규 등록 시 주소 처리 - userPrincipal 필요 (AddressService.createAddress 호출)
+     * 신규 등록 시 주소 처리
      */
     private AddressResponseDto handleAddressForCreate(SellerInfoRequestDTO request, UserPrincipal userPrincipal) {
         if (!request.hasAddressInfo()) {
@@ -165,10 +166,10 @@ public class SellerInfoServiceImpl implements SellerInfoService {
                     .detailAddress(request.detailAddress())
                     .phoneNumber(request.phoneNumber())
                     .addressType(AddressType.BUSINESS)
-                    .isDefault(true) // 사업자 주소는 기본적으로 기본 주소로 설정
+                    .isDefault(true)
                     .build();
 
-            // userPrincipal 필요 - AddressService.createAddress 호출
+
             AddressResponseDto createdAddress = addressService.createAddress(addressRequest, userPrincipal);
             log.info("사업자 주소 등록 완료 - addressId: {}", createdAddress.getId());
             return createdAddress;
@@ -180,15 +181,15 @@ public class SellerInfoServiceImpl implements SellerInfoService {
     }
 
     /**
-     * 수정 시 주소 처리 - userPrincipal 필요 (AddressService.updateAddress 호출)
+     * 수정 시 주소 처리
      */
     private AddressResponseDto handleAddressForUpdate(SellerInfoRequestDTO request, UserPrincipal userPrincipal, String userId) {
         try {
-            // 기존 사업자 주소 조회 (userId 기반 - userPrincipal 불필요)
+            // 기존 사업자 주소 조회
             AddressResponseDto existingAddress = addressService.getDefaultAddressByUserId(userId, AddressType.BUSINESS);
 
             if (existingAddress == null && request.hasAddressInfo()) {
-                // 기존 주소가 없고 새로운 주소 정보가 있으면 신규 생성 - userPrincipal 필요
+                // 기존 주소가 없고 새로운 주소 정보가 있으면 신규 생성
                 return handleAddressForCreate(request, userPrincipal);
             } else if (existingAddress != null && request.hasAddressInfo()) {
                 // 기존 주소가 있고 새로운 주소 정보가 있으면 수정
@@ -204,7 +205,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
                         .isDefault(true)
                         .build();
 
-                // userPrincipal 필요 - AddressService.updateAddress 호출
+
                 AddressResponseDto updatedAddress = addressService.updateAddress(
                         existingAddress.getId(), updateRequest, userPrincipal);
                 log.info("사업자 주소 수정 완료 - addressId: {}", updatedAddress.getId());
@@ -216,7 +217,7 @@ public class SellerInfoServiceImpl implements SellerInfoService {
 
         } catch (Exception e) {
             log.error("사업자 주소 처리 중 오류 발생", e);
-            // 주소 처리 실패는 로그만 남기고 계속 진행
+
             try {
                 return addressService.getDefaultAddressByUserId(userId, AddressType.BUSINESS);
             } catch (Exception ex) {
@@ -259,6 +260,15 @@ public class SellerInfoServiceImpl implements SellerInfoService {
 
         if (request.closedDays() != null) {
             seller.updateClosedDays(request.closedDays());
+        }
+
+
+        if (request.deliveryFee() != null) {
+            seller.updateDeliveryFee(request.deliveryFee());
+        }
+
+        if (request.freeShippingThreshold() != null) {
+            seller.updateFreeShippingThreshold(request.freeShippingThreshold());
         }
     }
 
@@ -321,6 +331,22 @@ public class SellerInfoServiceImpl implements SellerInfoService {
         }
     }
 
+    /**
+     * 배송비 정보 유효성 검증
+     */
+    private void validateDeliveryInfo(SellerInfoRequestDTO request) {
+
+        if (request.deliveryFee() != null && request.freeShippingThreshold() != null) {
+            if (request.deliveryFee() > 0 && request.freeShippingThreshold() == 0) {
+                log.warn("배송비가 설정되었지만 무료배송 임계값이 0입니다 - deliveryFee: {}, threshold: {}",
+                        request.deliveryFee(), request.freeShippingThreshold());
+            }
+        }
+
+        log.debug("배송비 정보 검증 완료 - deliveryFee: {}, freeShippingThreshold: {}",
+                request.deliveryFee(), request.freeShippingThreshold());
+    }
+
     private void validateVendorNameDuplication(String userId, String vendorName) {
         sellersRepository.findByVendorName(vendorName)
                 .filter(seller -> !userId.equals(seller.getUserId()))
@@ -345,6 +371,8 @@ public class SellerInfoServiceImpl implements SellerInfoService {
                 .operatingStartTime(request.operatingStartTime())
                 .operatingEndTime(request.operatingEndTime())
                 .closedDays(request.closedDays())
+                .deliveryFee(request.deliveryFee() != null ? request.deliveryFee() : 0L)
+                .freeShippingThreshold(request.freeShippingThreshold() != null ? request.freeShippingThreshold() : 0L)
                 .build();
     }
 }

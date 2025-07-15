@@ -76,7 +76,7 @@ public class SellerStoreProductServiceImpl implements SellerStoreProductService 
             log.warn("상품 조회 파라미터 오류 - sellerId: {}, error: {}", sellerId, e.getMessage());
             throw e;
         } catch (Exception e) {
-            // Products 도메인 특화 예외로 변환
+
             log.error("상품 데이터 조회 실패 - sellerId: {}", sellerId, e);
             throw new ProductDataRetrievalException("상품 정보 조회 실패 - sellerId: " + sellerId, e);
         }
@@ -176,7 +176,7 @@ public class SellerStoreProductServiceImpl implements SellerStoreProductService 
                 return new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
             }
 
-            // 3. 상위 상품들의 기본 정보 조회 (productCategory 추가)
+            // 3. 상위 상품들의 기본 정보 조회
             List<ProductStoreInfoDTO> bestProducts = productStoreMapper.findProductsByIds(
                     topProductIds, petCategoryStr, productCategoryStr);
 
@@ -198,8 +198,9 @@ public class SellerStoreProductServiceImpl implements SellerStoreProductService 
                             product.discountRate(),
                             product.mainImageUrl(),
                             product.petCategory(),
-                            product.productCategory(),  // 추가된 필드
-                            product.stockStatus(),
+                            product.productCategory(),
+                            product.stock(),
+                            product.safetyStock(),
                             product.avgRating(),
                             product.reviewCount(),
                             bestScoreMap.getOrDefault(product.productId(), 0.0)

@@ -40,6 +40,13 @@ public record SellerInfoResponseDTO(
         @Schema(description = "휴무일", example = "월요일,화요일")
         String closedDays,
 
+        // 배송비 관련 필드 추가
+        @Schema(description = "기본 배송비", example = "3000")
+        Long deliveryFee,
+
+        @Schema(description = "무료배송 최소 주문금액", example = "50000")
+        Long freeShippingThreshold,
+
         @Schema(description = "사업자 주소 정보")
         BusinessAddressInfo businessAddress,
 
@@ -118,6 +125,8 @@ public record SellerInfoResponseDTO(
                 seller.getOperatingStartTime(),
                 seller.getOperatingEndTime(),
                 seller.getClosedDays(),
+                seller.getDeliveryFee(),
+                seller.getFreeShippingThreshold(),
                 BusinessAddressInfo.from(businessAddress),
                 seller.getCreatedAt(),
                 seller.getUpdatedAt()

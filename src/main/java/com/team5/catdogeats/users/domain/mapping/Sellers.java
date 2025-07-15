@@ -108,5 +108,17 @@ public class Sellers extends BaseEntity {
     public void updateClosedDays(String closedDays) {
         this.closedDays = closedDays;
     }
+
+    public void updateDeliveryFee(Long deliveryFee) {
+        if (deliveryFee != null && deliveryFee >= 0) {
+            this.deliveryFee = deliveryFee;
+        }
+    }
+
+    public void updateFreeShippingThreshold(Long freeShippingThreshold) {
+        if (freeShippingThreshold != null && freeShippingThreshold >= 0) {
+            this.freeShippingThreshold = freeShippingThreshold;
+        }
+    }
 }
 
