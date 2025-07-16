@@ -10,6 +10,7 @@ import com.team5.catdogeats.users.domain.enums.Role;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseCookie;
@@ -35,6 +36,13 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws ServletException, IOException {
 
+        try {
+            HttpSession session = request.getSession(false);
+            if (session != null) {
+                log.debug("OAuth2 인증 성공 후 세션 무효화: {}", session.getId());
+                session.invalidate();
+            }
+
         String token = jwtService.createAccessToken(authentication);
         String refreshTokenId = refreshTokenService.createRefreshToken(authentication);
         log.debug("Created refresh token: {}", refreshTokenId);
@@ -53,6 +61,10 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             response.addHeader("Set-Cookie", cookie.toString());
             response.addHeader("Set-Cookie", refreshIdCookie.toString());
             response.sendRedirect(url);
+        } catch (Exception e) {
+            log.error("Error during authentication: {}", e.getMessage());
+        }
+
     }
 
     private String getUrl(String role) {
