@@ -95,7 +95,7 @@ jobs:
         run: |
           mkdir -p deploy/.platform/nginx/conf.d
           cp docker-compose.yml deploy/docker-compose.yml
-          cp .platform/nginx/conf.d/*.conf deploy/.platform/nginx/conf.d/      
+          cp .platform/nginx/conf.d/*.conf deploy/.platform/nginx/conf.d/
           cd deploy && zip -r deploy.zip .
 
       - name: Copy bundle to EC2
@@ -106,6 +106,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "deploy/deploy.zip"
           target: "/home/${{ secrets.EC2_USER }}/app"
+          strip_components: 1
 
       - name: SSH & run Docker Compose on EC2
         uses: appleboy/ssh-action@v0.1.10
@@ -116,9 +117,13 @@ jobs:
           script: |
             cd /home/${{ secrets.EC2_USER }}/app
             unzip -o deploy.zip
+            
             cat << 'EOF' > .env
             ${{ secrets.ENV_FILE }}
             EOF
+            
+            # 5) 컨테이너 재기동
             docker compose down
             docker compose pull
             docker compose up -d --build
+           
