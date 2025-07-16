@@ -494,9 +494,11 @@
                     >search</span
                   >
                   <input
-                    class="search-input !pl-10"
-                    placeholder="제목으로 검색..."
-                    value=""
+                          class="search-input !pl-10"
+                          placeholder="공지사항 검색"
+                          value=""
+                          id="searchInput"
+                          onkeyup="handleSearch(event)"
                   />
                 </div>
 
@@ -834,11 +836,18 @@
       // ========== API 호출 함수들 ==========
 
       // 공지사항 목록 조회
-      async function fetchNotices() {
+      async function fetchNotices(searchTerm = '') {
         try {
-          const response = await fetch('/v1/admin/notices/test', {  // ← /test 추가
+          let url = '/v1/admin/notices/test';
+
+          // 검색어가 있으면 쿼리 파라미터 추가
+          if (searchTerm) {
+            url += `?search=${encodeURIComponent(searchTerm)}`;
+          }
+
+          const response = await fetch(url, {
             method: 'GET',
-            credentials: 'include', // 세션 쿠키 포함
+            credentials: 'include',
             headers: {
               'Content-Type': 'application/json'
             }
@@ -1050,32 +1059,69 @@
           const noticeId = form.getAttribute('data-notice-id');
 
           if (mode === 'edit' && noticeId) {
-            // 수정 모드 - 기존 방식 유지
+            // ========== 수정 모드 ==========
+            // 1. 먼저 제목과 내용 수정
             const noticeData = { title, content };
             await updateNotice(noticeId, noticeData);
+
+            // 2. 삭제할 파일들 처리
+            for (const fileId of deletedFileIds) {
+              try {
+                await fetch(`/v1/admin/notices/test/${noticeId}/files/${fileId}`, {
+                  method: 'DELETE',
+                  credentials: 'include'
+                });
+                console.log('파일 삭제 완료:', fileId);
+              } catch (error) {
+                console.error('파일 삭제 실패:', fileId, error);
+              }
+            }
+
+            // 3. 새로 추가할 파일들 업로드
+            if (selectedFiles.length > 0) {
+              for (const file of selectedFiles) {
+                const fileFormData = new FormData();
+                fileFormData.append('file', file);
+
+                try {
+                  const response = await fetch(`/v1/admin/notices/test/${noticeId}/files`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    body: fileFormData
+                  });
+
+                  if (!response.ok) {
+                    throw new Error(`파일 업로드 실패: ${file.name}`);
+                  }
+
+                  console.log('파일 업로드 완료:', file.name);
+                } catch (error) {
+                  console.error('파일 업로드 실패:', file.name, error);
+                }
+              }
+            }
+
             alert('공지사항이 성공적으로 수정되었습니다!');
+
           } else {
-            // 등록 모드 - 파일 포함하여 전송
+            // ========== 등록 모드 (기존 코드 유지) ==========
             const formData = new FormData();
 
-            // 공지사항 데이터를 JSON으로 추가
             const noticeData = { title, content };
             formData.append('notice', new Blob([JSON.stringify(noticeData)], {
               type: 'application/json'
             }));
 
-            // 파일들 추가
             if (selectedFiles.length > 0) {
               selectedFiles.forEach(file => {
                 formData.append('files', file);
               });
             }
 
-            // API 호출
             const response = await fetch('/v1/admin/notices/test', {
               method: 'POST',
               credentials: 'include',
-              body: formData // Content-Type은 자동으로 multipart/form-data로 설정됨
+              body: formData
             });
 
             if (!response.ok) {
@@ -1250,6 +1296,12 @@
           document.getElementById('noticeTitle').value = notice.title;
           document.getElementById('noticeContent').value = notice.content;
 
+          // 기존 첨부파일 목록 표시
+          if (notice.attachments && notice.attachments.length > 0) {
+            // 기존 파일들을 표시하기 위한 처리
+            displayExistingFiles(notice.attachments, noticeId);
+          }
+
           // 수정 모드 표시
           const modal = document.getElementById('noticeModal');
           const modalTitle = modal.querySelector('h2');
@@ -1338,38 +1390,86 @@
         event.target.value = '';
       }
 
-      // ========== 선택된 파일 목록 표시 ==========
+      // ========== 파일 목록 업데이트 (수정) ==========
       function updateFilesList() {
         const listContainer = document.getElementById('selectedFilesList');
 
-        if (selectedFiles.length === 0) {
+        // 기존 파일과 새로 선택한 파일이 모두 없으면
+        if (existingFiles.length === 0 && selectedFiles.length === 0) {
           listContainer.innerHTML = '';
           return;
         }
 
-        listContainer.innerHTML = selectedFiles.map((file, index) => `
-    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-      <div class="flex items-center gap-3">
-        <span class="material-icons-outlined text-gray-500">description</span>
-        <div>
-          <p class="text-sm font-medium text-gray-700">${file.name}</p>
-          <p class="text-xs text-gray-500">${formatFileSize(file.size)}</p>
+        let html = '';
+
+        // 기존 파일 표시
+        existingFiles.forEach((file, index) => {
+          html += `
+      <div class="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+        <div class="flex items-center gap-3">
+          <span class="material-icons-outlined text-blue-500">cloud_done</span>
+          <div>
+            <p class="text-sm font-medium text-gray-700">${file.fileName}</p>
+            <p class="text-xs text-gray-500">기존 파일</p>
+          </div>
         </div>
+        <button
+          type="button"
+          onclick="removeExistingFile(${index})"
+          class="p-1 hover:bg-blue-100 rounded transition-colors"
+          title="파일 삭제"
+        >
+          <span class="material-icons-outlined text-lg text-red-500">close</span>
+        </button>
       </div>
-      <button
-        type="button"
-        onclick="removeFile(${index})"
-        class="p-1 hover:bg-gray-200 rounded transition-colors"
-      >
-        <span class="material-icons-outlined text-lg text-red-500">close</span>
-      </button>
-    </div>
-  `).join('');
+    `;
+        });
+
+        // 새로 추가할 파일 표시
+        selectedFiles.forEach((file, index) => {
+          html += `
+      <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+        <div class="flex items-center gap-3">
+          <span class="material-icons-outlined text-gray-500">description</span>
+          <div>
+            <p class="text-sm font-medium text-gray-700">${file.name}</p>
+            <p class="text-xs text-gray-500">${formatFileSize(file.size)} - 새 파일</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onclick="removeFile(${index})"
+          class="p-1 hover:bg-gray-200 rounded transition-colors"
+        >
+          <span class="material-icons-outlined text-lg text-red-500">close</span>
+        </button>
+      </div>
+    `;
+        });
+
+        listContainer.innerHTML = html;
       }
 
       // ========== 파일 제거 ==========
       function removeFile(index) {
         selectedFiles.splice(index, 1);
+        updateFilesList();
+      }
+
+      // ========== 기존 파일 제거 ==========
+      function removeExistingFile(index) {
+        const file = existingFiles[index];
+
+        // 삭제 확인
+        if (!confirm(`"${file.fileName}" 파일을 삭제하시겠습니까?\n저장 버튼을 눌러야 실제로 삭제됩니다.`)) {
+          return;
+        }
+
+        // 삭제할 파일 ID 목록에 추가
+        deletedFileIds.push(file.fileId);
+
+        // 화면에서 제거
+        existingFiles.splice(index, 1);
         updateFilesList();
       }
 
@@ -1394,7 +1494,10 @@
 
         // 파일 목록 초기화
         selectedFiles = [];
+        existingFiles = [];  // 추가
+        deletedFileIds = [];  // 추가
         updateFilesList();
+
 
         // 수정 모드 속성 제거
         form.removeAttribute('data-mode');
@@ -1407,6 +1510,41 @@
         // 버튼 텍스트 원래대로
         const submitButton = form.querySelector('button[type="submit"]');
         submitButton.innerHTML = '<span class="material-icons-outlined text-base mr-2">save</span>저장';
+      }
+
+      // ========== 기존 파일 관리 전역 변수 ==========
+      let existingFiles = []; // 서버에 이미 저장된 파일들
+      let deletedFileIds = []; // 삭제할 파일 ID 목록
+
+      // ========== 기존 파일 표시 ==========
+      function displayExistingFiles(attachments, noticeId) {
+        existingFiles = attachments.map(file => ({
+          fileId: file.fileId,
+          fileName: file.fileName,
+          noticeId: noticeId
+        }));
+
+        updateFilesList();
+      }
+
+      // ========== 검색 관련 전역 변수 ==========
+      let currentSearchTerm = '';
+
+      // ========== 검색 처리 ==========
+      function handleSearch(event) {
+        // 엔터키를 눌렀을 때 검색 실행
+        if (event.key === 'Enter') {
+          const searchTerm = event.target.value.trim();
+          currentSearchTerm = searchTerm;
+          fetchNotices(searchTerm);
+        }
+      }
+
+      // 검색 입력창 초기화 및 전체 목록 조회
+      function clearSearch() {
+        document.getElementById('searchInput').value = '';
+        currentSearchTerm = '';
+        fetchNotices();
       }
     </script>
   </body>
