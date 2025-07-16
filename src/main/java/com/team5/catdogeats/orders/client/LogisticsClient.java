@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
  * 테스트 물류 서버 API와 통신하기 위한 Feign 클라이언트
  */
 // name: Feign 클라이언트의 고유 이름, url: application.yml에 설정한 프로퍼티
-@FeignClient(name = "logistics-api", url = "${logistics.api.url}")
+@FeignClient(name = "logistics-api", url = "shipment-simulator.onrender.com")
 public interface LogisticsClient {
 
     /**
