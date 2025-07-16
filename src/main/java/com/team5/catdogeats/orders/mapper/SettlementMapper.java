@@ -49,11 +49,11 @@ public interface SettlementMapper {
             @Arg(column = "commission", javaType = Long.class),
             @Arg(column = "settlement_amount", javaType = Long.class),
             @Arg(column = "order_date", javaType = java.time.ZonedDateTime.class,
-                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+                    typeHandler = com.team5.catdogeats.global.config.ZonedDateTimeTypeHandler.class),
             @Arg(column = "delivery_date", javaType = java.time.ZonedDateTime.class,
-                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+                    typeHandler = com.team5.catdogeats.global.config.ZonedDateTimeTypeHandler.class),
             @Arg(column = "settlement_created_at", javaType = java.time.ZonedDateTime.class,
-                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+                    typeHandler = com.team5.catdogeats.global.config.ZonedDateTimeTypeHandler.class),
             @Arg(column = "settlement_status", javaType = com.team5.catdogeats.orders.domain.enums.SettlementStatus.class)
     })
     List<SettlementItemDTO> findSettlementsBySellerId(
@@ -141,11 +141,11 @@ public interface SettlementMapper {
             @Arg(column = "commission", javaType = Long.class),
             @Arg(column = "settlement_amount", javaType = Long.class),
             @Arg(column = "order_date", javaType = java.time.ZonedDateTime.class,
-                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+                    typeHandler = com.team5.catdogeats.global.config.ZonedDateTimeTypeHandler.class),
             @Arg(column = "delivery_date", javaType = java.time.ZonedDateTime.class,
-                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+                    typeHandler = com.team5.catdogeats.global.config.ZonedDateTimeTypeHandler.class),
             @Arg(column = "settlement_created_at", javaType = java.time.ZonedDateTime.class,
-                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+                    typeHandler = com.team5.catdogeats.global.config.ZonedDateTimeTypeHandler.class),
             @Arg(column = "settlement_status", javaType = com.team5.catdogeats.orders.domain.enums.SettlementStatus.class)
     })
     List<SettlementItemDTO> findSettlementsBySellerIdAndPeriod(
@@ -296,11 +296,11 @@ public interface SettlementMapper {
             @Arg(column = "commission", javaType = Long.class),
             @Arg(column = "settlement_amount", javaType = Long.class),
             @Arg(column = "order_date", javaType = java.time.ZonedDateTime.class,
-                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+                    typeHandler = com.team5.catdogeats.global.config.ZonedDateTimeTypeHandler.class),
             @Arg(column = "delivery_date", javaType = java.time.ZonedDateTime.class,
-                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+                    typeHandler = com.team5.catdogeats.global.config.ZonedDateTimeTypeHandler.class),
             @Arg(column = "settlement_created_at", javaType = java.time.ZonedDateTime.class,
-                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+                    typeHandler = com.team5.catdogeats.global.config.ZonedDateTimeTypeHandler.class),
             @Arg(column = "settlement_status", javaType = com.team5.catdogeats.orders.domain.enums.SettlementStatus.class)
     })
     List<SettlementItemDTO> findMonthlySettlementsWithPaging(
@@ -343,11 +343,11 @@ public interface SettlementMapper {
             @Arg(column = "commission", javaType = Long.class),
             @Arg(column = "settlement_amount", javaType = Long.class),
             @Arg(column = "order_date", javaType = java.time.ZonedDateTime.class,
-                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+                    typeHandler = com.team5.catdogeats.global.config.ZonedDateTimeTypeHandler.class),
             @Arg(column = "delivery_date", javaType = java.time.ZonedDateTime.class,
-                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+                    typeHandler = com.team5.catdogeats.global.config.ZonedDateTimeTypeHandler.class),
             @Arg(column = "settlement_created_at", javaType = java.time.ZonedDateTime.class,
-                    typeHandler = com.team5.catdogeats.global.config.mybatis.ZonedDateTimeTypeHandler.class),
+                    typeHandler = com.team5.catdogeats.global.config.ZonedDateTimeTypeHandler.class),
             @Arg(column = "settlement_status", javaType = com.team5.catdogeats.orders.domain.enums.SettlementStatus.class)
     })
     List<SettlementItemDTO> findMonthlySettlements(

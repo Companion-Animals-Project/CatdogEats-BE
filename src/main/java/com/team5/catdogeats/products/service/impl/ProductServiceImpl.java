@@ -22,6 +22,7 @@ import com.team5.catdogeats.users.repository.SellersRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -134,6 +135,7 @@ public class ProductServiceImpl implements ProductService {
                 projection.getIsDiscounted() != null && projection.getIsDiscounted(),
                 projection.getDiscountRate(),
                 projection.getPrice(),
+                projection.getDiscountedPrice(),
                 projection.getImages(),
                 projection.getVendorName(),
                 projection.getAverageStar(),
@@ -150,6 +152,8 @@ public class ProductServiceImpl implements ProductService {
         };
         return projections.stream()
                 .map(p -> new MainProductResponseDto(
+                        p.getProductId(),
+                        p.getProductNumber(),
                         p.getImageUrl(),
                         p.getVendorName(),
                         p.getTitle(),
@@ -158,9 +162,19 @@ public class ProductServiceImpl implements ProductService {
                         p.getPrice(),
                         p.getIsDiscounted(),
                         p.getDiscountRate(),
+                        p.getDiscountedPrice(),
                         p.getCreatedAt()
                 ))
                 .toList();
+    }
+
+    @Override
+    public Page<SellerProductListProjection> getSellerProductList(UserPrincipal userPrincipal, int page, int size) {
+        String sellerId = sellerRepository.findSellerDtoByProviderAndProviderId(
+                        userPrincipal.provider(), userPrincipal.providerId()
+                ).orElseThrow(() -> new NoSuchElementException("해당 유저 정보를 찾을 수 없습니다."))
+                .userId();
+        return productRepository.findSellerProductsBySellerId(sellerId, PageRequest.of(page, size));
     }
 
 
