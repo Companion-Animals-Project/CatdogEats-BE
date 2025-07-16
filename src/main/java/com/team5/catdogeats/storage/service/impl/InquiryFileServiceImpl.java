@@ -194,6 +194,18 @@ public class InquiryFileServiceImpl implements InquiryFileService {
     }
 
 
+    // 🆕 추가: 특정 메시지의 첨부파일만 조회
+    @Override
+    @JpaTransactional(readOnly = true)
+    public List<InquiryAttachmentDTO> getMessageAttachments(String messageId) {
+        List<InquiryFiles> inquiryFiles = inquiryFileRepository.findByInquiresIdOrderByCreatedAt(messageId);
+
+        return inquiryFiles.stream()
+                .map(this::convertToAttachmentDTO)
+                .collect(Collectors.toList());
+    }
+
+
     // 최적화된 루트 문의 찾기 (이미 fetch된 데이터만 사용)
     private Inquires findRootInquiryOptimized(Inquires inquiry) {
         Inquires current = inquiry;

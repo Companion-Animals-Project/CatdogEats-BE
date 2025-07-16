@@ -24,6 +24,9 @@ public interface InquiryFileService {
     // 문의 스레드의 모든 첨부 파일 조회 (상세조회에서 사용)
     List<InquiryAttachmentDTO> getInquiryThreadAttachments(String rootInquiryId);
 
+    // 🆕 추가: 특정 메시지의 첨부 파일만 조회
+    List<InquiryAttachmentDTO> getMessageAttachments(String messageId);
+
     // === 파일 다운로드 기능 ===
 
     // 🔄 수정된 메서드: 사용자용 파일 다운로드 (provider + providerId 방식)

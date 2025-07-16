@@ -32,7 +32,7 @@ public record InquiryDetailResponseDTO(
         List<InquiryAttachmentDTO> attachments
 ) {
     private static final DateTimeFormatter ADMIN_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    private static final DateTimeFormatter USER_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter USER_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final ZoneId KOREA_ZONE = ZoneId.of("Asia/Seoul");
 
     public record OrderInfo(
