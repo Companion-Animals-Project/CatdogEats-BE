@@ -80,4 +80,7 @@ public class Inquires extends BaseEntity {
     @JoinColumn(name = "order_id")
     private Orders orders;
 
+    // 강제 종료 사유 추가
+    @Column(columnDefinition = "TEXT")
+    private String reason;
 }
