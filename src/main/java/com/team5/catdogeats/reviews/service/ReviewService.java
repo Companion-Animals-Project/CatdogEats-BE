@@ -6,8 +6,6 @@ import com.team5.catdogeats.reviews.domain.dto.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import java.util.List;
-
 public interface ReviewService {
     String registerReview(UserPrincipal userPrincipal, ReviewCreateRequestDto dto);
 

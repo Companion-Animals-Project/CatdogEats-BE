@@ -2,7 +2,6 @@ package com.team5.catdogeats.orders.repository;
 
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.domain.mapping.OrderItems;
-import com.team5.catdogeats.products.domain.dto.ProductDeliveredResponseDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
