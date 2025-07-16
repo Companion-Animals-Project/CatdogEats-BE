@@ -17,7 +17,6 @@ import java.util.NoSuchElementException;
 
 /**
  * 매출 분석 서비스 구현체
- * SettlementServiceImpl 패턴을 참고하여 구현
  */
 @Slf4j
 @Service
@@ -37,8 +36,8 @@ public class SalesAnalyticsServiceImpl implements SalesAnalyticsService {
             // 1. 판매자 권한 검증 및 ID 조회
             String sellerId = validateAndGetSellerId(userPrincipal);
 
-            // 2. 년도별 총 매출 요약 조회
-            MonthlySalesRawDataDTO yearTotalSales = salesAnalyticsMapper.findYearTotalSalesBySellerAndYear(sellerId, year);
+            // 2. 년도별 총 매출 요약 조회 (YearTotalSalesDTO 사용)
+            YearTotalSalesDTO yearTotalSales = salesAnalyticsMapper.findYearTotalSalesBySellerAndYear(sellerId, year);
 
             // 3. 월별 매출 데이터 조회 (1~12월 모든 데이터)
             List<MonthlySalesRawDataDTO> monthlySalesRawDatumDTOS = salesAnalyticsMapper.findMonthlySalesBySellerAndYear(sellerId, year);
@@ -227,7 +226,6 @@ public class SalesAnalyticsServiceImpl implements SalesAnalyticsService {
                 isLast
         );
     }
-
 
     /**
      * UserPrincipal로 판매자 검증 및 ID 조회

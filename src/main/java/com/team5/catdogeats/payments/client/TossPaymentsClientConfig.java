@@ -5,7 +5,6 @@ import feign.RequestInterceptor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -16,7 +15,6 @@ import java.util.Base64;
  * 시크릿 키를 Base64로 인코딩하여 Authorization 헤더에 포함합니다.
  */
 @Slf4j
-@Configuration
 @RequiredArgsConstructor
 public class TossPaymentsClientConfig {
 

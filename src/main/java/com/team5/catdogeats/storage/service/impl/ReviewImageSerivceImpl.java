@@ -156,6 +156,6 @@ public class ReviewImageSerivceImpl implements ReviewImageService {
         String shortReviewId = reviewId.length() > 8 ? reviewId.substring(0, 8) : reviewId;
 
         // 처음 8자리만 사용 (너무 길어지는 것 방지)
-        return String.format("fail_review_%s_%s.%s", shortReviewId, uuid, extension);
+        return String.format("review_%s_%s.%s", shortReviewId, uuid, extension);
     }
 }

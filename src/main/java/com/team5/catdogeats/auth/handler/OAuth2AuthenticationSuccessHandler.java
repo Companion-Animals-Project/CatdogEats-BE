@@ -43,17 +43,18 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                 session.invalidate();
             }
 
-            String token = jwtService.createAccessToken(authentication);
-            String refreshTokenId = refreshTokenService.createRefreshToken(authentication);
-            log.debug("Created refresh token: {}", refreshTokenId);
-            String successUrl = urlProperties.getSuccessUrl();
-            log.debug("Success URL: {}", successUrl);
-            String role = (String) jwtUtils.parseToken(token).get("authorities");
-            String url = getUrl(role);
-            log.debug("Redirecting to: {}", url);
-            ResponseCookie cookie = cookieUtils.createCookie("token", cookieProperties.getMaxAge(), token);
-            ResponseCookie refreshIdCookie = cookieUtils.createCookie("refreshTokenId", cookieProperties.getMaxAge(), refreshTokenId);
-            log.debug("Created cookies: {} {}", cookie, refreshIdCookie);
+        String token = jwtService.createAccessToken(authentication);
+        String refreshTokenId = refreshTokenService.createRefreshToken(authentication);
+        log.debug("Created refresh token: {}", refreshTokenId);
+        String successUrl = urlProperties.getSuccessUrl();
+        log.debug("Success URL: {}", successUrl);
+        String role = (String) jwtUtils.parseToken(token).get("authorities");
+
+        String url = getUrl(role);
+        log.debug("Redirecting to: {}", url);
+        ResponseCookie cookie = cookieUtils.createCookie("token", cookieProperties.getMaxAge(), token);
+        ResponseCookie refreshIdCookie = cookieUtils.createCookie("refreshTokenId", cookieProperties.getMaxAge(), refreshTokenId);
+        log.debug("Created cookies: {} {}", cookie, refreshIdCookie);
             response.setContentType("application/json");
             response.setCharacterEncoding("UTF-8");
             response.setStatus(HttpServletResponse.SC_OK);
@@ -67,11 +68,12 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     }
 
     private String getUrl(String role) {
+
         if (Role.ROLE_TEMP.toString().equals(role)) {
-                return urlProperties.getRoleSelectionUrl();
+            return urlProperties.getRoleSelectionUrl();
         } else if (Role.ROLE_BUYER.toString().equals(role)) {
             return urlProperties.getSuccessUrl();
-        } else if(Role.ROLE_SELLER.toString().equals(role)) {
+        } else if (Role.ROLE_SELLER.toString().equals(role)) {
             return urlProperties.getSuccessUrl() + "/seller";
         }
         return urlProperties.getWithdrawnUrl() + "?error=role";

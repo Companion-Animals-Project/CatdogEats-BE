@@ -44,6 +44,9 @@ public record SellerStoreProductCardDTO(
         @Schema(description = "재고 상태", example = "IN_STOCK")
         StockStatus stockStatus,
 
+        @Schema(description = "재고 수량", example = "15")
+        Integer stock,
+
         @Schema(description = "평균 평점", example = "4.5")
         Double avgRating,
 
@@ -73,6 +76,9 @@ public record SellerStoreProductCardDTO(
                 ? BigDecimal.valueOf(productInfo.bestScore()).setScale(1, RoundingMode.HALF_UP).doubleValue()
                 : 0.0;
 
+
+        StockStatus stockStatus = productInfo.getStockStatus();
+
         return new SellerStoreProductCardDTO(
                 productInfo.productId(),
                 productInfo.productNumber(),
@@ -83,7 +89,8 @@ public record SellerStoreProductCardDTO(
                 productInfo.mainImageUrl(),
                 productInfo.petCategory(),
                 productInfo.productCategory(),
-                productInfo.stockStatus(),
+                stockStatus,
+                productInfo.stock(),
                 avgRating,
                 productInfo.reviewCount(),
                 bestScore
