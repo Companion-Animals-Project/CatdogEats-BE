@@ -264,4 +264,53 @@ public class NoticeServiceImpl implements NoticeService {
         String extension = fileName.substring(lastDotIndex + 1).toLowerCase();
         return List.of("pdf", "doc", "docx", "xls", "xlsx").contains(extension);
     }
+
+    // ========== 공지사항 생성 (파일 포함) ==========
+    @Override
+    @JpaTransactional
+    public NoticeResponseDTO createNoticeWithFiles(NoticeCreateRequestDTO requestDTO, List<MultipartFile> files) {
+        // 1. 공지사항 생성
+        Notices notice = Notices.builder()
+                .title(requestDTO.getTitle())
+                .content(requestDTO.getContent())
+                .build();
+
+        Notices savedNotice = noticeRepository.save(notice);
+        log.info("공지사항 생성 완료 - ID: {}, 제목: {}", savedNotice.getId(), savedNotice.getTitle());
+
+        // 2. 파일들 업로드 및 연결
+        List<NoticeFiles> attachedFiles = new ArrayList<>();
+
+        for (MultipartFile file : files) {
+            try {
+                // 파일 검증
+                validateFile(file);
+
+                // 파일 업로드
+                Files savedFile = noticeFileService.uploadNoticeFile(file);
+
+                // 공지사항과 파일 연결
+                NoticeFiles noticeFile = NoticeFiles.builder()
+                        .notices(savedNotice)
+                        .files(savedFile)
+                        .build();
+
+                NoticeFiles savedNoticeFile = noticeFilesRepository.save(noticeFile);
+                attachedFiles.add(savedNoticeFile);
+
+                log.info("파일 업로드 및 연결 완료 - 공지사항 ID: {}, 파일명: {}",
+                        savedNotice.getId(), file.getOriginalFilename());
+
+            } catch (Exception e) {
+                // 파일 업로드 실패 시 로그만 남기고 계속 진행
+                // 또는 전체 롤백이 필요하면 예외를 다시 던짐
+                log.error("파일 업로드 실패 - 파일명: {}, 오류: {}",
+                        file.getOriginalFilename(), e.getMessage());
+                // throw e; // 전체 롤백이 필요한 경우
+            }
+        }
+
+        // 3. 첨부파일 포함된 응답 반환
+        return NoticeResponseDTO.fromWithAttachments(savedNotice, attachedFiles);
+    }
 }

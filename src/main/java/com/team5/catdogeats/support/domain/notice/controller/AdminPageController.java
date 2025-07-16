@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
-@RequestMapping("/v1/admin/notices")  // ← /manage 추가
+@RequestMapping("/v1/admin/notice")  // ← /manage 추가
 @RequiredArgsConstructor
 @Slf4j
 @PreAuthorize("hasRole('ADMIN')")
@@ -80,7 +80,7 @@ public class AdminPageController {
                     "공지사항이 성공적으로 등록되었습니다.");
             redirectAttributes.addFlashAttribute("createdNoticeId", response.getId());
 
-            return "redirect:/v1/admin/notices";
+            return "redirect:/v1/admin/notice";
 
         } catch (Exception e) {
             log.error("관리자 공지사항 생성 실패 - 제목: {}", title, e);
@@ -89,7 +89,7 @@ public class AdminPageController {
             redirectAttributes.addFlashAttribute("errorMessage",
                     "공지사항 등록에 실패했습니다: " + e.getMessage());
 
-            return "redirect:/v1/admin/notices";
+            return "redirect:/v1/admin/notice";
         }
     }
 
@@ -123,7 +123,7 @@ public class AdminPageController {
             redirectAttributes.addFlashAttribute("successMessage",
                     "공지사항이 성공적으로 수정되었습니다.");
 
-            return "redirect:/v1/admin/notices";
+            return "redirect:/v1/admin/notice";
 
         } catch (Exception e) {
             log.error("관리자 공지사항 수정 실패 - ID: {}", noticeId, e);
@@ -131,7 +131,7 @@ public class AdminPageController {
             redirectAttributes.addFlashAttribute("errorMessage",
                     "공지사항 수정에 실패했습니다: " + e.getMessage());
 
-            return "redirect:/v1/admin/notices";
+            return "redirect:/v1/admin/notice";
         }
     }
 
@@ -157,7 +157,7 @@ public class AdminPageController {
             redirectAttributes.addFlashAttribute("successMessage",
                     "공지사항이 성공적으로 삭제되었습니다.");
 
-            return "redirect:/v1/admin/notices";
+            return "redirect:/v1/admin/notice";
 
         } catch (Exception e) {
             log.error("관리자 공지사항 삭제 실패 - ID: {}", noticeId, e);
@@ -165,7 +165,7 @@ public class AdminPageController {
             redirectAttributes.addFlashAttribute("errorMessage",
                     "공지사항 삭제에 실패했습니다: " + e.getMessage());
 
-            return "redirect:/v1/admin/notices";
+            return "redirect:/v1/admin/notice";
         }
     }
 }

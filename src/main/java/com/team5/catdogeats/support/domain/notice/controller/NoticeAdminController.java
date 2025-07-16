@@ -110,23 +110,34 @@ public class NoticeAdminController {
     }
 
     // ========== 공지사항 생성 ==========
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(
             summary = "공지사항 등록",
-            description = "관리자가 공지사항을 등록합니다."
+            description = "관리자가 공지사항을 등록합니다. 파일 첨부 가능"
     )
     public ResponseEntity<APIResponse<NoticeResponseDTO>> createNotice(
             HttpSession session,
-            @Valid @RequestBody NoticeCreateRequestDTO requestDto) {
+            @Valid @RequestPart("notice") NoticeCreateRequestDTO requestDto,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files) {
 
         try {
             // 세션 인증 추가
             AdminInfo adminInfo = controllerUtils.requireSessionInfo(session);
 
-            log.info("관리자 공지사항 생성 요청 - 제목: {}, adminId: {}, adminName: {}",
-                    requestDto.getTitle(), adminInfo.adminId(), adminInfo.name());
+            log.info("관리자 공지사항 생성 요청 - 제목: {}, 첨부파일 개수: {}, adminId: {}, adminName: {}",
+                    requestDto.getTitle(),
+                    files != null ? files.size() : 0,
+                    adminInfo.adminId(),
+                    adminInfo.name());
 
-            NoticeResponseDTO response = noticeService.createNotice(requestDto);
+            // 파일 첨부 여부에 따라 다른 서비스 메서드 호출
+            NoticeResponseDTO response;
+            if (files != null && !files.isEmpty()) {
+                response = noticeService.createNoticeWithFiles(requestDto, files);
+            } else {
+                response = noticeService.createNotice(requestDto);
+            }
+
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(APIResponse.success(ResponseCode.CREATED, response));
         } catch (BadCredentialsException e) {
@@ -134,6 +145,10 @@ public class NoticeAdminController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                     APIResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
             );
+        } catch (IllegalArgumentException e) {
+            log.error("파일 검증 실패: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
         } catch (Exception e) {
             log.error("관리자 공지사항 생성 중 서버 오류", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
