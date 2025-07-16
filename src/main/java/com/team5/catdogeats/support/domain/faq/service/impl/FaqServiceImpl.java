@@ -60,7 +60,7 @@ public class FaqServiceImpl implements FaqService {
     @Override
     public List<String> getPopularKeywords() {
         log.info("인기 검색어 조회 요청");
-        return Arrays.asList("배송", "환불", "재료", "알러지");
+        return Arrays.asList("배송", "환불", "제품", "알러지");
     }
 
     // ========== 관리자 기능 ==========

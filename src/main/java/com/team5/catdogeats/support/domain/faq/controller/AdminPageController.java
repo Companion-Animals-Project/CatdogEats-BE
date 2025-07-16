@@ -1,4 +1,4 @@
-package com.team5.catdogeats.support.domain.inquiry.controller;
+package com.team5.catdogeats.support.domain.faq.controller;
 
 import com.team5.catdogeats.admins.domain.dto.AdminInfo;
 import com.team5.catdogeats.admins.util.AdminControllerUtils;
@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 @Slf4j
-@Controller("inquiryAdminPageController")
-@RequestMapping("/v1/admin/inquiry")
+@Controller("faqAdminPageController")
+@RequestMapping("/v1/admin/faq")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminPageController {
@@ -21,10 +21,10 @@ public class AdminPageController {
     private final AdminControllerUtils adminControllerUtils;
 
     /**
-     * 1:1 문의 관리 페이지
+     * FAQ 관리 페이지
      */
     @GetMapping
-    public String inquiryManagePage(HttpSession session, Model model) {
+    public String faqManagePage(HttpSession session, Model model) {
         try {
             // 세션에서 관리자 정보 확인
             AdminInfo adminInfo = adminControllerUtils.requireSessionInfo(session);
@@ -34,11 +34,11 @@ public class AdminPageController {
             model.addAttribute("adminEmail", adminInfo.email());
             model.addAttribute("adminName", adminInfo.name());
 
-            log.info("관리자 1:1 문의 관리 페이지 접근 - adminId: {}, adminName: {}",
+            log.info("관리자 FAQ 관리 페이지 접근 - adminId: {}, adminName: {}",
                     adminInfo.adminId(), adminInfo.name());
 
             // Thymeleaf 템플릿 경로 반환
-            return "thymeleaf/administratorPage_otoManage";
+            return "thymeleaf/administratorPage_FAQ";
 
         } catch (Exception e) {
             log.error("관리자 페이지 접근 중 오류", e);
