@@ -97,7 +97,7 @@ jobs:
       - name: Generate deployment package
         run: |
           mkdir -p deploy/.platform/nginx/conf.d
-          cp Dockerrun.aws.json deploy/Dockerrun.aws.json
+          cp docker-compose.yml deploy/docker-compose.yml
           cp .platform/nginx/conf.d/*.conf deploy/.platform/nginx/conf.d/
           cd deploy && zip -r deploy.zip .
 
