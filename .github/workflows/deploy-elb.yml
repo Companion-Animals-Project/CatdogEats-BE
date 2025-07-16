@@ -96,8 +96,8 @@ jobs:
           mkdir -p deploy/.platform/nginx/conf.d
           cp docker-compose.yml deploy/docker-compose.yml
           cp .platform/nginx/conf.d/*.conf deploy/.platform/nginx/conf.d/
-          # GitHub Secret ENV_FILE 내용으로 .env 생성
-          echo "${{ secrets.ENV_FILE }}" > deploy/.env
+          printf '%s\n' "${{ secrets.ENV_FILE }}" > deploy/.env
+      
           cd deploy && zip -r deploy.zip .
 
       - name: Copy bundle to EC2
