@@ -2,6 +2,7 @@ package com.team5.catdogeats.global.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.chats.util.ChatSubscriber;
+import com.team5.catdogeats.notifications.util.NotificationSubscriber;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
@@ -56,10 +57,12 @@ public class RedisConfig {
     @Bean
     public RedisMessageListenerContainer container(
             RedisConnectionFactory redisConnectionFactory,
-            ChatSubscriber chatSubscriber) {
+            ChatSubscriber chatSubscriber,
+            NotificationSubscriber notificationSubscriber) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(redisConnectionFactory);
         container.addMessageListener(chatSubscriber, new PatternTopic("user:*"));
+        container.addMessageListener(notificationSubscriber, new PatternTopic("notify:*"));
         return container;
     }
 

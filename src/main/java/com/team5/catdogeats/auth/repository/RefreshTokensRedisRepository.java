@@ -12,4 +12,6 @@ public interface RefreshTokensRedisRepository extends CrudRepository<RefreshToke
 
     void deleteById(String id);
     Optional<RefreshTokens> findById(String id);
+
+    List<RefreshTokens> findByUserId(String userId);
 }

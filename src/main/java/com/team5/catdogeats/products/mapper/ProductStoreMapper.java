@@ -37,12 +37,13 @@ public interface ProductStoreMapper {
             p.product_number as productNumber,
             p.title,
             p.price,
-            p.is_discounted as isDiscounted,
+            p.discounted as isDiscounted,
             p.discount_rate as discountRate,
             COALESCE(fi.image_url, '') as mainImageUrl,
             p.petcategory as petCategory,
             p.productcategory as productCategory,
-            p.stock_status as stockStatus,
+            p.stock as stock,
+            p.safety_stock as safetyStock,
             COALESCE(rs.avg_rating, 0.0) as avgRating,
             COALESCE(rs.review_count, 0) as reviewCount,
             0.0 as bestScore
@@ -94,12 +95,13 @@ public interface ProductStoreMapper {
             p.product_number as productNumber,
             p.title,
             p.price,
-            p.is_discounted as isDiscounted,
+            p.discounted as isDiscounted,
             p.discount_rate as discountRate,
             COALESCE(fi.image_url, '') as mainImageUrl,
             p.petcategory as petCategory,
             p.productcategory as productCategory,
-            p.stock_status as stockStatus,
+            p.stock as stock,
+            p.safety_stock as safetyStock,
             COALESCE(rs.avg_rating, 0.0) as avgRating,
             COALESCE(rs.review_count, 0) as reviewCount,
             0.0 as bestScore
@@ -108,16 +110,16 @@ public interface ProductStoreMapper {
         LEFT JOIN review_stats rs ON rs.product_id = p.id
         WHERE p.seller_id = #{sellerId}
         <if test="filter == 'exclude_sold_out'">
-            AND p.stock_status != 'OUT_OF_STOCK'
+            AND p.stock > 0
         </if>
-        <if test="petCategory\s != null and petCategory\s != '' and petCategory != 'ALL'">
+        <if test="petCategory != null and petCategory != '' and petCategory != 'ALL'">
             AND p.petcategory = #{petCategory}
         </if>
         <if test="productCategory != null and productCategory != '' and productCategory != 'ALL'">
             AND p.productcategory = #{productCategory}
         </if>
         <if test="filter == 'discount'">
-            AND p.is_discounted = true
+            AND p.discounted = true
         </if>
         <if test="filter == 'new'">
             AND p.created_at >= NOW() - INTERVAL '30 days'
@@ -145,7 +147,7 @@ public interface ProductStoreMapper {
         FROM products p
         WHERE p.seller_id = #{sellerId}
         <if test="filter == 'exclude_sold_out'">
-            AND p.stock_status != 'OUT_OF_STOCK'
+            AND p.stock > 0
         </if>
         <if test="petCategory != null and petCategory != '' and petCategory != 'ALL'">
             AND p.petcategory = #{petCategory}
@@ -154,7 +156,7 @@ public interface ProductStoreMapper {
             AND p.productcategory = #{productCategory}
         </if>
         <if test="filter == 'discount'">
-            AND p.is_discounted = true
+            AND p.discounted = true
         </if>
         <if test="filter == 'new'">
             AND p.created_at >= NOW() - INTERVAL '30 days'
