@@ -1,6 +1,9 @@
 package com.team5.catdogeats.support.domain.notice.service.impl;
 
 import com.team5.catdogeats.global.annotation.JpaTransactional;
+import com.team5.catdogeats.global.annotation.Notification;
+import com.team5.catdogeats.notifications.domain.dto.NoticeCompletedDTO;
+import com.team5.catdogeats.notifications.domain.enums.NotificationType;
 import com.team5.catdogeats.storage.domain.Files;
 import com.team5.catdogeats.storage.domain.mapping.NoticeFiles;
 import com.team5.catdogeats.storage.service.NoticeFileService;
@@ -98,7 +101,8 @@ public class NoticeServiceImpl implements NoticeService {
 
     // ========== 공지사항 생성 ==========
     @Override
-    public NoticeResponseDTO createNotice(NoticeCreateRequestDTO requestDTO) {
+    @Notification(type = NotificationType.NOTICE)
+    public NoticeCompletedDTO createNotice(NoticeCreateRequestDTO requestDTO) {
         Notices notice = Notices.builder()
                 .title(requestDTO.getTitle())
                 .content(requestDTO.getContent())
@@ -107,7 +111,7 @@ public class NoticeServiceImpl implements NoticeService {
         Notices savedNotice = noticeRepository.save(notice);
         log.info("공지사항 생성 완료 - ID: {}, 제목: {}", savedNotice.getId(), savedNotice.getTitle());
 
-        return NoticeResponseDTO.from(savedNotice);
+        return new NoticeCompletedDTO(savedNotice.getTitle(), savedNotice.getContent().substring(0,10), NotificationType.NOTICE);
     }
 
     // ========== 공지사항 수정 ==========
@@ -268,6 +272,7 @@ public class NoticeServiceImpl implements NoticeService {
     // ========== 공지사항 생성 (파일 포함) ==========
     @Override
     @JpaTransactional
+    @Notification(type = NotificationType.NOTICE)
     public NoticeResponseDTO createNoticeWithFiles(NoticeCreateRequestDTO requestDTO, List<MultipartFile> files) {
         // 1. 공지사항 생성
         Notices notice = Notices.builder()

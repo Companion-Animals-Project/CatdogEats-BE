@@ -4,6 +4,7 @@ import com.team5.catdogeats.admins.domain.dto.AdminInfo;
 import com.team5.catdogeats.admins.util.AdminControllerUtils;
 import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
+import com.team5.catdogeats.notifications.domain.dto.NoticeCompletedDTO;
 import com.team5.catdogeats.support.domain.notice.dto.*;
 import com.team5.catdogeats.support.domain.notice.service.NoticeService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,7 +27,7 @@ import org.springframework.http.MediaType;
 import java.util.*;
 
 @RestController
-@RequestMapping("/v1/admin/notices/test")
+@RequestMapping("/v1/admin/notices")
 @RequiredArgsConstructor
 @Slf4j
 @PreAuthorize("hasRole('ADMIN')")
@@ -72,11 +73,11 @@ public class NoticeAdminController {
         }
     }
 
-    // ========== 공지사항 상세 조회 (관리자용 - 조회수 증가 없음) ==========
+    // ========== 공지사항 상세 조회 ==========
     @GetMapping("/{noticeId}")
     @Operation(
-            summary = "공지사항 상세 조회 (관리자용)",
-            description = "관리자 페이지에서 공지사항 상세 내용을 조회합니다. 조회수가 증가하지 않습니다."
+            summary = "공지사항 상세 조회",
+            description = "관리자 페이지에서 공지사항 상세 내용을 조회합니다."
     )
     public ResponseEntity<APIResponse<NoticeResponseDTO>> getNotice(
             HttpSession session,
@@ -86,10 +87,9 @@ public class NoticeAdminController {
             // 세션 인증 추가
             AdminInfo adminInfo = controllerUtils.requireSessionInfo(session);
 
-            // 🔥 변경: 관리자용 메서드 사용 (조회수 증가 없음)
-            NoticeResponseDTO response = noticeService.getNoticeForAdmin(noticeId);
+            NoticeResponseDTO response = noticeService.getNotice(noticeId);
 
-            log.info("관리자 공지사항 상세 조회 완료 (조회수 증가 없음) - noticeId: {}, adminId: {}, adminName: {}",
+            log.info("관리자 공지사항 상세 조회 완료 - noticeId: {}, adminId: {}, adminName: {}",
                     noticeId, adminInfo.adminId(), adminInfo.name());
 
             return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, response));
@@ -115,7 +115,7 @@ public class NoticeAdminController {
             summary = "공지사항 등록",
             description = "관리자가 공지사항을 등록합니다. 파일 첨부 가능"
     )
-    public ResponseEntity<APIResponse<NoticeResponseDTO>> createNotice(
+    public ResponseEntity<APIResponse<Object>> createNotice(
             HttpSession session,
             @Valid @RequestPart("notice") NoticeCreateRequestDTO requestDto,
             @RequestPart(value = "files", required = false) List<MultipartFile> files) {
@@ -131,15 +131,17 @@ public class NoticeAdminController {
                     adminInfo.name());
 
             // 파일 첨부 여부에 따라 다른 서비스 메서드 호출
-            NoticeResponseDTO response;
             if (files != null && !files.isEmpty()) {
-                response = noticeService.createNoticeWithFiles(requestDto, files);
+                NoticeResponseDTO response = noticeService.createNoticeWithFiles(requestDto, files);
+                return ResponseEntity.status(HttpStatus.CREATED)
+                        .body(APIResponse.success(ResponseCode.CREATED, response));
             } else {
-                response = noticeService.createNotice(requestDto);
+                NoticeCompletedDTO completedDTO = noticeService.createNotice(requestDto);
+                log.info("공지사항 생성 및 알림 발송 완료 - 제목: {}", completedDTO.title());
+                return ResponseEntity.status(HttpStatus.CREATED)
+                        .body(APIResponse.success(ResponseCode.CREATED));
             }
 
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(APIResponse.success(ResponseCode.CREATED, response));
         } catch (BadCredentialsException e) {
             log.warn("관리자 로그인 필요 - 공지사항 생성 시도, error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(

@@ -838,7 +838,7 @@
       // 공지사항 목록 조회
       async function fetchNotices(searchTerm = '') {
         try {
-          let url = '/v1/admin/notices/test';
+          let url = '/v1/admin/notices';
 
           // 검색어가 있으면 쿼리 파라미터 추가
           if (searchTerm) {
@@ -873,7 +873,7 @@
       // 공지사항 생성
       async function createNotice(noticeData) {
         try {
-          const response = await fetch('/v1/admin/notices/test', {  // ← /test 추가
+          const response = await fetch('/v1/admin/notices', {
             method: 'POST',
             credentials: 'include',
             headers: {
@@ -900,7 +900,7 @@
       // 공지사항 상세 조회
       async function fetchNoticeDetail(noticeId) {
         try {
-          const response = await fetch(`/v1/admin/notices/test/${noticeId}`, {  // ← /test 추가
+          const response = await fetch(`/v1/admin/notices/${noticeId}`, {
             method: 'GET',
             credentials: 'include',
             headers: {
@@ -925,7 +925,7 @@
       // 공지사항 수정
       async function updateNotice(noticeId, noticeData) {
         try {
-          const response = await fetch(`/v1/admin/notices/test/${noticeId}`, {
+          const response = await fetch(`/v1/admin/notices/${noticeId}`, {
             method: 'PATCH',
             credentials: 'include',
             headers: {
@@ -950,7 +950,7 @@
       }
       async function deleteNoticeById(noticeId) {
         try {
-          const response = await fetch(`/v1/admin/notices/test/${noticeId}`, {  // ← /test 추가
+          const response = await fetch(`/v1/admin/notices/${noticeId}`, {
             method: 'DELETE',
             credentials: 'include'
           });
@@ -1067,7 +1067,7 @@
             // 2. 삭제할 파일들 처리
             for (const fileId of deletedFileIds) {
               try {
-                await fetch(`/v1/admin/notices/test/${noticeId}/files/${fileId}`, {
+                await fetch(`/v1/admin/notices/${noticeId}/files/${fileId}`, {
                   method: 'DELETE',
                   credentials: 'include'
                 });
@@ -1084,7 +1084,7 @@
                 fileFormData.append('file', file);
 
                 try {
-                  const response = await fetch(`/v1/admin/notices/test/${noticeId}/files`, {
+                  const response = await fetch(`/v1/admin/notices/${noticeId}/files`, {
                     method: 'POST',
                     credentials: 'include',
                     body: fileFormData
@@ -1118,7 +1118,7 @@
               });
             }
 
-            const response = await fetch('/v1/admin/notices/test', {
+            const response = await fetch('/v1/admin/notices', {
               method: 'POST',
               credentials: 'include',
               body: formData
@@ -1231,7 +1231,7 @@
       }
       function downloadFile(noticeId, fileId) {
         // 새 창에서 다운로드 URL 열기
-        window.open(`/v1/admin/notices/test/${noticeId}/files/${fileId}`, '_blank');  // ← /test 추가
+        window.open(`/v1/admin/notices/${noticeId}/${fileId}`, '_blank');
       }
 
       // ========== 페이지 로드 시 초기화 ==========
