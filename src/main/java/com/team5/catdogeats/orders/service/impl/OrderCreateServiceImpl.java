@@ -85,8 +85,8 @@ public class OrderCreateServiceImpl implements OrderCreateService {
             Pets pet = petsRepository.findById(request.getPetId())
                     .orElseThrow(() -> new IllegalArgumentException("반려동물을 찾을 수 없습니다: " + request.getPetId()));
 
-// 구매자 본인의 반려동물인지 확인
-            if (!pet.getBuyer().getUser().getId().equals(buyers.getUser().getId())) {
+            // 구매자 본인의 반려동물인지 확인
+            if (!pet.getBuyer().getUserId().equals(buyers.getUserId())) {
                 throw new IllegalArgumentException("본인의 반려동물만 선택할 수 있습니다");
             }
             // 5. Orders 엔티티만 생성 및 저장 (PAYMENT_PENDING 상태)
