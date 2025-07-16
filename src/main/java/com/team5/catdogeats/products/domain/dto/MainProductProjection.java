@@ -4,6 +4,7 @@ import java.time.Instant;
 
 public interface MainProductProjection {
     String getProductId();
+    String getProductNumber();
     String getImageUrl();
     String getVendorName();
     String getTitle();
@@ -12,5 +13,6 @@ public interface MainProductProjection {
     Long getPrice();
     Boolean getIsDiscounted();
     Double getDiscountRate();
+    Long getDiscountedPrice();
     Instant getCreatedAt();
 }

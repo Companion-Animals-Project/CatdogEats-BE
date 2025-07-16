@@ -14,13 +14,18 @@ public record SellerStoreStatsDTO(
         Double avgDeliveryDays,
 
         @Schema(description = "총 리뷰 수", example = "85")
-        Long totalReviews
+        Long totalReviews,
+
+        @Schema(description = "평균 리뷰 점수", example = "4.2")
+        Double avgReviewRating
+
+
 ) {
 
     /**
      * 기본값으로 SellerStoreStatsDTO 생성
      */
     public static SellerStoreStatsDTO empty() {
-        return new SellerStoreStatsDTO(0L, 0.0, 0L);
+        return new SellerStoreStatsDTO(0L, 0.0, 0L, 0.0);
     }
 }

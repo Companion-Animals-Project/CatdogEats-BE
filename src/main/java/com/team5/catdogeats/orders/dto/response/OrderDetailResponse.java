@@ -2,7 +2,7 @@ package com.team5.catdogeats.orders.dto.response;
 
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 /**
@@ -12,7 +12,7 @@ import java.util.List;
 public record OrderDetailResponse(
         String orderId,
         String orderNumber,
-        LocalDateTime orderDate,
+        ZonedDateTime orderDate,
         OrderStatus orderStatus,
         RecipientInfo recipientInfo,
         PaymentInfo paymentInfo,

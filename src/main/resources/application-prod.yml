@@ -11,6 +11,30 @@ batch:
     # 배치 활성화 여부
     enabled: ${SETTLEMENT_BATCH_ENABLED:true}
 
+
+  forecast:
+    # 배치 활성화 여부
+    enabled: ${FORECAST_BATCH_ENABLED:true}
+
+    # 크론 표현식 설정
+    aggregation-cron: "${FORECAST_AGGREGATION_CRON:0 0 2 * * ?}"  # 매일 새벽 2시 (정산 배치와 동시)
+    forecast-cron: "${FORECAST_PREDICTION_CRON:0 0 3 * * ?}"      # 매일 새벽 3시 (집계 후 1시간 뒤)
+
+    # 성능 관련 설정
+    chunk-size: ${FORECAST_CHUNK_SIZE:100}                        # 판매자 청크 크기
+    skip-limit: ${FORECAST_SKIP_LIMIT:50}                         # 스킵 한계치
+    retry-limit: ${FORECAST_RETRY_LIMIT:3}                        # 재시도 한계치
+    timeout-minutes: ${FORECAST_TIMEOUT_MINUTES:120}              # 배치 타임아웃 (2시간)
+
+    # 수요예측 알고리즘 설정 - 30일의 데이터를 분석하고, 최소 15일의 주문데이터가 필요하며 ,7일치의 판매량 을 예측합니다
+    prediction-period-days: ${FORECAST_PREDICTION_DAYS:7}         # 예측 기간 (일)
+    historical-data-days: ${FORECAST_HISTORICAL_DAYS:30}          # 과거 데이터 분석 기간 (일) - 검증용
+    min-sales-data-days: ${FORECAST_MIN_SALES_DAYS:15}            # 최소 판매 기록 일수 - 검증용
+    moving-average-window: ${FORECAST_MOVING_AVERAGE:7}           # 이동평균 윈도우 - "실제 계산에 사용할 최근 며칠"
+
+    # 데이터 관리 설정
+    cleanup-old-data-days: ${FORECAST_CLEANUP_DAYS:30}            # 오래된 데이터 정리 기간 (일)
+
 spring:
   servlet:
     multipart:
@@ -235,10 +259,10 @@ outbox:
 
 debezium:
   database:
-    hostname: ${DB_HOST}
-    port: 5672
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
+    hostname: localhost
+    port: 5432
+    username: postgres
+    password: "0000"
     dbname: catdogeats
     server-name: catdogeats
   connector:
@@ -246,8 +270,9 @@ debezium:
     publication-name: debezium_publication
     plugin-name: pgoutput
     table-include-list: public.outbox_messages
+    poll-interval-ms: 5000
   offset:
-    storage-file: ./data/debezium-offsets.dat
+    storage-file: ./data/debezium-offsets.txt
 
 #url:  #예시입니다 서버 개발 하실 떄는 8080 포트로 바꾸시고 프론트 개발하실때는 5173포트를 사용해 주세요
 #  success: http://localhost:5173/
@@ -267,3 +292,16 @@ url:
   login: https://www.catdogeats.shop/
   withdrawn: https://www.catdogeats.shop/withdrawn
   role-selection: https://www.catdogeats.shop/role-selection
+
+# ----------------------------------------
+# 물류 API
+# ----------------------------------------
+logistics:
+  api:
+    url: ${LOGISTICS_API_URL}
+    timeout:
+      connect-timeout-ms: 5000
+      read-timeout-ms: 10000
+    retry:
+      max-attempts: 3
+      delay-ms: 1000

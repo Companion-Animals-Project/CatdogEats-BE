@@ -9,6 +9,7 @@ public interface ProductDetailProjection {
     String getContents();
     Boolean getIsDiscounted();
     Double getDiscountRate();
+    Long getDiscountedPrice();
     Long getPrice();
     List<String> getImages();
     String getVendorName();

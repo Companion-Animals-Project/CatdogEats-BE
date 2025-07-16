@@ -46,6 +46,7 @@ public class SellerRatingServiceImpl implements SellerRatingService {
         List<MyProductResponseDto> fixedDtos = dtos.stream()
                 .map(dto -> new MyProductResponseDto(
                         dto.productId(),
+                        dto.productNumber(),
                         dto.productName(),
                         dto.reviewCount(),
                         dto.averageStar() != null ? Math.round(dto.averageStar() * 10) / 10.0 : 0.0,

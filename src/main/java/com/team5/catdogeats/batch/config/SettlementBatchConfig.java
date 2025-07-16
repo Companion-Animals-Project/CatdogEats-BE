@@ -124,21 +124,23 @@ public class SettlementBatchConfig {
                         oi.id as order_item_id,
                         o.order_number,
                         p.title as product_title,
-                        oi.price as item_price
+                        (oi.price / oi.quantity) as item_price,
+                        qty_series.qty_num as quantity_sequence
                     FROM shipments s
                     INNER JOIN orders o ON s.order_id = o.id 
                     INNER JOIN order_items oi ON o.id = oi.order_id
                     INNER JOIN products p ON oi.product_id = p.id
+                    CROSS JOIN generate_series(1, oi.quantity) as qty_series(qty_num)
                     WHERE s.delivered_at IS NOT NULL
                       AND s.delivered_at <= CURRENT_DATE - INTERVAL '7 days'
-                      AND s.delivered_at >= CURRENT_DATE - INTERVAL '14 days'
+                      AND s.delivered_at >= CURRENT_DATE - INTERVAL '90 days'
                       AND o.order_status = 'DELIVERED'
                       AND o.is_hidden = false
                       AND NOT EXISTS (
                           SELECT 1 FROM settlements st 
                           WHERE st.order_item_id = oi.id
                       )
-                    ORDER BY s.delivered_at ASC, oi.id ASC
+                    ORDER BY s.delivered_at ASC, oi.id ASC, qty_series.qty_num ASC
                     """)
                 .rowMapper(new SettlementCreateRowMapper())
                 .build();
