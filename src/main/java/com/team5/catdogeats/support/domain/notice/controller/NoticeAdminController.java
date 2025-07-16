@@ -4,11 +4,11 @@ import com.team5.catdogeats.admins.domain.dto.AdminInfo;
 import com.team5.catdogeats.admins.util.AdminControllerUtils;
 import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
+import com.team5.catdogeats.notifications.domain.dto.NoticeCompletedDTO;
 import com.team5.catdogeats.support.domain.notice.dto.*;
 import com.team5.catdogeats.support.domain.notice.service.NoticeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,14 +16,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.http.MediaType;
 
-import java.util.*;
+import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/v1/admin/notices")
@@ -125,9 +125,9 @@ public class NoticeAdminController {
             log.info("관리자 공지사항 생성 요청 - 제목: {}, adminId: {}, adminName: {}",
                     requestDto.getTitle(), adminInfo.adminId(), adminInfo.name());
 
-            NoticeResponseDTO response = noticeService.createNotice(requestDto);
+            NoticeCompletedDTO response = noticeService.createNotice(requestDto);
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(APIResponse.success(ResponseCode.CREATED, response));
+                    .body(APIResponse.success(ResponseCode.CREATED));
         } catch (BadCredentialsException e) {
             log.warn("관리자 로그인 필요 - 공지사항 생성 시도, error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(

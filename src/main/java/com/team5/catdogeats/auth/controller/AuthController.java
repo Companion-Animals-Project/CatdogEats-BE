@@ -1,14 +1,17 @@
 package com.team5.catdogeats.auth.controller;
 
+import com.team5.catdogeats.auth.dto.AuthResponseDTO;
 import com.team5.catdogeats.auth.dto.RotateTokenDTO;
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.auth.service.JwtService;
+import com.team5.catdogeats.auth.service.PrincipalService;
 import com.team5.catdogeats.auth.service.RotateRefreshTokenService;
 import com.team5.catdogeats.auth.util.CookieUtils;
 import com.team5.catdogeats.auth.util.JwtUtils;
 import com.team5.catdogeats.global.config.CookieProperties;
 import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
+import com.team5.catdogeats.global.exception.TokenErrorException;
 import com.team5.catdogeats.users.domain.dto.ModifyRoleRequestDTO;
 import com.team5.catdogeats.users.service.ModifyUserRoleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,6 +41,7 @@ public class AuthController {
     private final CookieProperties cookieProperties;
     private final ModifyUserRoleService modifyUserRoleService;
     private final JwtService jwtService;
+    private final PrincipalService principalService;
 
     @PostMapping("/refresh")
     @Operation(summary = "토큰 갱신", description = "리프레시 토큰을 사용하여 액세스 토큰과 리프레시 토큰을 갱신합니다.")
@@ -61,6 +65,8 @@ public class AuthController {
                     .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
                     .header(HttpHeaders.SET_COOKIE, refreshIdCookie.toString())
                     .body(APIResponse.success(ResponseCode.SUCCESS, dto));
+        } catch (TokenErrorException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(APIResponse.error(ResponseCode.ACCESS_DENIED));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
@@ -106,5 +112,17 @@ public class AuthController {
         }
 
         return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS));
+    }
+
+    @PostMapping("/me")
+    public ResponseEntity<APIResponse<AuthResponseDTO>> getMe(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        if (userPrincipal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
+        }
+        try {
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, principalService.getPrincipal(userPrincipal)));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+        }
     }
 }

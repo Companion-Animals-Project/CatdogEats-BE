@@ -12,6 +12,7 @@ public record ProductDetailResponseDto(
         boolean isDiscounted,
         Double discountRate,
         Long price,
+        Long discountedPrice,
         @JsonRawValue
         List<String> images,
         String vendorName,

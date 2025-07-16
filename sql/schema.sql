@@ -186,26 +186,29 @@ CREATE TABLE reviews_images (
 
 -- 주문 정보 테아블이고 장바구니도 포함입니다!
 -- PAYMENT_PENDING 상태가 장바구니에 있을 때 상태에요
+-- orders 테이블 (판매자 관리용 필드 추가)
 CREATE TABLE orders (
                         id BIGINT PRIMARY KEY,
                         order_number BIGINT NOT NULL UNIQUE,               -- 새로 추가됨
                         user_id VARCHAR(36) NOT NULL,
-                        order_status ENUM(
-                               'PAYMENT_PENDING',
-                               'PAYMENT_COMPLETED',
-                               'PREPARING',
-                               'READY_FOR_SHIPMENT',
-                               'IN_DELIVERY',
-                               'DELIVERED',
-                               'CANCELLED',
-                               'REFUND_PROCESSING',
-                               'REFUNDED'
-                               ),
+                        order_status VARCHAR(50) CHECK (order_status IN (
+                                                                         'PAYMENT_PENDING',
+                                                                         'PAYMENT_COMPLETED',
+                                                                         'PREPARING',
+                                                                         'READY_FOR_SHIPMENT',
+                                                                         'IN_DELIVERY',
+                                                                         'DELIVERED',
+                                                                         'CANCELLED',
+                                                                         'REFUND_PROCESSING',
+                                                                         'REFUNDED'
+                            )),
                         total_price BIGINT NOT NULL,
                         is_hidden BOOLEAN NOT NULL DEFAULT FALSE,          -- 주문 내역 숨김 기능
-                        hidden_at DATETIME NULL,                           -- 숨김 처리 시각
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        hidden_at TIMESTAMP WITH TIME ZONE,                -- 숨김 처리 시각
+                        status_updated_by VARCHAR(36),                     -- 상태 변경한 사용자 ID
+                        status_change_reason VARCHAR(500),                 -- 상태 변경 사유
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                         CONSTRAINT fk_orders_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 -- 재고 예약 테이블
@@ -389,33 +392,59 @@ CREATE TABLE order_pending_details (
                                        CONSTRAINT fk_order_pending_details_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
 );
 
--- 배송 추적은 api를 연동하기 때문에 우리 db는 간단히 저장
+-- shipments 테이블 (엔티티 필드명과 일치하도록 수정)
 CREATE TABLE shipments (
                            id VARCHAR(36) PRIMARY KEY,
-                           order_id BIGINT NOT NULL UNIQUE,                   -- 일대일 관계
+                           order_id VARCHAR(36) NOT NULL UNIQUE,                   -- Orders 엔티티 ID 타입과 일치 (BIGINT → VARCHAR)
+                           user_id VARCHAR(36) NOT NULL,                           -- Users 참조 추가
 
-    -- 배송지 정보 (orders에서 이전됨)
-                           recipient_name VARCHAR(100) NOT NULL,              -- 받는 사람 이름
-                           recipient_phone VARCHAR(20) NOT NULL,              -- 받는 사람 연락처
-                           postal_code VARCHAR(10) NOT NULL,                  -- 우편번호
-                           shipping_address VARCHAR(500) NOT NULL,            -- 배송 주소
-                           detail_address VARCHAR(200),                       -- 상세 주소
-                           delivery_note VARCHAR(500),                        -- 배송 요청사항
+    -- 배송지 정보 (필드명을 엔티티와 일치시킴)
+                           recipient_name VARCHAR(100) NOT NULL,                   -- 받는 사람 이름
+                           recipient_phone VARCHAR(20) NOT NULL,                   -- 받는 사람 연락처
+                           postal_code VARCHAR(10) NOT NULL,                          -- 우편번호 (postal_code → zip_code)
+                           street_address VARCHAR(500) NOT NULL,                          -- 배송 주소 (shipping_address → address)
+                           detail_address VARCHAR(200),                            -- 상세 주소 (detail_address → address_detail)
+                           delivery_request VARCHAR(500),                          -- 배송 요청사항 (delivery_note → delivery_request)
 
-    -- 배송 추적 정보 (기존 유지, NULL 허용으로 변경)
-                           seller_id VARCHAR(36) NULL,                        -- 판매자 ID
-                           courier VARCHAR(50) NULL,                          -- 택배사
-                           tracking_number VARCHAR(100) NULL,                 -- 운송장 번호
-                           shipped_at DATETIME,                               -- 발송일자
-                           delivered_at DATETIME,                             -- 배송 완료일자
+    -- 배송 추적 정보
+                           seller_id VARCHAR(36) NULL,                             -- 판매자 ID
+                           courier VARCHAR(50) NULL,                               -- 택배사
+                           tracking_number VARCHAR(100) NULL,                      -- 운송장 번호
+                           shipped_at TIMESTAMP WITH TIME ZONE,                    -- 발송일자
+                           delivered_at TIMESTAMP WITH TIME ZONE,                  -- 배송 완료일자
+                           tracking_updated_at TIMESTAMP WITH TIME ZONE,           -- 운송장 정보 최종 업데이트 시각
 
-                           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    -- 판매자 배송 관리 추가 필드
+                           expected_ship_date TIMESTAMP WITH TIME ZONE,            -- 예상 배송일 (출고 지연 시 사용)
+                           is_delayed BOOLEAN DEFAULT FALSE,
+                           delay_reason VARCHAR(500),                              -- 배송 지연 사유
+                           is_hidden_by_seller BOOLEAN DEFAULT FALSE,              -- 판매자 목록 숨김 여부
+                           hidden_at TIMESTAMP WITH TIME ZONE,                     -- 판매자 숨김 처리 시각 (hidden_by_seller_at → hidden_at)
+                           shipment_memo VARCHAR(500),                             -- 배송 메모
+
+                           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                           updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
                            CONSTRAINT fk_shipments_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+                           CONSTRAINT fk_shipments_user FOREIGN KEY (user_id) REFERENCES users(id),
                            CONSTRAINT fk_shipments_seller FOREIGN KEY (seller_id) REFERENCES sellers(user_id),
-                           CONSTRAINT uk_shipments_order_id UNIQUE (order_id)  -- 일대일 관계 보장
+                           CONSTRAINT uk_shipments_order_id UNIQUE (order_id),     -- 일대일 관계 보장
+                           CONSTRAINT uk_shipments_courier_tracking UNIQUE (courier, tracking_number)  -- 운송장 중복 방지
 );
+
+-- 성능 최적화를 위한 인덱스 추가
+CREATE INDEX IF NOT EXISTS idx_shipments_seller_id ON shipments(seller_id);
+CREATE INDEX IF NOT EXISTS idx_shipments_order_status ON shipments(seller_id, order_id);
+CREATE INDEX IF NOT EXISTS idx_shipments_tracking ON shipments(courier, tracking_number);
+CREATE INDEX IF NOT EXISTS idx_shipments_shipped_at ON shipments(shipped_at);
+CREATE INDEX IF NOT EXISTS idx_shipments_delivered_at ON shipments(delivered_at);
+CREATE INDEX IF NOT EXISTS idx_shipments_hidden_seller ON shipments(seller_id, is_hidden_by_seller);
+CREATE INDEX IF NOT EXISTS idx_shipments_expected_ship_date ON shipments(expected_ship_date);  -- 예상 배송일 인덱스 추가
+
+-- 검색 성능을 위한 복합 인덱스
+CREATE INDEX IF NOT EXISTS idx_shipments_seller_recipient ON shipments(seller_id, recipient_name);
+CREATE INDEX IF NOT EXISTS idx_shipments_seller_status_created
+    ON shipments(seller_id, is_hidden_by_seller, created_at DESC);
 
 -- 정산 테이블이고 이 테이블은 좀 더 고민해봐야함 사유 : 정산 로직을 정하지 않았기 때문
 CREATE TABLE settlements (
@@ -607,11 +636,11 @@ SELECT
     st.created_at as settlement_date,
     o.created_at as order_date,
 
-    -- 수량 및 금액 정보
-    oi.quantity,
-    oi.price as unit_price,                    -- 주문 시점 상품 단가
-    (oi.quantity * oi.price) as total_amount,  -- 총 주문 금액
-    st.settlement_amount,                      -- 정산 금액 (수수료 제외)
+    -- 수량 및 금액 정보 (정산 기준으로 수정)
+    1 as quantity,                             -- 정산은 개별 상품 단위 (항상 1)
+    st.item_price as unit_price,               -- 정산 기준 단가
+    st.settlement_amount as total_amount,      -- 정산 금액 (수수료 제외)
+    st.settlement_amount,                      -- 정산 금액 (수수료 제외) - 호환성 유지
     st.commission_amount,                      -- 수수료
     st.item_price                             -- 정산 기준 상품 금액
 FROM settlements st
@@ -627,20 +656,89 @@ WHERE
   AND o.is_hidden = false;
 
 
+
+
 -- View 성능 최적화를 위한 인덱스
 
--- 1. 매출 분석 조회 최적화 인덱스 (판매자별 + 연도별)
-CREATE INDEX IF NOT EXISTS idx_settlements_sales_analytics
+--- ==========================================
+-- 매출 분석용 인덱스 생성
+-- ==========================================
+
+-- 1. 매출 분석 기본 조회용 인덱스 (판매자 + 날짜 + 상태)
+CREATE INDEX IF NOT EXISTS idx_settlements_sales_analytics_basic
     ON settlements (seller_id, settlement_status, created_at)
     WHERE settlement_status = 'COMPLETED';
 
--- 2. 상품별 매출 분석 최적화 인덱스
-CREATE INDEX IF NOT EXISTS idx_order_items_product_analysis
-    ON order_items (product_id, quantity, price);
-
--- 3. 기간별 조회 최적화 인덱스
-CREATE INDEX IF NOT EXISTS idx_settlements_date_range
-    ON settlements (created_at, seller_id, settlement_status)
+-- 2. 매출 분석 날짜 범위 조회용 인덱스 (년도별/월별 검색 최적화)
+CREATE INDEX IF NOT EXISTS idx_settlements_sales_analytics_date
+    ON settlements (seller_id, created_at, settlement_status, settlement_amount)
     WHERE settlement_status = 'COMPLETED';
 
+-- 3. 상품별 매출 분석용 인덱스 (order_item_id로 products 조인 최적화)
+CREATE INDEX IF NOT EXISTS idx_settlements_order_item_analytics
+    ON settlements (order_item_id, seller_id, settlement_status, settlement_amount, created_at)
+    WHERE settlement_status = 'COMPLETED';
+
+-- 5. 주문 정보 조인 최적화용 인덱스 (order_items 테이블)
+CREATE INDEX IF NOT EXISTS idx_order_items_settlements_join
+    ON order_items (id, order_id, product_id);
+
+-- 6. 주문 상태 필터링용 인덱스 (orders 테이블)
+CREATE INDEX IF NOT EXISTS idx_orders_analytics_filter
+    ON orders (id, order_status, is_hidden)
+    WHERE order_status != 'CANCELLED' AND is_hidden = false;
+
+-- 7. 상품 정보 조인 최적화용 인덱스 (products 테이블)
+CREATE INDEX IF NOT EXISTS idx_products_analytics_join
+    ON products (id, title, seller_id);
+
 -- ===================================================================================
+
+
+-- ===================================
+-- 수요예측 관련 테이블 DDL
+-- PostgreSQL 기준
+-- ===================================
+
+-- 1. 일별 판매 집계 테이블
+CREATE TABLE public.daily_sales_aggregation
+(
+    id              varchar(36)                 not null
+        primary key,
+    seller_id       varchar(36)                 not null
+        constraint fk_daily_sales_seller_id
+            references public.sellers(user_id),
+    product_id      varchar(36)                 not null
+        constraint fk_daily_sales_product_id
+            references public.products(id),
+    sales_date      date                        not null,
+    daily_quantity  integer                     not null default 0,
+    daily_revenue   bigint                      not null default 0,
+    order_count     integer                     not null default 0,
+    created_at      timestamp(6) with time zone not null,
+    updated_at      timestamp(6) with time zone not null
+);
+
+-- 2. 수요예측 결과 테이블
+CREATE TABLE public.demand_forecasts
+(
+    id                      varchar(36)                 not null
+        primary key,
+    seller_id               varchar(36)                 not null
+        constraint fk_demand_forecast_seller_id
+            references public.sellers(user_id),
+    product_id              varchar(36)                 not null
+        constraint fk_demand_forecast_product_id
+            references public.products(id),
+    forecast_date           date                        not null,
+    prediction_period_days  integer                     not null default 7,
+    predicted_quantity      integer                     not null,
+    algorithm_type          varchar(50)                 not null
+        constraint demand_forecasts_algorithm_type_check
+            check (algorithm_type IN ('MOVING_AVERAGE_7', 'EXPONENTIAL_SMOOTHING', 'SEASONAL_ADJUSTMENT')),
+    confidence_score        decimal(5,4),
+    historical_data_days    integer,
+    created_at              timestamp(6) with time zone not null,
+    updated_at              timestamp(6) with time zone not null
+);
+

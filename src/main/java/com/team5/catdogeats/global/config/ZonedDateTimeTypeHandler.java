@@ -1,11 +1,11 @@
-package com.team5.catdogeats.global.config.mybatis;
+package com.team5.catdogeats.global.config;
 
 import org.apache.ibatis.type.BaseTypeHandler;
 import org.apache.ibatis.type.JdbcType;
 import org.apache.ibatis.type.MappedTypes;
 
 import java.sql.*;
-import java.time.LocalDateTime;
+
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
