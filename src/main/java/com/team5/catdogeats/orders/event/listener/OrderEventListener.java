@@ -260,9 +260,9 @@ public class OrderEventListener {
                 .recipientName(shippingAddress.getRecipientName())
                 .recipientPhone(shippingAddress.getRecipientPhone())
                 .postalCode(shippingAddress.getPostalCode())
-                .shippingAddress(shippingAddress.getStreetAddress())
+                .streetAddress(shippingAddress.getStreetAddress())
                 .detailAddress(shippingAddress.getDetailAddress())
-                .deliveryNote(shippingAddress.getDeliveryNote())
+                .deliveryRequest(shippingAddress.getDeliveryNote())
                 .build();
     }
 

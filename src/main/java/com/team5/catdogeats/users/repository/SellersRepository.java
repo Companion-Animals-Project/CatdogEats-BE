@@ -27,6 +27,11 @@ public interface SellersRepository extends JpaRepository<Sellers, String> {
      */
     Optional<Sellers> findByVendorName(String vendorName);
 
+    /**
+     * 상점명으로 활성 판매자 정보 조회 (탈퇴하지 않은 판매자만)
+     * 스토어 페이지 조회용
+     */
+    Optional<Sellers> findByVendorNameAndIsDeletedFalse(String vendorName);
 
     /**
      * 브랜드 이미지 삭제 (null로 설정)
@@ -34,7 +39,6 @@ public interface SellersRepository extends JpaRepository<Sellers, String> {
     @Modifying
     @Query("UPDATE Sellers s SET s.vendorProfileImage = NULL WHERE s.userId = :userId")
     int deleteVendorProfileImage(@Param("userId") String userId);
-
 
     @Query("""
         SELECT new com.team5.catdogeats.users.domain.dto.SellerDTO(

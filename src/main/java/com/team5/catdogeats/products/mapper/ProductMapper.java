@@ -14,6 +14,7 @@ public interface ProductMapper {
     <script>
     SELECT
         p.id as productId,
+        p.product_number as productNumber,
         p.title as productName,
         COALESCE(COUNT(r.id), 0) as reviewCount,
         COALESCE(AVG(r.star), 0.0) as averageStar,

@@ -28,4 +28,6 @@ public interface ProductService {
     ProductDetailResponseDto getProductDetail(Long productNumber);
 
     List<MainProductResponseDto> getMainProducts(MainProductSortType type);
+
+    Page<SellerProductListProjection> getSellerProductList(UserPrincipal userPrincipal, int page, int size);
 }
