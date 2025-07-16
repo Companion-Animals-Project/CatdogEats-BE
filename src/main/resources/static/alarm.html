@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실시간 알림 시스템</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 0.9em;
+        }
+
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.connecting {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .controls {
+            padding: 20px 30px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .notifications {
+            padding: 30px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .notification {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            animation: slideIn 0.3s ease-out;
+            position: relative;
+        }
+
+        .notification:last-child {
+            margin-bottom: 0;
+        }
+
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .notification-title {
+            font-weight: 600;
+            font-size: 1.1em;
+            color: #2c3e50;
+        }
+
+        .notification-time {
+            font-size: 0.8em;
+            color: #6c757d;
+        }
+
+        .notification-type {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            font-weight: 500;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .notification-type.NEW_ORDER {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .notification-type.ORDER_CANCELLED {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .notification-message {
+            color: #555;
+            line-height: 1.4;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 3em;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .notification-count {
+            background: #ff6b6b;
+            color: white;
+            font-size: 0.8em;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+
+        .test-section {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .test-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-size: 1em;
+            margin-bottom: 10px;
+        }
+
+        .scrollbar-custom {
+            scrollbar-width: thin;
+            scrollbar-color: #667eea #f1f1f1;
+        }
+
+        .scrollbar-custom::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scrollbar-custom::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .scrollbar-custom::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🔔 실시간 알림 시스템</h1>
+    </div>
+
+    <div class="status-bar">
+        <div id="connectionStatus" class="status disconnected">연결 안됨</div>
+        <div id="notificationCount" class="notification-count">0</div>
+    </div>
+
+    <div class="controls">
+        <button id="connectBtn" class="btn btn-primary">연결</button>
+        <button id="disconnectBtn" class="btn btn-secondary" disabled>연결 해제</button>
+        <button id="clearBtn" class="btn btn-secondary">알림 지우기</button>
+    </div>
+
+    <div class="notifications scrollbar-custom" id="notificationList">
+        <div class="empty-state">
+            <span style="font-size: 3em;">📱</span>
+            <p>알림이 없습니다.<br>연결 후 알림을 받아보세요!</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>테스트 알림 전송</h3>
+        <input type="text" id="testMessage" class="test-input" placeholder="테스트 메시지를 입력하세요...">
+        <button id="sendTestBtn" class="btn btn-primary" disabled>테스트 전송</button>
+    </div>
+</div>
+
+<script>
+    class NotificationClient {
+        constructor() {
+            this.eventSource = null;
+            this.isConnected = false;
+            this.notifications = [];
+            this.reconnectAttempts = 0;
+            this.maxReconnectAttempts = 5;
+            this.reconnectDelay = 1000;
+
+            this.initElements();
+            this.bindEvents();
+        }
+
+        initElements() {
+            this.connectBtn = document.getElementById('connectBtn');
+            this.disconnectBtn = document.getElementById('disconnectBtn');
+            this.clearBtn = document.getElementById('clearBtn');
+            this.sendTestBtn = document.getElementById('sendTestBtn');
+            this.connectionStatus = document.getElementById('connectionStatus');
+            this.notificationList = document.getElementById('notificationList');
+            this.notificationCount = document.getElementById('notificationCount');
+            this.testMessage = document.getElementById('testMessage');
+        }
+
+        bindEvents() {
+            this.connectBtn.addEventListener('click', () => this.connect());
+            this.disconnectBtn.addEventListener('click', () => this.disconnect());
+            this.clearBtn.addEventListener('click', () => this.clearNotifications());
+            this.sendTestBtn.addEventListener('click', () => this.sendTestNotification());
+
+            this.testMessage.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.sendTestNotification();
+                }
+            });
+        }
+
+        async connect() {
+            try {
+                this.updateStatus('connecting', '연결 중...');
+                this.connectBtn.disabled = true;
+
+
+                this.eventSource = new EventSource('/v1/users/notifications/connect', {
+                    withCredentials: true,
+
+                });
+
+
+                this.eventSource.onopen = () => {
+                    console.log('✅ SSE 연결 성공');
+                    this.isConnected = true;
+                    this.reconnectAttempts = 0;
+                    this.updateStatus('connected', '연결됨');
+                    this.connectBtn.disabled = false;
+                    this.disconnectBtn.disabled = false;
+                    this.sendTestBtn.disabled = false;
+                };
+
+                this.eventSource.onmessage = (event) => {
+                    console.log('📨 기본 메시지:', event.data);
+                    this.handleMessage(event.data, 'message');
+                };
+
+                // 'notification' 이벤트 전용 리스너
+                this.eventSource.addEventListener('notification', (event) => {
+                    console.log('🔔 알림:', event.data);
+                    this.handleNotification(event.data);
+                });
+
+                // 'connected' 이벤트 리스너
+                this.eventSource.addEventListener('connected', (event) => {
+                    console.log('🔗 연결 확인:', event.data);
+                    this.addNotification({
+                        title: '시스템 알림',
+                        message: event.data,
+                        notificationType: 'SYSTEM',
+                        createdAt: new Date().toISOString()
+                    });
+                });
+
+                this.eventSource.onerror = (error) => {
+                    console.error('❌ SSE 연결 오류:', error);
+                    this.handleConnectionError();
+                };
+
+                this.eventSource.addEventListener('ping', (event) => {
+                    console.log('❤️ Ping:', event.data);
+                });
+
+            } catch (error) {
+                console.error('연결 실패:', error);
+                this.updateStatus('disconnected', '연결 실패');
+                this.connectBtn.disabled = false;
+            }
+        }
+
+        handleConnectionError() {
+            this.isConnected = false;
+            this.updateStatus('disconnected', '연결 끊어짐');
+            this.connectBtn.disabled = false;
+            this.disconnectBtn.disabled = true;
+            this.sendTestBtn.disabled = true;
+
+            // 자동 재연결 시도
+            if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                this.reconnectAttempts++;
+                console.log(`🔄 재연결 시도 (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+
+                setTimeout(() => {
+                    if (!this.isConnected) {
+                        this.connect();
+                    }
+                }, this.reconnectDelay * this.reconnectAttempts);
+            }
+        }
+
+        handleNotification(data) {
+            try {
+                const notification = JSON.parse(data);
+                this.addNotification(notification);
+
+                // 브라우저 알림 표시
+                if (Notification.permission === 'granted') {
+                    new Notification(notification.title, {
+                        body: notification.message,
+                        icon: '/favicon.ico',
+                        tag: 'catdogeats-notification'
+                    });
+                }
+            } catch (error) {
+                console.error('알림 파싱 오류:', error);
+                this.handleMessage(data, 'notification');
+            }
+        }
+
+        handleMessage(data, type) {
+            // 일반 메시지 처리
+            this.addNotification({
+                title: type === 'notification' ? '알림' : '메시지',
+                message: data,
+                notificationType: 'MESSAGE',
+                createdAt: new Date().toISOString()
+            });
+        }
+
+        addNotification(notification) {
+            this.notifications.unshift(notification);
+            this.renderNotifications();
+            this.updateNotificationCount();
+        }
+
+        renderNotifications() {
+            if (this.notifications.length === 0) {
+                this.notificationList.innerHTML = `
+                        <div class="empty-state">
+                            <span style="font-size: 3em;">📱</span>
+                            <p>알림이 없습니다.<br>연결 후 알림을 받아보세요!</p>
+                        </div>
+                    `;
+                return;
+            }
+
+            this.notificationList.innerHTML = this.notifications.map(notification => `
+                    <div class="notification">
+                        <div class="notification-header">
+                            <div class="notification-title">${notification.title}</div>
+                            <div class="notification-time">${this.formatTime(notification.createdAt)}</div>
+                        </div>
+                        <div class="notification-type ${notification.notificationType}">${notification.notificationType}</div>
+                        <div class="notification-message">${notification.message}</div>
+                    </div>
+                `).join('');
+        }
+
+        formatTime(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleTimeString('ko-KR', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        updateNotificationCount() {
+            this.notificationCount.textContent = this.notifications.length;
+        }
+
+        updateStatus(status, text) {
+            this.connectionStatus.className = `status ${status}`;
+            this.connectionStatus.textContent = text;
+        }
+
+        disconnect() {
+            if (this.eventSource) {
+                this.eventSource.close();
+                this.eventSource = null;
+            }
+            this.isConnected = false;
+            this.updateStatus('disconnected', '연결 안됨');
+            this.connectBtn.disabled = false;
+            this.disconnectBtn.disabled = true;
+            this.sendTestBtn.disabled = true;
+            console.log('🔌 연결 해제됨');
+        }
+
+        clearNotifications() {
+            this.notifications = [];
+            this.renderNotifications();
+            this.updateNotificationCount();
+        }
+
+        async sendTestNotification() {
+            const message = this.testMessage.value.trim();
+            if (!message) {
+                alert('메시지를 입력하세요.');
+                return;
+            }
+
+            try {
+
+                const response = await fetch('/v1/users/notifications/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Credentials': 'include',
+                    },
+                    body: JSON.stringify(message)
+                });
+
+                if (response.ok) {
+                    this.testMessage.value = '';
+                    console.log('✅ 테스트 알림 전송 성공');
+                } else {
+                    console.error('❌ 테스트 알림 전송 실패:', response.status);
+                }
+            } catch (error) {
+                console.error('테스트 알림 전송 오류:', error);
+            }
+        }
+
+
+        // 브라우저 알림 권한 요청
+        async requestNotificationPermission() {
+            if ('Notification' in window) {
+                const permission = await Notification.requestPermission();
+                console.log('브라우저 알림 권한:', permission);
+            }
+        }
+    }
+
+    // 앱 초기화
+    document.addEventListener('DOMContentLoaded', () => {
+        const client = new NotificationClient();
+        client.requestNotificationPermission();
+    });
+</script>
+</body>
+</html>
