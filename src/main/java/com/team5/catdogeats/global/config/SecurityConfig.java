@@ -71,7 +71,7 @@ public class SecurityConfig {
                             .deleteCookies("SESSION")
                             .permitAll())
                     .securityContext(securityContext ->
-                            securityContext.requireExplicitSave(true))                // SecurityContext 자동 저장 활성화
+                            securityContext.requireExplicitSave(false))                // SecurityContext 자동 저장 활성화
                     .exceptionHandling(exceptions -> exceptions
                             .authenticationEntryPoint((request, response, authException) -> {
                                 // 인증되지 않은 사용자를 로그인 페이지로 리다이렉트
@@ -121,7 +121,7 @@ public class SecurityConfig {
                             .requestMatchers("/login/oauth2/code/naver/**").permitAll()
                             .requestMatchers("/login/oauth2/code/kakao/**").permitAll()
                             .requestMatchers("/v1/auth/refresh").permitAll()
-                            .requestMatchers("/v1/notices").permitAll()
+                            .requestMatchers("/v1/notices/**").permitAll()
                             .requestMatchers("/v1/faqs/**").permitAll()
                             .requestMatchers("/v1/buyers/payments/success").permitAll()
                             .requestMatchers("/v1/buyers/payments/fail").permitAll()
