@@ -1,39 +1,25 @@
 batch:
   withdrawn:
-    cron: ${WITHDRAW_CRON:0 30 2 * * ?}
-    chunk-size: ${WITHDRAW_CHUNK:1000}
-  # 정산 배치 설정 추가
+    cron: "${WITHDRAW_CRON}"
+    chunk-size: ${WITHDRAW_CHUNK}
   settlement:
-    # 일일 정산 배치 (매일 오전 2시)
-    daily-cron: "${SETTLEMENT_DAILY_CRON:0 0 2 * * ?}"
-    # 월간 정산 완료 배치 (매월 1일 오전 4시)
-    monthly-cron: "${SETTLEMENT_MONTHLY_CRON:0 0 4 1 * ?}"
-    # 배치 활성화 여부
-    enabled: ${SETTLEMENT_BATCH_ENABLED:true}
-
+    daily-cron: "${SETTLEMENT_DAILY_CRON}"
+    monthly-cron: "${SETTLEMENT_MONTHLY_CRON}"
+    enabled: ${SETTLEMENT_BATCH_ENABLED}
 
   forecast:
-    # 배치 활성화 여부
-    enabled: ${FORECAST_BATCH_ENABLED:true}
-
-    # 크론 표현식 설정
-    aggregation-cron: "${FORECAST_AGGREGATION_CRON:0 0 2 * * ?}"  # 매일 새벽 2시 (정산 배치와 동시)
-    forecast-cron: "${FORECAST_PREDICTION_CRON:0 0 3 * * ?}"      # 매일 새벽 3시 (집계 후 1시간 뒤)
-
-    # 성능 관련 설정
-    chunk-size: ${FORECAST_CHUNK_SIZE:100}                        # 판매자 청크 크기
-    skip-limit: ${FORECAST_SKIP_LIMIT:50}                         # 스킵 한계치
-    retry-limit: ${FORECAST_RETRY_LIMIT:3}                        # 재시도 한계치
-    timeout-minutes: ${FORECAST_TIMEOUT_MINUTES:120}              # 배치 타임아웃 (2시간)
-
-    # 수요예측 알고리즘 설정 - 30일의 데이터를 분석하고, 최소 15일의 주문데이터가 필요하며 ,7일치의 판매량 을 예측합니다
-    prediction-period-days: ${FORECAST_PREDICTION_DAYS:7}         # 예측 기간 (일)
-    historical-data-days: ${FORECAST_HISTORICAL_DAYS:30}          # 과거 데이터 분석 기간 (일) - 검증용
-    min-sales-data-days: ${FORECAST_MIN_SALES_DAYS:15}            # 최소 판매 기록 일수 - 검증용
-    moving-average-window: ${FORECAST_MOVING_AVERAGE:7}           # 이동평균 윈도우 - "실제 계산에 사용할 최근 며칠"
-
-    # 데이터 관리 설정
-    cleanup-old-data-days: ${FORECAST_CLEANUP_DAYS:30}            # 오래된 데이터 정리 기간 (일)
+    enabled: ${FORECAST_BATCH_ENABLED}
+    aggregation-cron: "${FORECAST_AGGREGATION_CRON}"
+    forecast-cron: "${FORECAST_PREDICTION_CRON}"
+    chunk-size: ${FORECAST_CHUNK_SIZE}
+    skip-limit: ${FORECAST_SKIP_LIMIT}
+    retry-limit: ${FORECAST_RETRY_LIMIT}
+    timeout-minutes: ${FORECAST_TIMEOUT_MINUTES}
+    prediction-period-days: ${FORECAST_PREDICTION_DAYS}
+    historical-data-days: ${FORECAST_HISTORICAL_DAYS}
+    min-sales-data-days: ${FORECAST_MIN_SALES_DAYS}
+    moving-average-window: ${FORECAST_MOVING_AVERAGE}
+    cleanup-old-data-days: ${FORECAST_CLEANUP_DAYS}
 
 spring:
   servlet:
@@ -49,12 +35,10 @@ spring:
     jdbc:
       initialize-schema: always
 
-  # 세션 설정 (Redis 기반)
   session:
     store-type: redis
-    timeout: 30m  # 30분 세션 만료
+    timeout: 30m
 
-  # 이메일 설정
   mail:
     host: smtp.gmail.com
     port: 587
@@ -71,12 +55,10 @@ spring:
           charset: UTF-8
     default-encoding: UTF-8
 
-
-  # 데이터베이스 연결 설정
-  datasource: # 여러 DBaaS에서 가져오기
-    url: ${DB_URL} # 데이터베이스 URL
-    username: ${DB_USER} # 데이터베이스 사용자 이름
-    password: ${DB_PASSWORD} # 데이터베이스 비밀번호
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     type: com.zaxxer.hikari.HikariDataSource
     hikari:
@@ -134,17 +116,17 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true # SQL 로그 출력
+    show-sql: true
     properties:
       hibernate:
-        format_sql: true # SQL 예쁘게 출력
+        format_sql: true
     database-platform: org.hibernate.dialect.PostgreSQLDialect
-    open-in-view: false # OSIV 비활성화 (API 서버라면 false 추천)\
+    open-in-view: false
 
   data:
     redis:
       host: ${REDIS_HOST}
-      port: 14972
+      port: ${REDIS_PORT}
       password: ${REDIS_PASSWORD}
       lettuce:
         pool:
@@ -156,18 +138,18 @@ spring:
       database: ${MONGO_DATABASE}
   rabbitmq:
     host: ${RABBITMQ_HOST}
-    port: 5672
+    port: ${RABBITMQ_PORT}
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
     listener:
       simple:
-        acknowledge-mode: manual       # 수동 ACK
+        acknowledge-mode: manual
         retry:
           enabled: true
-          initial-interval: 1000       # 1 s
+          initial-interval: 1000
           multiplier: 2
-          max-attempts: 3              # 최소 3회 재시도
-          max-interval: 10000          # 10 s
+          max-attempts: 3
+          max-interval: 10000
         default-requeue-rejected: false
         concurrency: 1
         max-concurrency: 5
@@ -178,122 +160,72 @@ mybatis:
 
 jwt:
   secret: ${JWT_SECRET_KEY}
-  expiration: 1800000
+  expiration: ${JWT_EXPIRATION}
 
   cookie:
-    secure: true
-    same-site: None
-    http-only: true
-    max-age: 3600
-    domain: .catdogeats.shop
-    path: /
+    secure: ${JWT_COOKIE_SECURE}
+    same-site: ${JWT_COOKIE_SAME_SITE}
+    http-only: ${JWT_COOKIE_HTTP_ONLY}
+    max-age: ${JWT_COOKIE_MAX_AGE}
+    domain: ${JWT_COOKIE_DOMAIN}
+    path: ${JWT_COOKIE_PATH}
 
 logging:
   level:
     com.team5.catdogeats: debug
 
-
-cloud:
-  aws:
-    credentials:
-      access-key: ${AWS_ACCESS_KEY}
-      secret-key: ${AWS_SECRET_KEY}
-    region:
-      static: ${S3_REGION}
-    s3:
-      bucket: ${S3_BUCKET_NAME}
-    cloudfront:
-      domain: ${CLOUD_FRONT_DOMAIN_NAME}
-
 toss:
   payments:
-    # 클라이언트 키 (개발환경용 - 환경변수 권장)
     client-key: ${TOSS_CLIENT_KEY}
-
-    # 시크릿 키 (개발환경용 - 환경변수 권장)
     secret-key: ${TOSS_SECRET_KEY}
-
-    # 결제 성공 시 리디렉션 URL
-    success-url: https://backend.catdogeats.shop/v1/buyers/payments/success
-
-    # 결제 실패 시 리디렉션 URL
-    fail-url: https://backend.catdogeats.shop/v1/buyers/payments/fail
-
-    # 토스 페이먼츠 API 기본 설정
+    success-url: ${TOSS_SUCCESS_URL}
+    fail-url: ${TOSS_FAIL_URL}
     api:
       base-url: https://api.tosspayments.com/
       version: "2022-11-16"
-
-    # 결제 관련 기본 설정
-    order:
-      # 주문번호 접두사 (선택사항)
-      prefix: "CATDOG"
-
-      # 결제 타임아웃 (분 단위)
-      timeout-minutes: 10
-
-# 관리자 관련 설정
 admin:
-  # 슈퍼관리자 초기 계정 설정
   super:
     email: ${ADMIN_SUPER_EMAIL}
     name: ${ADMIN_SUPER_NAME}
     password: ${ADMIN_SUPER_PASSWORD}
-
-  # 초대 관련 설정
   invitation:
-    expiration-hours: ${ADMIN_INVITATION_EXPIRATION_HOURS:1}
-  # Redis 관련 설정
+    expiration-hours: ${ADMIN_INVITATION_EXPIRATION_HOURS}
   redis:
-    verification-code-prefix: ${ADMIN_REDIS_VERIFICATION_PREFIX:admin:verification:}
-  # 세션 관련 설정
+    verification-code-prefix: ${ADMIN_REDIS_VERIFICATION_PREFIX}
   session:
-    key: ${ADMIN_SESSION_KEY:ADMIN_USER}
-
-
-
-# 애플리케이션 설정
+    key: ${ADMIN_SESSION_KEY}
 app:
   admin:
-    base-url: ${APP_BASE_URL}  # 이메일 링크용 (운영 도메인)
-
+    base-url: ${APP_BASE_URL}
 websocket:
   endpoint: /v1/users/chat
-
-
 outbox:
   processing:
-    mode: cdc
-
+    mode: ${OUTBOX_PROCESSING_MODE}
 debezium:
   database:
-    hostname: ${DB_HOST}
-    port: 5432
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
-    dbname: catdogeats
-    server-name: catdogeats
+    hostname: ${DEBEZIUM_DATABASE_HOSTNAME}
+    port: ${DEBEZIUM_DATABASE_PORT}
+    username: ${DEBEZIUM_DATABASE_USERNAME}
+    password: ${DEBEZIUM_DATABASE_PASSWORD}
+    dbname: ${DEBEZIUM_DATABASE_DBNAME}
+    server-name: ${DEBEZIUM_DATABASE_SERVER_NAME}
   connector:
-    slot-name: debezium_slot
-    publication-name: debezium_publication
-    plugin-name: pgoutput
-    table-include-list: public.outbox_messages
-    poll-interval-ms: 5000
+    slot-name: ${DEBEZIUM_CONNECTOR_SLOT_NAME}
+    publication-name: ${DEBEZIUM_CONNECTOR_PUBLICATION_NAME}
+    plugin-name: ${DEBEZIUM_CONNECTOR_PLUGIN_NAME}
+    table-include-list: ${DEBEZIUM_CONNECTOR_TABLE_INCLUDE_LIST}
+    poll-interval-ms: ${DEBEZIUM_CONNECTOR_POLL_INTERVAL_MS}
   offset:
-    storage-file: ./data/debezium-offsets.txt
-
+    storage-file: ${DEBEZIUM_OFFSET_STORAGE_FILE}
 url:
-  success: https://www.catdogeats.shop
-  fail: https://www.catdogeats.shop/login
-  duplicate: https://www.catdogeats.shop/
-  logout: https://www.catdogeats.shop/
-  login: https://www.catdogeats.shop
-  withdrawn: https://www.catdogeats.shop/withdrawn
-  role-selection: https://www.catdogeats.shop/role-selection
-
-# ----------------------------------------
-# 물류 API
-# ----------------------------------------
+  success: ${URL_SUCCESS}
+  fail: ${URL_FAIL}
+  duplicate: ${URL_DUPLICATE}
+  logout: ${URL_LOGOUT}
+  login: ${URL_LOGIN}
+  withdrawn: ${URL_WITHDRAWN}
+  role-selection: ${URL_ROLE_SELECTION}
 logistics:
   api:
     url: ${LOGISTICS_API_URL}
