@@ -161,9 +161,17 @@ spring:
     password: ${RABBITMQ_PASSWORD}
     listener:
       simple:
-        acknowledge-mode: auto
+        acknowledge-mode: manual       # 수동 ACK
         retry:
           enabled: true
+          initial-interval: 1000       # 1 s
+          multiplier: 2
+          max-attempts: 3              # 최소 3회 재시도
+          max-interval: 10000          # 10 s
+        default-requeue-rejected: false
+        concurrency: 1
+        max-concurrency: 5
+        prefetch: 1
 
 mybatis:
   type-aliases-package: com.team5.catdogeats.mybatis
@@ -174,7 +182,7 @@ jwt:
 
   cookie:
     secure: true
-    same-site: none
+    same-site: None
     http-only: true
     max-age: 3600
     domain: .catdogeats.shop
@@ -206,10 +214,10 @@ toss:
     secret-key: ${TOSS_SECRET_KEY}
 
     # 결제 성공 시 리디렉션 URL
-    success-url: http://localhost:8080/v1/buyers/payments/success
+    success-url: https://backend.catdogeats.shop/v1/buyers/payments/success
 
     # 결제 실패 시 리디렉션 URL
-    fail-url: http://localhost:8080/v1/buyers/payments/fail
+    fail-url: https://backend.catdogeats.shop/v1/buyers/payments/fail
 
     # 토스 페이먼츠 API 기본 설정
     api:
@@ -259,10 +267,10 @@ outbox:
 
 debezium:
   database:
-    hostname: localhost
+    hostname: ${DB_HOST}
     port: 5432
-    username: postgres
-    password: "0000"
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
     dbname: catdogeats
     server-name: catdogeats
   connector:
@@ -274,22 +282,12 @@ debezium:
   offset:
     storage-file: ./data/debezium-offsets.txt
 
-#url:  #예시입니다 서버 개발 하실 떄는 8080 포트로 바꾸시고 프론트 개발하실때는 5173포트를 사용해 주세요
-#  success: http://localhost:5173/
-#  fail: http://localhost:5173/login
-#  logout: http://localhost:5173/
-#  duplicate: http://localhost:5173/login?error=already_authenticated
-#  withdrawn: http://localhost:5173/withdrawn
-#  login: http://localhost:5173/login
-#  role-selection: http://localhost:5173/role-selection
-
-
 url:
   success: https://www.catdogeats.shop
   fail: https://www.catdogeats.shop/login
   duplicate: https://www.catdogeats.shop/
   logout: https://www.catdogeats.shop/
-  login: https://www.catdogeats.shop/
+  login: https://www.catdogeats.shop
   withdrawn: https://www.catdogeats.shop/withdrawn
   role-selection: https://www.catdogeats.shop/role-selection
 
@@ -299,9 +297,3 @@ url:
 logistics:
   api:
     url: ${LOGISTICS_API_URL}
-    timeout:
-      connect-timeout-ms: 5000
-      read-timeout-ms: 10000
-    retry:
-      max-attempts: 3
-      delay-ms: 1000

@@ -3,7 +3,7 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - feat/cicd/91
+      - refactor/cicd/131
       - develop
       - main
   workflow_dispatch:
