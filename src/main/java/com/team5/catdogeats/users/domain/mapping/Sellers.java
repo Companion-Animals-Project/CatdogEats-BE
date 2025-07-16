@@ -44,11 +44,11 @@ public class Sellers extends BaseEntity {
 
     @Column(name = "delivery_fee")
     @Builder.Default
-    private Long deliveryFee = 0L;
+    private Long deliveryFee = 3000L;
 
     @Column(name = "free_shipping_threshold")
     @Builder.Default
-    private Long freeShippingThreshold = 0L;
+    private Long freeShippingThreshold = 50000L;
 
     @Column(name = "operating_start_time")
     private LocalTime operatingStartTime;
