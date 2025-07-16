@@ -24,10 +24,9 @@ public class PreventDuplicateLoginFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String uri = request.getRequestURI();
-        return uri.startsWith("/v1/admin/")
-                || uri.startsWith("/oauth2/authorization/")
-                || uri.startsWith("/login/oauth2/code/")
-                || uri.equals("/v1/auth/refresh");
+        return !uri.startsWith("/v1/admin/")
+                || !uri.startsWith("/oauth2/authorization/")
+                || !uri.startsWith("/login/oauth2/code/");
     }
 
     @Override
