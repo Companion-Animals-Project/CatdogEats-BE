@@ -56,6 +56,17 @@ public class AsyncConfig implements AsyncConfigurer {
         return executor;
     }
 
+    @Bean(name = "SSE")
+    public Executor sseTaskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(2);
+        executor.setMaxPoolSize(10);
+        executor.setQueueCapacity(100);
+        executor.setThreadNamePrefix("sse-");
+        executor.initialize();
+        return executor;
+    }
+
     /**
      * 비동기 작업 예외 처리기
      */

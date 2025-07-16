@@ -5,13 +5,12 @@ import com.team5.catdogeats.auth.filter.PreventDuplicateLoginFilter;
 import com.team5.catdogeats.auth.handler.CustomLogoutSuccessHandler;
 import com.team5.catdogeats.auth.handler.OAuth2AuthenticationFailureHandler;
 import com.team5.catdogeats.auth.handler.OAuth2AuthenticationSuccessHandler;
+import com.team5.catdogeats.auth.handler.SseSilentAccessDeniedHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -25,12 +24,10 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequest
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-@EnableRedisHttpSession(maxInactiveIntervalInSeconds = 1800)
 @Slf4j
 @RequiredArgsConstructor
 public class SecurityConfig {
@@ -41,6 +38,7 @@ public class SecurityConfig {
     private final PreventDuplicateLoginFilter preventDuplicateLoginFilter;
     private final CustomLogoutSuccessHandler customLogoutSuccessHandler;
     private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
+    private final SseSilentAccessDeniedHandler sseSilentAccessDeniedHandler;
 
     @Bean
     @Order(value = 1)
@@ -70,9 +68,10 @@ public class SecurityConfig {
                             .logoutSuccessUrl("/v1/admin/login?logout=true")
                             .invalidateHttpSession(true)
                             .deleteCookies("JSESSIONID")
+                            .deleteCookies("SESSION")
                             .permitAll())
                     .securityContext(securityContext ->
-                            securityContext.requireExplicitSave(false))                // SecurityContext 자동 저장 활성화
+                            securityContext.requireExplicitSave(true))                // SecurityContext 자동 저장 활성화
                     .exceptionHandling(exceptions -> exceptions
                             .authenticationEntryPoint((request, response, authException) -> {
                                 // 인증되지 않은 사용자를 로그인 페이지로 리다이렉트
@@ -100,10 +99,13 @@ public class SecurityConfig {
             http
                     .csrf(AbstractHttpConfigurer::disable)
                     .sessionManagement(session
-                            -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                            -> session.sessionCreationPolicy(SessionCreationPolicy.NEVER)
+                            .sessionFixation().none())
                     .authorizeHttpRequests(authorize
                             -> authorize
                             .requestMatchers("/").permitAll()
+                            .requestMatchers("tossTest.html").permitAll()
+                            .requestMatchers("/alarm.html").permitAll()
                             .requestMatchers("/health").permitAll()
                             .requestMatchers("/index.html").permitAll() // 개발할때만 사용 로그인 페이지
                             .requestMatchers("WebSocket.html").permitAll() // 개발할때만 소켓 페이지
@@ -131,6 +133,7 @@ public class SecurityConfig {
                             .requestMatchers("/v1/users/page/{vendor-name}").permitAll()
                             .requestMatchers("/v1/sellers/coupons/{vendor-name}").permitAll()
                             .requestMatchers("/withdraw").permitAll()
+                            .requestMatchers("/v1/buyers/payments/success").permitAll()
                             .requestMatchers("/v1/users/**").hasAnyRole("BUYER", "SELLER")
                             .requestMatchers("/v1/sellers/**").hasRole("SELLER")
                             .requestMatchers("/v1/buyers/**").hasRole("BUYER")
@@ -146,9 +149,10 @@ public class SecurityConfig {
                     )
                     .httpBasic(AbstractHttpConfigurer::disable)
                     .formLogin(AbstractHttpConfigurer::disable)
+                    .exceptionHandling(ex -> ex
+                            .accessDeniedHandler(sseSilentAccessDeniedHandler)
+                    )
 
-// .exceptionHandling(exception ->
-// exception.authenticationEntryPoint(new OAuth2AuthenticationEntryPointHandler()))
                     .logout(logout -> logout
                             .logoutUrl("/v1/auth/logout")
                             .logoutSuccessHandler(customLogoutSuccessHandler)
@@ -165,10 +169,6 @@ public class SecurityConfig {
         }
     }
 
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
-        return authenticationConfiguration.getAuthenticationManager();
-    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
