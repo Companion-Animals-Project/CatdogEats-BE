@@ -15,12 +15,12 @@ public interface CartRecommendationRepository extends JpaRepository<Products, St
 
     /**
      * 특정 사용자의 장바구니에 담긴 상품 ID 목록 조회
-     * 경로: CartItems -> Carts -> Users
+     * 경로: CartItems -> Carts -> Buyers -> Users
      */
     @Query("""
         SELECT ci.product.id 
         FROM CartItems ci 
-        WHERE ci.carts.user.id = :userId
+        WHERE ci.carts.buyers.user.id = :userId
         """)
     List<String> findCartProductIdsByUserId(@Param("userId") String userId);
 
