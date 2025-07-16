@@ -693,3 +693,52 @@ CREATE INDEX IF NOT EXISTS idx_products_analytics_join
     ON products (id, title, seller_id);
 
 -- ===================================================================================
+
+
+-- ===================================
+-- 수요예측 관련 테이블 DDL
+-- PostgreSQL 기준
+-- ===================================
+
+-- 1. 일별 판매 집계 테이블
+CREATE TABLE public.daily_sales_aggregation
+(
+    id              varchar(36)                 not null
+        primary key,
+    seller_id       varchar(36)                 not null
+        constraint fk_daily_sales_seller_id
+            references public.sellers(user_id),
+    product_id      varchar(36)                 not null
+        constraint fk_daily_sales_product_id
+            references public.products(id),
+    sales_date      date                        not null,
+    daily_quantity  integer                     not null default 0,
+    daily_revenue   bigint                      not null default 0,
+    order_count     integer                     not null default 0,
+    created_at      timestamp(6) with time zone not null,
+    updated_at      timestamp(6) with time zone not null
+);
+
+-- 2. 수요예측 결과 테이블
+CREATE TABLE public.demand_forecasts
+(
+    id                      varchar(36)                 not null
+        primary key,
+    seller_id               varchar(36)                 not null
+        constraint fk_demand_forecast_seller_id
+            references public.sellers(user_id),
+    product_id              varchar(36)                 not null
+        constraint fk_demand_forecast_product_id
+            references public.products(id),
+    forecast_date           date                        not null,
+    prediction_period_days  integer                     not null default 7,
+    predicted_quantity      integer                     not null,
+    algorithm_type          varchar(50)                 not null
+        constraint demand_forecasts_algorithm_type_check
+            check (algorithm_type IN ('MOVING_AVERAGE_7', 'EXPONENTIAL_SMOOTHING', 'SEASONAL_ADJUSTMENT')),
+    confidence_score        decimal(5,4),
+    historical_data_days    integer,
+    created_at              timestamp(6) with time zone not null,
+    updated_at              timestamp(6) with time zone not null
+);
+
