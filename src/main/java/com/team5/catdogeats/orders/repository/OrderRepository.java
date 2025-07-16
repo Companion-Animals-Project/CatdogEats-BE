@@ -54,4 +54,5 @@ public interface OrderRepository extends JpaRepository<Orders, String> {
         WHERE o.id = :orderId
     """)
     Optional<GroupOrdersAndPayments> findGroupByOrdersAndPaymentsOrderId(@Param("orderId") String orderId);
+
 }
