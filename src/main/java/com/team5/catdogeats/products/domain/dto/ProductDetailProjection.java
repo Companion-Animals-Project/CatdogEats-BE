@@ -1,5 +1,7 @@
 package com.team5.catdogeats.products.domain.dto;
 
+import java.util.List;
+
 public interface ProductDetailProjection {
     String getTitle();
     String getSubTitle();
@@ -7,8 +9,9 @@ public interface ProductDetailProjection {
     String getContents();
     Boolean getIsDiscounted();
     Double getDiscountRate();
+    Long getDiscountedPrice();
     Long getPrice();
-    String getImages();          // JSON array string
+    List<String> getImages();
     String getVendorName();
     Double getAverageStar();
     Integer getReviewCount();

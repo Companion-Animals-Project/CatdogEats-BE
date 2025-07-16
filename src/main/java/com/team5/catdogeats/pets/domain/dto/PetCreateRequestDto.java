@@ -21,6 +21,13 @@ public record PetCreateRequestDto(
 
         @NotNull(message = "나이는 필수입니다.")
         @Min(value = 0, message = "나이는 0 이상이어야 합니다.")
-        Short age
+        Short age,
+
+        @NotNull(message = "알러지 유무 체크는 필수입니다.")
+        Boolean isAllergy,
+
+        String healthState,
+
+        String requestion
 ) {
 }

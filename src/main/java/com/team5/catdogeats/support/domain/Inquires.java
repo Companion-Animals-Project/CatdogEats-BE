@@ -3,7 +3,8 @@ package com.team5.catdogeats.support.domain;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.team5.catdogeats.admins.domain.Admins;
 import com.team5.catdogeats.baseEntity.BaseEntity;
-import com.team5.catdogeats.support.domain.enums.InquiryStatus;
+import com.team5.catdogeats.orders.domain.Orders;
+import com.team5.catdogeats.support.domain.enums.*;
 import com.team5.catdogeats.users.domain.Users;
 import jakarta.persistence.*;
 import lombok.*;
@@ -51,4 +52,35 @@ public class Inquires extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private InquiryStatus inquiryStatus = InquiryStatus.PENDING;
+
+    // 문의 유형 (문의 등록)
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private InquiryType inquiryType;
+
+    // 문의 답변 수신 방법 (문의 등록)
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private InquiryReceiveMethod inquiryReceiveMethod = InquiryReceiveMethod.WEB;
+
+    // 긴급도 (1:1 문의 관리자 페이지)
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private InquiryUrgentLevel inquiryUrgentLevel;
+
+    // 답글 타입 구분 (1:1 문의 답글)
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private InquiryMessageType inquiryMessageType = InquiryMessageType.QUESTION;
+
+    // 주문내역 (문의 등록 -> 주문 관련 문의시만 값, 없으면 null 허용)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    private Orders orders;
+
+    // 강제 종료 사유 추가
+    @Column(columnDefinition = "TEXT")
+    private String reason;
 }

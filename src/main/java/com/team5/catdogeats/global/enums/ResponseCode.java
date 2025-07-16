@@ -75,7 +75,6 @@ public enum ResponseCode {
     CART_CLEARED(HttpStatus.OK, "장바구니가 비워졌습니다"),
     CART_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "장바구니 아이템을 찾을 수 없습니다"),
 
-    // === 신고 관련 응답 ===
     REPORT_SUCCESS(HttpStatus.OK, "신고가 성공적으로 접수되었습니다."),
     REPORT_CREATE_SUCCESS(HttpStatus.CREATED, "신고가 성공적으로 생성되었습니다."),
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 신고를 찾을 수 없습니다."),
@@ -88,6 +87,9 @@ public enum ResponseCode {
     REPORT_TARGET_NOT_FOUND(HttpStatus.NOT_FOUND, "신고 대상을 찾을 수 없습니다."),
     INVALID_REPORT_TYPE(HttpStatus.BAD_REQUEST, "유효하지 않은 신고 유형입니다."),
     INVALID_REPORT_STATUS(HttpStatus.BAD_REQUEST, "유효하지 않은 신고 상태입니다."),
+
+    // === JSON 파싱 에러 ===
+    JSON_PARSING_FAIL(HttpStatus.BAD_REQUEST, "JSON 형식이 올바르지 않습니다."),
 
     // 추가적인 도메인별 에러 코드 정의 가능
     ;

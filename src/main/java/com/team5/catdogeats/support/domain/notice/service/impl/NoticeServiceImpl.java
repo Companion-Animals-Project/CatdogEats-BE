@@ -1,9 +1,12 @@
 package com.team5.catdogeats.support.domain.notice.service.impl;
 
 import com.team5.catdogeats.global.annotation.JpaTransactional;
+import com.team5.catdogeats.global.annotation.Notification;
+import com.team5.catdogeats.notifications.domain.dto.NoticeCompletedDTO;
+import com.team5.catdogeats.notifications.domain.enums.NotificationType;
 import com.team5.catdogeats.storage.domain.Files;
 import com.team5.catdogeats.storage.domain.mapping.NoticeFiles;
-import com.team5.catdogeats.storage.service.NoticeFileManagementService;
+import com.team5.catdogeats.storage.service.NoticeFileService;
 import com.team5.catdogeats.support.domain.Notices;
 import com.team5.catdogeats.support.domain.notice.dto.*;
 import com.team5.catdogeats.support.domain.notice.repository.NoticeFilesRepository;
@@ -28,7 +31,7 @@ public class NoticeServiceImpl implements NoticeService {
 
     private final NoticeRepository noticeRepository;
     private final NoticeFilesRepository noticeFilesRepository;
-    private final NoticeFileManagementService noticeFileManagementService;
+    private final NoticeFileService noticeFileService;
 
     private Sort createSort(String sortBy) {
         return switch (sortBy) {
@@ -56,11 +59,10 @@ public class NoticeServiceImpl implements NoticeService {
         return NoticeListResponseDTO.from(responsePage);
     }
 
-    // ✅ 추가
     @PersistenceContext
     private EntityManager em;
 
-    // ========== 공지사항 상세 조회 ==========
+    // ========== 공지사항 상세 조회 (일반 사용자용 - 조회수 증가) ==========
     @Override
     @JpaTransactional
     public NoticeResponseDTO getNotice(String noticeId) {
@@ -70,18 +72,37 @@ public class NoticeServiceImpl implements NoticeService {
         // 원자적 조회수 증가 (동시성 안전)
         noticeRepository.incrementViewCount(noticeId);
 
-        // ✅ 추가
         em.flush();      // DB 반영 (JPQL bulk-update 반영)
         em.refresh(notice);  // 엔티티 새로고침 (DB에서 다시 select 해서 엔티티 동기화)
 
         List<NoticeFiles> attachments = noticeFilesRepository.findByNoticesId(noticeId);
+
+        log.info("일반 사용자 공지사항 상세 조회 완료 (조회수 증가) - ID: {}, 조회수: {}",
+                noticeId, notice.getViewCount());
+
+        return NoticeResponseDTO.fromWithAttachments(notice, attachments);
+    }
+
+    // ========== 공지사항 상세 조회 (관리자용 - 조회수 증가 없음) ==========
+    @Override
+    @Transactional(value = "jpaTransactionManager", readOnly = true)
+    public NoticeResponseDTO getNoticeForAdmin(String noticeId) {
+        Notices notice = noticeRepository.findById(noticeId)
+                .orElseThrow(() -> new NoSuchElementException("공지사항을 찾을 수 없습니다. ID: " + noticeId));
+
+        // 조회수 증가 없음
+        List<NoticeFiles> attachments = noticeFilesRepository.findByNoticesId(noticeId);
+
+        log.info("관리자 공지사항 상세 조회 완료 (조회수 증가 없음) - ID: {}, 현재 조회수: {}",
+                noticeId, notice.getViewCount());
 
         return NoticeResponseDTO.fromWithAttachments(notice, attachments);
     }
 
     // ========== 공지사항 생성 ==========
     @Override
-    public NoticeResponseDTO createNotice(NoticeCreateRequestDTO requestDTO) {
+    @Notification(type = NotificationType.NOTICE)
+    public NoticeCompletedDTO createNotice(NoticeCreateRequestDTO requestDTO) {
         Notices notice = Notices.builder()
                 .title(requestDTO.getTitle())
                 .content(requestDTO.getContent())
@@ -90,7 +111,7 @@ public class NoticeServiceImpl implements NoticeService {
         Notices savedNotice = noticeRepository.save(notice);
         log.info("공지사항 생성 완료 - ID: {}, 제목: {}", savedNotice.getId(), savedNotice.getTitle());
 
-        return NoticeResponseDTO.from(savedNotice);
+        return new NoticeCompletedDTO(savedNotice.getTitle(), savedNotice.getContent().substring(0,10), NotificationType.NOTICE);
     }
 
     // ========== 공지사항 수정 ==========
@@ -118,10 +139,10 @@ public class NoticeServiceImpl implements NoticeService {
         }
 
         List<NoticeFiles> noticeFiles = noticeFilesRepository.findByNoticesId(noticeId);
-        log.info("=== 파일 삭제 디버깅 - 조회된 파일 개수: {} ===", noticeFiles.size()); // 🆕 추가
+        log.info("=== 파일 삭제 디버깅 - 조회된 파일 개수: {} ===", noticeFiles.size());
 
         if (noticeFiles.isEmpty()) {
-            log.info("연결된 파일이 없어서 S3 삭제 건너뜀"); // 🆕 추가
+            log.info("연결된 파일이 없어서 S3 삭제 건너뜀");
         } else {
             for (NoticeFiles noticeFile : noticeFiles) {
                 String fileUrl = noticeFile.getFiles().getFileUrl();
@@ -129,7 +150,7 @@ public class NoticeServiceImpl implements NoticeService {
                 log.info("S3 파일 삭제 시도 - URL: {}", fileUrl);
 
                 try {
-                    noticeFileManagementService.deleteNoticeFileCompletely(fileId);
+                    noticeFileService.deleteNoticeFileCompletely(fileId);
                 } catch (Exception e) {
                     log.warn("파일 삭제 실패 (계속 진행) - ID: {}, 오류: {}", fileId, e.getMessage());
                 }
@@ -152,8 +173,8 @@ public class NoticeServiceImpl implements NoticeService {
         Notices notice = noticeRepository.findById(noticeId)
                 .orElseThrow(() -> new NoSuchElementException("공지사항을 찾을 수 없습니다. ID: " + noticeId));
 
-        // 🆕 파일 관리 서비스에 위임
-        Files savedFile = noticeFileManagementService.uploadNoticeFile(file);
+        // 파일 관리 서비스에 위임
+        Files savedFile = noticeFileService.uploadNoticeFile(file);
 
         // 공지사항과 파일 연결 (Notice 도메인 책임)
         NoticeFiles noticeFile = NoticeFiles.builder()
@@ -170,7 +191,7 @@ public class NoticeServiceImpl implements NoticeService {
     // ========== 파일 다운로드 ==========
     @Override
     public NoticeFileDownloadResponseDTO downloadFile(String fileId) {
-        return noticeFileManagementService.downloadNoticeFile(fileId);
+        return noticeFileService.downloadNoticeFile(fileId);
     }
 
     // ========== 파일 삭제 ==========
@@ -184,8 +205,8 @@ public class NoticeServiceImpl implements NoticeService {
         // 매핑 관계 삭제
         noticeFilesRepository.deleteById(noticeFile.getId());
 
-        // 🆕 파일 관리 서비스에 위임 (Storage + Files DB 삭제)
-        noticeFileManagementService.deleteNoticeFileCompletely(fileId);
+        // 파일 관리 서비스에 위임 (Storage + Files DB 삭제)
+        noticeFileService.deleteNoticeFileCompletely(fileId);
 
         log.info("파일 삭제 완료 - noticeId: {}, fileId: {}", noticeId, fileId);
     }
@@ -204,8 +225,8 @@ public class NoticeServiceImpl implements NoticeService {
         // 공지사항 정보가 필요하면
         Notices notice = noticeFile.getNotices();
 
-        // 🆕 파일 관리 서비스에 위임
-        noticeFileManagementService.replaceNoticeFile(fileId, newFile);
+        // 파일 관리 서비스에 위임
+        noticeFileService.replaceNoticeFile(fileId, newFile);
 
         log.info("파일 교체 완료 - noticeId: {}, fileId: {}", noticeId, fileId);
 
@@ -246,5 +267,55 @@ public class NoticeServiceImpl implements NoticeService {
 
         String extension = fileName.substring(lastDotIndex + 1).toLowerCase();
         return List.of("pdf", "doc", "docx", "xls", "xlsx").contains(extension);
+    }
+
+    // ========== 공지사항 생성 (파일 포함) ==========
+    @Override
+    @JpaTransactional
+    @Notification(type = NotificationType.NOTICE)
+    public NoticeResponseDTO createNoticeWithFiles(NoticeCreateRequestDTO requestDTO, List<MultipartFile> files) {
+        // 1. 공지사항 생성
+        Notices notice = Notices.builder()
+                .title(requestDTO.getTitle())
+                .content(requestDTO.getContent())
+                .build();
+
+        Notices savedNotice = noticeRepository.save(notice);
+        log.info("공지사항 생성 완료 - ID: {}, 제목: {}", savedNotice.getId(), savedNotice.getTitle());
+
+        // 2. 파일들 업로드 및 연결
+        List<NoticeFiles> attachedFiles = new ArrayList<>();
+
+        for (MultipartFile file : files) {
+            try {
+                // 파일 검증
+                validateFile(file);
+
+                // 파일 업로드
+                Files savedFile = noticeFileService.uploadNoticeFile(file);
+
+                // 공지사항과 파일 연결
+                NoticeFiles noticeFile = NoticeFiles.builder()
+                        .notices(savedNotice)
+                        .files(savedFile)
+                        .build();
+
+                NoticeFiles savedNoticeFile = noticeFilesRepository.save(noticeFile);
+                attachedFiles.add(savedNoticeFile);
+
+                log.info("파일 업로드 및 연결 완료 - 공지사항 ID: {}, 파일명: {}",
+                        savedNotice.getId(), file.getOriginalFilename());
+
+            } catch (Exception e) {
+                // 파일 업로드 실패 시 로그만 남기고 계속 진행
+                // 또는 전체 롤백이 필요하면 예외를 다시 던짐
+                log.error("파일 업로드 실패 - 파일명: {}, 오류: {}",
+                        file.getOriginalFilename(), e.getMessage());
+                // throw e; // 전체 롤백이 필요한 경우
+            }
+        }
+
+        // 3. 첨부파일 포함된 응답 반환
+        return NoticeResponseDTO.fromWithAttachments(savedNotice, attachedFiles);
     }
 }

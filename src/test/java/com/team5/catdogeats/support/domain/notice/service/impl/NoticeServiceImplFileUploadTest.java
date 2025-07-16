@@ -2,8 +2,8 @@ package com.team5.catdogeats.support.domain.notice.service.impl;
 
 import com.team5.catdogeats.storage.domain.Files;
 import com.team5.catdogeats.storage.domain.mapping.NoticeFiles;
-import com.team5.catdogeats.storage.repository.FilesRepository;
-import com.team5.catdogeats.storage.service.NoticeFileManagementService;
+import com.team5.catdogeats.storage.repository.FileRepository;
+import com.team5.catdogeats.storage.service.NoticeFileService;
 import com.team5.catdogeats.storage.service.ObjectStorageService;
 import com.team5.catdogeats.support.domain.Notices;
 import com.team5.catdogeats.support.domain.notice.dto.NoticeResponseDTO;
@@ -36,7 +36,7 @@ class NoticeServiceImplFileUploadTest {
     private NoticeRepository noticeRepository;
 
     @Mock
-    private FilesRepository filesRepository;
+    private FileRepository fileRepository;
 
     @Mock
     private NoticeFilesRepository noticeFilesRepository;
@@ -45,7 +45,7 @@ class NoticeServiceImplFileUploadTest {
     private ObjectStorageService objectStorageService;
 
     @Mock
-    private NoticeFileManagementService noticeFileManagementService; // 🆕 추가
+    private NoticeFileService noticeFileService; // 🆕 추가
 
     @InjectMocks
     private NoticeServiceImpl noticeService;
@@ -91,7 +91,7 @@ class NoticeServiceImplFileUploadTest {
         setTimeFields(noticeFile);
 
         given(noticeRepository.findById(noticeId)).willReturn(Optional.of(testNotice));
-        given(noticeFileManagementService.uploadNoticeFile(file)).willReturn(savedFile);
+        given(noticeFileService.uploadNoticeFile(file)).willReturn(savedFile);
         given(noticeFilesRepository.save(any(NoticeFiles.class))).willReturn(noticeFile);
         given(noticeFilesRepository.findByNoticesId(noticeId)).willReturn(List.of(noticeFile));
 
@@ -103,7 +103,7 @@ class NoticeServiceImplFileUploadTest {
         assertThat(result.getAttachments()).hasSize(1);
 
         verify(noticeRepository).findById(noticeId);
-        verify(noticeFileManagementService).uploadNoticeFile(file);
+        verify(noticeFileService).uploadNoticeFile(file);
         verify(noticeFilesRepository).save(any(NoticeFiles.class));
         verify(noticeFilesRepository).findByNoticesId(noticeId);
     }
@@ -186,7 +186,7 @@ class NoticeServiceImplFileUploadTest {
         );
 
         given(noticeRepository.findById(noticeId)).willReturn(Optional.of(testNotice));
-        given(noticeFileManagementService.uploadNoticeFile(file))
+        given(noticeFileService.uploadNoticeFile(file))
                 .willThrow(new RuntimeException("파일 업로드 서비스 실패"));
 
         // when & then

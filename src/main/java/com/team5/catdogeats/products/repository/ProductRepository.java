@@ -1,12 +1,11 @@
 package com.team5.catdogeats.products.repository;
 
 import com.team5.catdogeats.products.domain.Products;
-import com.team5.catdogeats.products.domain.dto.MainProductProjection;
-import com.team5.catdogeats.products.domain.dto.ProductDetailProjection;
-import com.team5.catdogeats.products.domain.dto.ProductListProjection;
+import com.team5.catdogeats.products.domain.dto.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -28,7 +27,8 @@ public interface ProductRepository extends JpaRepository<Products, String> {
 
     // 최신순 정렬
     @Query(value = """
-        SELECT 
+
+            SELECT 
             p.id AS productId,
             (
                 SELECT i.image_url
@@ -45,15 +45,21 @@ public interface ProductRepository extends JpaRepository<Products, String> {
                 FROM reviews r
                 WHERE r.product_id = p.id
             ) AS averageStar,
+            (
+              SELECT COUNT(*)
+              FROM reviews r
+              WHERE r.product_id = p.id
+            ) AS reviewCount,
             p.price,
+            p.product_number as productNumber,
             p.discount_rate AS discountRate,
-            p.is_discounted AS isDiscounted,
+            p.discounted AS isDiscounted,
+            p.discounted_price AS discountedPrice,
             p.petCategory,
             p.productCategory,
-            p.stock_status AS stockStatus,
             p.created_at AS createdAt
         FROM products p
-        JOIN sellers s ON s.user_id = p.seller_id
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
         WHERE (:petCategory IS NULL OR p.petCategory = :petCategory)
           AND (:productCategory IS NULL OR p.productCategory = :productCategory)
         ORDER BY p.created_at DESC
@@ -61,6 +67,7 @@ public interface ProductRepository extends JpaRepository<Products, String> {
             countQuery = """
         SELECT COUNT(*)
         FROM products p
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
         WHERE (:petCategory IS NULL OR p.petCategory = :petCategory)
           AND (:productCategory IS NULL OR p.productCategory = :productCategory)
         """,
@@ -91,15 +98,21 @@ public interface ProductRepository extends JpaRepository<Products, String> {
                 FROM reviews r
                 WHERE r.product_id = p.id
             ) AS averageStar,
+            (
+              SELECT COUNT(*)
+              FROM reviews r
+              WHERE r.product_id = p.id
+            ) AS reviewCount,
             p.price,
+            p.product_number as productNumber,
             p.discount_rate AS discountRate,
-            p.is_discounted AS isDiscounted,
+            p.discounted AS isDiscounted,
+            p.discounted_price AS discountedPrice,
             p.petCategory,
             p.productCategory,
-            p.stock_status AS stockStatus,
             p.created_at AS createdAt
         FROM products p
-        JOIN sellers s ON s.user_id = p.seller_id
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
         WHERE (:petCategory IS NULL OR p.petCategory = :petCategory)
           AND (:productCategory IS NULL OR p.productCategory = :productCategory)
         ORDER BY p.price DESC
@@ -107,12 +120,13 @@ public interface ProductRepository extends JpaRepository<Products, String> {
             countQuery = """
         SELECT COUNT(*)
         FROM products p
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
         WHERE (:petCategory IS NULL OR p.petCategory = :petCategory)
           AND (:productCategory IS NULL OR p.productCategory = :productCategory)
         """,
             nativeQuery = true
     )
-    Page<ProductListProjection> findAllByOrderByPriceDesc(
+    Page<ProductListProjection> findAllByOrderByDiscountedPriceDesc(
             @Param("petCategory") String petCategory,
             @Param("productCategory") String productCategory,
             Pageable pageable
@@ -137,15 +151,21 @@ public interface ProductRepository extends JpaRepository<Products, String> {
                 FROM reviews r
                 WHERE r.product_id = p.id
             ) AS averageStar,
+            (
+              SELECT COUNT(*)
+              FROM reviews r
+              WHERE r.product_id = p.id
+            ) AS reviewCount,
             p.price,
+            p.product_number as productNumber,
             p.discount_rate AS discountRate,
-            p.is_discounted AS isDiscounted,
+            p.discounted AS isDiscounted,
+            p.discounted_price AS discountedPrice,
             p.petCategory,
             p.productCategory,
-            p.stock_status AS stockStatus,
             p.created_at AS createdAt
         FROM products p
-        JOIN sellers s ON s.user_id = p.seller_id
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
         WHERE (:petCategory IS NULL OR p.petCategory = :petCategory)
           AND (:productCategory IS NULL OR p.productCategory = :productCategory)
         ORDER BY (
@@ -157,6 +177,7 @@ public interface ProductRepository extends JpaRepository<Products, String> {
             countQuery = """
         SELECT COUNT(*)
         FROM products p
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
         WHERE (:petCategory IS NULL OR p.petCategory = :petCategory)
           AND (:productCategory IS NULL OR p.productCategory = :productCategory)
         """,
@@ -176,9 +197,10 @@ public interface ProductRepository extends JpaRepository<Products, String> {
                 p.subtitle AS subTitle,
                 p.productinfo AS productInfo,
                 p.contents AS contents,
-                p.is_discounted AS isDiscounted,
+                p.discounted AS isDiscounted,
                 p.discount_rate AS discountRate,
                 p.price AS price,
+                p.discounted_price AS discountedPrice,
                 -- 이미지 여러 장 json 배열로
                 (
                   SELECT COALESCE(json_agg(i.image_url), '[]')
@@ -198,7 +220,7 @@ public interface ProductRepository extends JpaRepository<Products, String> {
                   WHERE r.product_id = p.id
                 ) AS reviewCount
             FROM products p
-            JOIN sellers s ON s.user_id = p.seller_id
+            JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
             WHERE p.product_number = :productNumber
             LIMIT 1
         """,
@@ -230,12 +252,15 @@ public interface ProductRepository extends JpaRepository<Products, String> {
                 FROM reviews r
                 WHERE r.product_id = p.id
             ) AS reviewCount,
+            p.id AS productId,
+            p.product_number AS productNumber,
             p.price,
-            p.is_discounted AS isDiscounted,
+            p.discounted AS isDiscounted,
             p.discount_rate AS discountRate,
+            p.discounted_price AS discountedPrice,
             p.created_at AS createdAt
         FROM products p
-        JOIN sellers s ON s.user_id = p.seller_id
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
         ORDER BY p.created_at DESC
         LIMIT 8
     """,
@@ -268,12 +293,15 @@ public interface ProductRepository extends JpaRepository<Products, String> {
                 WHERE r.product_id = p.id
             ) AS reviewCount,
             p.price,
-            p.is_discounted AS isDiscounted,
+            p.id AS productId,
+            p.product_number AS productNumber,
+            p.discounted AS isDiscounted,
             p.discount_rate AS discountRate,
+            p.discounted_price AS discountedPrice,
             p.created_at AS createdAt
         FROM products p
-        JOIN sellers s ON s.user_id = p.seller_id
-        WHERE p.is_discounted = true
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
+        WHERE p.discounted = true
         ORDER BY p.discount_rate DESC NULLS LAST
         LIMIT 8
     """,
@@ -328,11 +356,14 @@ public interface ProductRepository extends JpaRepository<Products, String> {
             ) AS imageUrl,
             s.vendor_name AS vendorName,
             p.title AS title,
+            p.id AS productId,
+            p.product_number AS productNumber,
             COALESCE(rd.avg_rating, 0.0) AS averageStar,
             COALESCE(rd.review_count, 0) AS reviewCount,
             p.price,
-            p.is_discounted AS isDiscounted,
+            p.discounted AS isDiscounted,
             p.discount_rate AS discountRate,
+            p.discounted_price AS discountedPrice,
             p.created_at AS createdAt,
             (
                 -- 판매량 정규화(0~100) * 0.4
@@ -347,7 +378,7 @@ public interface ProductRepository extends JpaRepository<Products, String> {
                 LEAST(100.0, COALESCE(ro.recent_order_count,0)/20.0*100.0) * 0.05
             ) AS bestScore
         FROM products p
-        JOIN sellers s ON s.user_id = p.seller_id
+        JOIN sellers s ON s.user_id = p.seller_id AND s.is_deleted = false
         LEFT JOIN sales_data sd ON p.id = sd.product_id
         LEFT JOIN review_data rd ON p.id = rd.product_id
         LEFT JOIN recent_orders ro ON p.id = ro.product_id
@@ -357,5 +388,89 @@ public interface ProductRepository extends JpaRepository<Products, String> {
         nativeQuery = true
     )
     List<MainProductProjection> findTop8ByBestScoreDesc();
+
+
+    @Modifying(clearAutomatically = true)
+    @Query("""
+    UPDATE Products p
+    SET p.stock =:stock
+    WHERE p.id =:id
+    """)
+    void updateStock(@Param("id") String id,
+                     @Param("stock") int stock);
+
+    @Query("""
+    SELECT p
+      FROM Products p
+      JOIN p.seller s
+      JOIN s.user u
+     WHERE p.id           = :id
+       AND u.provider     = :provider
+       AND u.providerId   = :providerId
+    """)
+    Optional<Products> findProductsByIdAndProviderId(@Param("id") String id,
+                                             @Param("provider") String provider,
+                                             @Param("providerId") String providerId);
+
+    @Query("""
+        SELECT p.id AS id,
+               p.title AS title,
+               p.productNumber AS productNumber,
+               p.stock AS stock,
+               p.safetyStock AS safetyStock,
+               p.price AS price,
+               p.discountedPrice AS discountedPrice,
+               p.discounted AS discounted
+        FROM Products p
+        """)
+    Page<ProductInventoryProjection> findProducts(Pageable pageable);
+
+    @Query("""
+    SELECT p.id AS id,
+           p.title AS title,
+           p.productNumber AS productNumber,
+           p.stock AS stock,
+           p.safetyStock AS safetyStock,
+           p.price AS price,
+           p.discountedPrice AS discountedPrice,
+           p.discounted AS discounted
+    FROM Products p
+    WHERE lower(p.title) LIKE lower(concat('%', :keyword, '%'))
+       OR lower(p.subTitle) LIKE lower(concat('%', :keyword, '%'))
+    """)
+    Page<ProductInventoryProjection> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
+
+    @Query(value = """
+    SELECT 
+        (
+            SELECT i.image_url
+            FROM products_images pi
+            JOIN images i ON i.id = pi.product_image_id
+            WHERE pi.product_id = p.id
+            ORDER BY pi.created_at
+            LIMIT 1
+        ) AS imageUrl,
+        p.title AS title,
+        p.id AS productId,
+        p.product_number AS productNumber,
+        p.petcategory::text AS petCategory,
+        p.productcategory::text AS productCategory,
+        CAST(p.price AS bigint) AS price,         -- ★ 반드시 CAST!
+        CAST(p.stock AS integer) AS stock,        -- ★ 반드시 CAST!
+        p.updated_at AS updatedAt
+    FROM products p
+    WHERE p.seller_id = :sellerId
+    ORDER BY p.updated_at DESC
+    """,
+            countQuery = """
+        SELECT COUNT(*)
+        FROM products p
+        WHERE p.seller_id = :sellerId
+    """,
+            nativeQuery = true)
+    Page<SellerProductListProjection> findSellerProductsBySellerId(
+            @Param("sellerId") String sellerId,
+            Pageable pageable
+    );
 
 }

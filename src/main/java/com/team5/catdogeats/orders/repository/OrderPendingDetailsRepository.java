@@ -1,6 +1,6 @@
 package com.team5.catdogeats.orders.repository;
 
-import com.team5.catdogeats.orders.domain.OrderPendingDetails;
+import com.team5.catdogeats.orders.domain.mapping.OrderPendingDetails;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

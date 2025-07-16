@@ -4,6 +4,7 @@ import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.dto.PageResponseDto;
 import com.team5.catdogeats.global.enums.ResponseCode;
+import com.team5.catdogeats.products.domain.dto.ProductDeliveredResponseDto;
 import com.team5.catdogeats.reviews.domain.dto.*;
 import com.team5.catdogeats.reviews.service.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,6 +13,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -36,6 +40,33 @@ public class ReviewController {
                     .created(URI.create("/v1/buyers/reviews/" + reviewId))
                     .body(APIResponse.success(ResponseCode.CREATED));
         } catch (NoSuchElementException e) {
+            return ResponseEntity
+                    .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
+                    .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(ResponseCode.INTERNAL_SERVER_ERROR.getStatus())
+                    .body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR, e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "나의 배송 완료된 상품 목록들", description = "로그인한 구매자가 직접 구매하여 배송 완료된 상품 목록들 조회합니다.")
+    @GetMapping("/delivered-products")
+    public ResponseEntity<APIResponse<Page<ProductDeliveredResponseDto>>> getDeliveredProducts(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        try {
+            Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "deliveredAt"));
+            Page<ProductDeliveredResponseDto> result = reviewService.getDeliveredProducts(userPrincipal, pageable);
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS, result));
+        } catch (IllegalStateException e) {
+            // 비즈니스 위반(주로 BAD_REQUEST)로 응답
+            return ResponseEntity
+                    .status(ResponseCode.INVALID_INPUT_VALUE.getStatus())
+                    .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
+        }catch (NoSuchElementException e) {
             return ResponseEntity
                     .status(ResponseCode.ENTITY_NOT_FOUND.getStatus())
                     .body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));

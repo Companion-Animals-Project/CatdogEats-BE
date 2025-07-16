@@ -32,4 +32,9 @@ public interface AddressService {
 
     // 기본 주소 조회
     AddressResponseDto getDefaultAddress(UserPrincipal userPrincipal, AddressType addressType);
+
+    //userId로 기본 주소 조회 - 사업자 주소용
+    AddressResponseDto getDefaultAddressByUserId(String userId, AddressType addressType);
+
+
 }

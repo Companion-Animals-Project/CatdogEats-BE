@@ -1,12 +1,11 @@
 package com.team5.catdogeats.carts.repository;
 
-import com.team5.catdogeats.orders.domain.mapping.OrderItems;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
+import com.team5.catdogeats.orders.domain.mapping.OrderItems;
 import com.team5.catdogeats.pets.domain.enums.PetCategory;
 import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.domain.enums.ProductCategory;
-import com.team5.catdogeats.products.domain.enums.StockStatus;
 import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.domain.enums.Role;
 import com.team5.catdogeats.users.domain.mapping.Buyers;
@@ -20,11 +19,8 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.lang.reflect.Field;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,7 +36,8 @@ class CartRecommendationRepositoryTest {
     @Autowired
     private CartRecommendationRepository cartRecommendationRepository;
 
-    private Users testBuyer;
+    private Buyers testBuyer;
+    private Users testUser;
     private Users testSeller;
     private Buyers buyer;
     private Sellers seller;
@@ -60,14 +57,14 @@ class CartRecommendationRepositoryTest {
     @BeforeEach
     void setUp() {
         // 테스트용 구매자 생성
-        testBuyer = Users.builder()
+        testUser = Users.builder()
                 .provider("google")
                 .providerId("test-buyer-id")
                 .userNameAttribute("sub")
                 .name("테스트 구매자")
                 .role(Role.ROLE_BUYER)
                 .build();
-        testBuyer = entityManager.persistAndFlush(testBuyer);
+        testUser = entityManager.persistAndFlush(testUser);
 
         // 테스트용 판매자 생성
         testSeller = Users.builder()
@@ -81,8 +78,8 @@ class CartRecommendationRepositoryTest {
 
         // 구매자 정보 생성
         buyer = Buyers.builder()
-                .userId(testBuyer.getId())
-                .user(testBuyer)
+                .userId(testUser.getId())
+                .user(testUser)
                 .nameMaskingStatus(false)
                 .build();
         entityManager.persistAndFlush(buyer);
@@ -152,8 +149,7 @@ class CartRecommendationRepositoryTest {
                 .contents(title + " 설명")
                 .petCategory(petCategory)
                 .productCategory(ProductCategory.HANDMADE)
-                .stockStatus(StockStatus.IN_STOCK)
-                .isDiscounted(false)
+                .discounted(false)
                 .price(price)
                 .leadTime((short) 3)  // 추가 필요
                 .stock(100)  // 추가 필요
@@ -167,8 +163,11 @@ class CartRecommendationRepositoryTest {
     private Orders createOrder(Long orderNumber, OrderStatus status, Long totalPrice) {
         Orders order = Orders.builder()
                 .orderNumber(String.valueOf(orderNumber)) // Long을 String으로 변환
-                .user(testBuyer)
-                .totalPrice(totalPrice)
+                .buyers(buyer)
+                .subtotalPrice(totalPrice)
+                .totalDeliveryFee(1000L)
+                .totalDiscountAmount(100L)
+                .discountedTotalPrice(totalPrice)
                 .orderStatus(status)
                 .build();
         return entityManager.persistAndFlush(order);
