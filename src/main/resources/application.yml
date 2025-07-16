@@ -2,7 +2,7 @@ server:
   port: ${PORT:8080} # 충돌 문제 시 수정
 spring:
   profiles:
-    active: ${PROFILE:dev}
+    active: ${PROFILE}
   springdoc:
     swagger-ui:
       path: /swagger-ui.html

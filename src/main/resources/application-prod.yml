@@ -36,9 +36,6 @@ batch:
     cleanup-old-data-days: ${FORECAST_CLEANUP_DAYS:30}            # 오래된 데이터 정리 기간 (일)
 
 spring:
-  cloud:
-    openfeign:
-      lazy-attributes-resolution: true
   servlet:
     multipart:
       enabled: true
