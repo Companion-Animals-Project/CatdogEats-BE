@@ -29,7 +29,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@JpaTransactional(readOnly = true)
 public class AddressServiceImpl implements AddressService {
 
     private final AddressRepository addressRepository;
@@ -179,15 +179,58 @@ public class AddressServiceImpl implements AddressService {
                 .orElse(null);
     }
 
+    //판매자 스토어 페이지 조회용
+    @Override
+    @JpaTransactional
+    public AddressResponseDto getDefaultAddressByUserId(String userId, AddressType addressType) {
+        log.debug("userId로 기본 주소 조회 시작 - userId: {}, addressType: {}", userId, addressType);
+
+        if (userId == null || userId.trim().isEmpty()) {
+            log.warn("userId가 null이거나 비어있습니다.");
+            return null;
+        }
+
+        try {
+            // 1. 기본 주소 우선 조회
+            var addressOpt = addressRepository.findByUserIdAndAddressTypeAndIsDefaultTrue(userId, addressType);
+
+            if (addressOpt.isPresent()) {
+                AddressResponseDto result = AddressResponseDto.from(addressOpt.get());
+                log.info("기본 주소 조회 성공 - userId: {}, addressType: {}, addressId: {}, title: {}",
+                        userId, addressType, result.getId(), result.getTitle());
+                return result;
+            } else {
+                // 2. 기본 주소가 없으면 해당 타입의 첫 번째 주소 반환 (사업자 주소는 1개만 있음)
+                List<Addresses> allAddresses = addressRepository.findByUserIdAndAddressTypeOrderByIsDefaultDescCreatedAtDesc(userId, addressType);
+
+                if (!allAddresses.isEmpty()) {
+                    AddressResponseDto result = AddressResponseDto.from(allAddresses.get(0));
+                    log.info("첫 번째 주소 반환 - userId: {}, addressType: {}, addressId: {}, isDefault: {}",
+                            userId, addressType, result.getId(), allAddresses.get(0).isDefault());
+                    return result;
+                } else {
+                    log.info("주소가 없음 - userId: {}, addressType: {}", userId, addressType);
+                    return null;
+                }
+            }
+        } catch (Exception e) {
+            log.error("주소 조회 중 예외 발생 - userId: {}, addressType: {}, error: {}",
+                    userId, addressType, e.getMessage(), e);
+            return null;
+        }
+    }
+
     // Private 헬퍼 메서드
     // UserPrincipal에서 userId 조회
     private String findUserIdByPrincipal(UserPrincipal userPrincipal) {
-        BuyerDTO buyerDTO = buyerRepository.findOnlyBuyerByProviderAndProviderId(
+        Users user = userRepository.findByProviderAndProviderId(
                 userPrincipal.provider(),
                 userPrincipal.providerId()
-        ).orElseThrow(() -> new UserNotFoundException("해당 유저 정보를 찾을 수 없습니다."));
+        ).orElseThrow(() -> new UserNotFoundException(
+                String.format("해당 유저 정보를 찾을 수 없습니다 - provider: %s, providerId: %s",
+                        userPrincipal.provider(), userPrincipal.providerId())));
 
-        return buyerDTO.userId();
+        return user.getId();
     }
 
     private Addresses findAddressById(String addressId) {
@@ -213,4 +256,5 @@ public class AddressServiceImpl implements AddressService {
             throw new IllegalArgumentException(message);
         }
     }
+
 }

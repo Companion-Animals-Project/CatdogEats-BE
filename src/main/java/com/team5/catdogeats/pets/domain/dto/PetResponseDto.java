@@ -13,12 +13,16 @@ public record PetResponseDto(
         Gender gender,
         String breed,
         Short age,
+        Boolean isAllergy,
+        String healthState,
+        String requestion,
         ZonedDateTime updatedAt
 ) {
     public static PetResponseDto fromEntity(Pets pet) {
         return new PetResponseDto(
                 pet.getId(), pet.getName(), pet.getPetCategory(),
-                pet.getGender(), pet.getBreed(), pet.getAge(), pet.getUpdatedAt()
+                pet.getGender(), pet.getBreed(), pet.getAge(),
+                pet.isAllergy(), pet.getHealthState(), pet.getRequestion(), pet.getUpdatedAt()
         );
     }
 }

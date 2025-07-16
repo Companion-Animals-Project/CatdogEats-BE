@@ -42,6 +42,14 @@ public class Sellers extends BaseEntity {
     @Column(name = "tags")
     private String tags;
 
+    @Column(name = "delivery_fee")
+    @Builder.Default
+    private Long deliveryFee = 0L;
+
+    @Column(name = "free_shipping_threshold")
+    @Builder.Default
+    private Long freeShippingThreshold = 0L;
+
     @Column(name = "operating_start_time")
     private LocalTime operatingStartTime;
 
@@ -99,6 +107,18 @@ public class Sellers extends BaseEntity {
 
     public void updateClosedDays(String closedDays) {
         this.closedDays = closedDays;
+    }
+
+    public void updateDeliveryFee(Long deliveryFee) {
+        if (deliveryFee != null && deliveryFee >= 0) {
+            this.deliveryFee = deliveryFee;
+        }
+    }
+
+    public void updateFreeShippingThreshold(Long freeShippingThreshold) {
+        if (freeShippingThreshold != null && freeShippingThreshold >= 0) {
+            this.freeShippingThreshold = freeShippingThreshold;
+        }
     }
 }
 

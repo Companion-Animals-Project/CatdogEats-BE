@@ -2,7 +2,7 @@ package com.team5.catdogeats.support.domain.notice.service.impl;
 
 import com.team5.catdogeats.storage.domain.Files;
 import com.team5.catdogeats.storage.domain.mapping.NoticeFiles;
-import com.team5.catdogeats.storage.service.NoticeFileManagementService;
+import com.team5.catdogeats.storage.service.NoticeFileService;
 import com.team5.catdogeats.support.domain.Notices;
 import com.team5.catdogeats.support.domain.notice.dto.NoticeResponseDTO;
 import com.team5.catdogeats.support.domain.notice.repository.NoticeFilesRepository;
@@ -30,7 +30,7 @@ class NoticeServiceImplFileManagementTest {
     private NoticeFilesRepository noticeFilesRepository;
 
     @Mock
-    private NoticeFileManagementService noticeFileManagementService;
+    private NoticeFileService noticeFileService;
 
     @InjectMocks
     private NoticeServiceImpl noticeService;
@@ -80,7 +80,7 @@ class NoticeServiceImplFileManagementTest {
         // then
         verify(noticeFilesRepository).findByNoticesIdAndFilesId(noticeId, fileId);
         verify(noticeFilesRepository).deleteById(testNoticeFile.getId());
-        verify(noticeFileManagementService).deleteNoticeFileCompletely(fileId);
+        verify(noticeFileService).deleteNoticeFileCompletely(fileId);
     }
 
     @Test
@@ -99,7 +99,7 @@ class NoticeServiceImplFileManagementTest {
                 .hasMessageContaining("해당 공지사항에 연결되지 않은 파일입니다");
 
         verify(noticeFilesRepository).findByNoticesIdAndFilesId(noticeId, fileId);
-        verifyNoInteractions(noticeFileManagementService);
+        verifyNoInteractions(noticeFileService);
     }
 
     @Test
@@ -113,7 +113,7 @@ class NoticeServiceImplFileManagementTest {
                 .willReturn(Optional.of(testNoticeFile));
 
         doThrow(new RuntimeException("파일 삭제 서비스 오류"))
-                .when(noticeFileManagementService).deleteNoticeFileCompletely(fileId);
+                .when(noticeFileService).deleteNoticeFileCompletely(fileId);
 
         // when & then
         assertThatThrownBy(() -> noticeService.deleteFile(noticeId, fileId))
@@ -122,7 +122,7 @@ class NoticeServiceImplFileManagementTest {
 
         verify(noticeFilesRepository).findByNoticesIdAndFilesId(noticeId, fileId);
         verify(noticeFilesRepository).deleteById(testNoticeFile.getId());
-        verify(noticeFileManagementService).deleteNoticeFileCompletely(fileId);
+        verify(noticeFileService).deleteNoticeFileCompletely(fileId);
     }
 
     // ========== 파일 수정(교체) 테스트 ==========
@@ -151,7 +151,7 @@ class NoticeServiceImplFileManagementTest {
         assertThat(result).isNotNull();
 
         verify(noticeFilesRepository).findByNoticesIdAndFilesId(noticeId, fileId);
-        verify(noticeFileManagementService).replaceNoticeFile(fileId, newFile);
+        verify(noticeFileService).replaceNoticeFile(fileId, newFile);
         verify(noticeFilesRepository).findByNoticesId(noticeId);
     }
 
@@ -175,7 +175,7 @@ class NoticeServiceImplFileManagementTest {
 
         // 파일 검증이 먼저 일어나므로 다른 메서드들은 호출되지 않음
         verifyNoInteractions(noticeFilesRepository);
-        verifyNoInteractions(noticeFileManagementService);
+        verifyNoInteractions(noticeFileService);
     }
 
     @Test
@@ -201,7 +201,7 @@ class NoticeServiceImplFileManagementTest {
 
         // 파일 검증이 먼저 일어나므로 다른 메서드들은 호출되지 않음
         verifyNoInteractions(noticeFilesRepository);
-        verifyNoInteractions(noticeFileManagementService);
+        verifyNoInteractions(noticeFileService);
     }
 
     @Test
@@ -226,7 +226,7 @@ class NoticeServiceImplFileManagementTest {
                 .hasMessageContaining("해당 공지사항에 연결되지 않은 파일입니다");
 
         verify(noticeFilesRepository).findByNoticesIdAndFilesId(noticeId, fileId);
-        verifyNoInteractions(noticeFileManagementService);
+        verifyNoInteractions(noticeFileService);
     }
 
     @Test
@@ -246,7 +246,7 @@ class NoticeServiceImplFileManagementTest {
                 .willReturn(Optional.of(testNoticeFile));
 
         doThrow(new RuntimeException("파일 교체 서비스 오류"))
-                .when(noticeFileManagementService).replaceNoticeFile(fileId, newFile);
+                .when(noticeFileService).replaceNoticeFile(fileId, newFile);
 
         // when & then
         assertThatThrownBy(() -> noticeService.replaceFile(noticeId, fileId, newFile))
@@ -254,7 +254,7 @@ class NoticeServiceImplFileManagementTest {
                 .hasMessageContaining("파일 교체 서비스 오류");
 
         verify(noticeFilesRepository).findByNoticesIdAndFilesId(noticeId, fileId);
-        verify(noticeFileManagementService).replaceNoticeFile(fileId, newFile);
+        verify(noticeFileService).replaceNoticeFile(fileId, newFile);
     }
 
     // ========== 헬퍼 메서드 ==========

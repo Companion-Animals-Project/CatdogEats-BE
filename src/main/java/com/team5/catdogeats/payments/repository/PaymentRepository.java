@@ -2,7 +2,6 @@ package com.team5.catdogeats.payments.repository;
 
 import com.team5.catdogeats.payments.domain.Payments;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
@@ -20,6 +19,8 @@ public interface PaymentRepository extends JpaRepository<Payments, String> {
      * @return 결제 정보 (Optional)
      */
     Optional<Payments> findByOrdersId(String ordersId);
+
+    void deleteByOrdersId(String orderId);
 
     /*
      * 토스 페이먼츠 키로 결제 정보 조회

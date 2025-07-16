@@ -4,6 +4,8 @@ import java.time.Instant;
 
 public interface ProductListProjection{
     String getProductId();
+    String getProductNumber();
+    Integer getStock();
     String getImageUrl();
     String getProductName();
     String getVendorName();
@@ -11,8 +13,10 @@ public interface ProductListProjection{
     Long getPrice();
     Double getDiscountRate();
     Boolean getIsDiscounted();
+    Long getDiscountedPrice();
     String getPetCategory();
     String getProductCategory();
-    String getStockStatus();
+    String get();
     Instant getCreatedAt();
+    Integer getReviewCount();
 }

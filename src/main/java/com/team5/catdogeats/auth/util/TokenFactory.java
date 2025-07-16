@@ -15,7 +15,6 @@ import org.springframework.stereotype.Component;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -33,11 +32,12 @@ public class TokenFactory {
 
         String authorities = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.joining(","));
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("No authorities found"));
 
         ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         ZonedDateTime expiration = now.plus(jwtConfig.getExpiration(), ChronoUnit.MILLIS);
 
-        return new TokenDTO(providerId, authorities, registrationId, now, expiration);
+        return new TokenDTO(providerId, authorities, registrationId,  now, expiration);
     }
 }
