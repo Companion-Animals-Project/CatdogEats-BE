@@ -71,7 +71,7 @@ public class SecurityConfig {
                             .deleteCookies("SESSION")
                             .permitAll())
                     .securityContext(securityContext ->
-                            securityContext.requireExplicitSave(true))                // SecurityContext 자동 저장 활성화
+                            securityContext.requireExplicitSave(false))                // SecurityContext 자동 저장 활성화
                     .exceptionHandling(exceptions -> exceptions
                             .authenticationEntryPoint((request, response, authException) -> {
                                 // 인증되지 않은 사용자를 로그인 페이지로 리다이렉트
