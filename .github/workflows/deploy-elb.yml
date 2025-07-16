@@ -83,7 +83,7 @@ jobs:
           cache-from: type=registry,ref=${{ steps.prepare-tags.outputs.cache_tag }}
           cache-to:   type=registry,ref=${{ steps.prepare-tags.outputs.cache_tag }},mode=max
 
-    deploy-to-ec2:
+  deploy-to-ec2:
       needs: build-and-publish
       runs-on: ubuntu-latest
 
