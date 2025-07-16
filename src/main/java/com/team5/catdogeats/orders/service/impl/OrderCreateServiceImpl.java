@@ -28,6 +28,8 @@ import com.team5.catdogeats.users.domain.mapping.Buyers;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
 import com.team5.catdogeats.users.repository.BuyerRepository;
 import com.team5.catdogeats.users.repository.SellersRepository;
+import com.team5.catdogeats.pets.domain.Pets;
+import com.team5.catdogeats.pets.repository.PetRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -50,6 +52,7 @@ public class OrderCreateServiceImpl implements OrderCreateService {
     private final ObjectMapper objectMapper;
     private final BuyerCouponRepository buyerCouponRepository;
     private final OutboxMessageRepository outboxMessageRepository;
+    private final PetRepository petsRepository;
 
     @Override
     @JpaTransactional
@@ -78,9 +81,16 @@ public class OrderCreateServiceImpl implements OrderCreateService {
 
             log.debug("주문 금액 계산: 원가={}원, 할인후={}원, 최종={}원",
                     originalTotalPrice, discountedTotalPrice, finalPaymentAmount);
+            // 반려동물 정보 조회 및 검증
+            Pets pet = petsRepository.findById(request.getPetId())
+                    .orElseThrow(() -> new IllegalArgumentException("반려동물을 찾을 수 없습니다: " + request.getPetId()));
 
+// 구매자 본인의 반려동물인지 확인
+            if (!pet.getBuyer().getUser().getId().equals(buyers.getUser().getId())) {
+                throw new IllegalArgumentException("본인의 반려동물만 선택할 수 있습니다");
+            }
             // 5. Orders 엔티티만 생성 및 저장 (PAYMENT_PENDING 상태)
-            Orders savedOrder = createAndSaveOrderOnly(buyers, originalTotalPrice, discountAmount, finalPaymentAmount, totalDeliveryFee);
+            Orders savedOrder = createAndSaveOrderOnly(buyers, pet, originalTotalPrice, discountAmount, finalPaymentAmount, totalDeliveryFee);
 
             // 6. OrderPendingDetails에 임시 정보 저장 (메서드 시그니처 변경)
             saveOrderPendingDetails(savedOrder, buyers, originalTotalPrice, totalDeliveryFee, finalPaymentAmount,
@@ -263,9 +273,10 @@ public class OrderCreateServiceImpl implements OrderCreateService {
 
     }
 
-    private Orders createAndSaveOrderOnly(Buyers buyer, Long subTotalPrice, Long discountAmount, Long finalPaymentAmount, Long totalDeliveryFee) {
+    private Orders createAndSaveOrderOnly(Buyers buyer, Pets pet, Long subTotalPrice, Long discountAmount, Long finalPaymentAmount, Long totalDeliveryFee) {
         Orders order = Orders.builder()
                 .buyers(buyer)
+                .pet(pet)
                 .orderNumber(OrderCreateUtils.generateOrderNumber()) // String 타입 반환값 사용
                 .orderStatus(OrderStatus.PAYMENT_PENDING)
                 .subtotalPrice(subTotalPrice)

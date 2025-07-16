@@ -3,6 +3,7 @@ package com.team5.catdogeats.orders.domain;
 import com.team5.catdogeats.baseEntity.BaseEntity;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.domain.mapping.OrderItems;
+import com.team5.catdogeats.pets.domain.Pets;
 import com.team5.catdogeats.users.domain.mapping.Buyers;
 import jakarta.persistence.*;
 import lombok.*;
@@ -71,6 +72,13 @@ public class Orders extends BaseEntity {
     // 배송 정보 (일대일 관계)
     @OneToOne(mappedBy = "orders", cascade = CascadeType.ALL)
     private Shipments shipment;
+
+    /**
+     * 반려동물 정보 (기존 Pets 엔티티 참조)
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pet_id")
+    private Pets pet;
 
     // ===== 주문 내역 숨김 기능 편의 메서드 =====
     /**

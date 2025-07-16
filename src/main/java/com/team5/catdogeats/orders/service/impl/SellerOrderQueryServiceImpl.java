@@ -216,6 +216,7 @@ public class SellerOrderQueryServiceImpl implements SellerOrderQueryService {
                 .orderStatus(order.getOrderStatus())
                 .orderDate(order.getCreatedAt())
                 .shippingAddress(shippingAddress)
+                .petInfo(order.getPet() != null ? SellerOrderDetailResponse.PetInfo.from(order.getPet()) : null)  // ✅ 반려동물 정보 추가
                 .orderItems(orderItems)
                 .orderSummary(orderSummary)
                 .shipmentInfo(shipmentInfo)
