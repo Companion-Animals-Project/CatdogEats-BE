@@ -117,8 +117,8 @@ jobs:
             cd /home/${{ secrets.EC2_USER }}/app
             unzip -o deploy.zip
             cat << 'EOF' > .env
-${{ secrets.ENV_FILE }}
-EOF
+            ${{ secrets.ENV_FILE }}
+            EOF
             docker compose down
             docker compose pull
             docker compose up -d --build
