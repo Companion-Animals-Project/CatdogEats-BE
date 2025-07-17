@@ -12,8 +12,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 
-
-
 import javax.sql.DataSource;
 
 @Configuration
@@ -23,6 +21,8 @@ import javax.sql.DataSource;
                         "com.team5.catdogeats.products.mapper",
                         "com.team5.catdogeats.orders.mapper",
                         "com.team5.catdogeats.reviews.mapper",
+                        "com.team5.catdogeats.coupons.mapper",
+                        "com.team5.catdogeats.notifications.mapper",
                         "com.team5.catdogeats.coupons.mapper",
                         "com.team5.catdogeats.forecast.mapper",
 

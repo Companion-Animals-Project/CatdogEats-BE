@@ -4,6 +4,7 @@ import com.team5.catdogeats.admins.domain.dto.AdminInfo;
 import com.team5.catdogeats.admins.util.AdminControllerUtils;
 import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
+import com.team5.catdogeats.notifications.domain.dto.NoticeCompletedDTO;
 import com.team5.catdogeats.support.domain.notice.dto.*;
 import com.team5.catdogeats.support.domain.notice.service.NoticeService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -109,30 +110,47 @@ public class NoticeAdminController {
     }
 
     // ========== 공지사항 생성 ==========
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(
             summary = "공지사항 등록",
-            description = "관리자가 공지사항을 등록합니다."
+            description = "관리자가 공지사항을 등록합니다. 파일 첨부 가능"
     )
-    public ResponseEntity<APIResponse<NoticeResponseDTO>> createNotice(
+    public ResponseEntity<APIResponse<Object>> createNotice(
             HttpSession session,
-            @Valid @RequestBody NoticeCreateRequestDTO requestDto) {
+            @Valid @RequestPart("notice") NoticeCreateRequestDTO requestDto,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files) {
 
         try {
             // 세션 인증 추가
             AdminInfo adminInfo = controllerUtils.requireSessionInfo(session);
 
-            log.info("관리자 공지사항 생성 요청 - 제목: {}, adminId: {}, adminName: {}",
-                    requestDto.getTitle(), adminInfo.adminId(), adminInfo.name());
+            log.info("관리자 공지사항 생성 요청 - 제목: {}, 첨부파일 개수: {}, adminId: {}, adminName: {}",
+                    requestDto.getTitle(),
+                    files != null ? files.size() : 0,
+                    adminInfo.adminId(),
+                    adminInfo.name());
 
-            NoticeResponseDTO response = noticeService.createNotice(requestDto);
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(APIResponse.success(ResponseCode.CREATED, response));
+            // 파일 첨부 여부에 따라 다른 서비스 메서드 호출
+            if (files != null && !files.isEmpty()) {
+                NoticeResponseDTO response = noticeService.createNoticeWithFiles(requestDto, files);
+                return ResponseEntity.status(HttpStatus.CREATED)
+                        .body(APIResponse.success(ResponseCode.CREATED, response));
+            } else {
+                NoticeCompletedDTO completedDTO = noticeService.createNotice(requestDto);
+                log.info("공지사항 생성 및 알림 발송 완료 - 제목: {}", completedDTO.title());
+                return ResponseEntity.status(HttpStatus.CREATED)
+                        .body(APIResponse.success(ResponseCode.CREATED));
+            }
+
         } catch (BadCredentialsException e) {
             log.warn("관리자 로그인 필요 - 공지사항 생성 시도, error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                     APIResponse.error(ResponseCode.UNAUTHORIZED, "관리자 로그인이 필요합니다")
             );
+        } catch (IllegalArgumentException e) {
+            log.error("파일 검증 실패: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE, e.getMessage()));
         } catch (Exception e) {
             log.error("관리자 공지사항 생성 중 서버 오류", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(

@@ -3,7 +3,7 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - feat/cicd/91
+      - refactor/cicd/131
       - develop
       - main
   workflow_dispatch:
@@ -83,25 +83,47 @@ jobs:
           cache-from: type=registry,ref=${{ steps.prepare-tags.outputs.cache_tag }}
           cache-to:   type=registry,ref=${{ steps.prepare-tags.outputs.cache_tag }},mode=max
 
-  deploy-to-eb:
+  deploy-to-ec2:
     needs: build-and-publish
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: read
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Deploy to Elastic Beanstalk
-        uses: einaregilsson/beanstalk-deploy@v20
+      - name: Generate deployment bundle
+        run: |
+          mkdir -p deploy/.platform/nginx/conf.d
+          cp docker-compose.yml deploy/docker-compose.yml
+          cp .platform/nginx/conf.d/*.conf deploy/.platform/nginx/conf.d/
+          cd deploy && zip -r deploy.zip .
+
+      - name: Copy bundle to EC2
+        uses: appleboy/scp-action@v0.1.7
         with:
-          aws_access_key:    ${{ secrets.AWS_ACTION_ACCESS_KEY_ID }}
-          aws_secret_key:    ${{ secrets.AWS_ACTION_SECRET_ACCESS_KEY }}
-          region:            ap-northeast-2
-          application_name:  aibe1-team05-final
-          environment_name:  aibe1-team05-final-env
-          version_label:     deploy-${{ github.run_number }}
-          deployment_package: Dockerrun.aws.json
-          wait_for_environment_recovery: false
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "deploy/deploy.zip"
+          target: "/home/${{ secrets.EC2_USER }}/app"
+          strip_components: 1
+
+      - name: SSH & run Docker Compose on EC2
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/${{ secrets.EC2_USER }}/app
+            unzip -o deploy.zip
+            
+            cat << 'EOF' > .env
+            ${{ secrets.ENV_FILE }}
+            EOF
+            
+            # 5) 컨테이너 재기동
+            docker compose down
+            docker compose pull
+            docker compose up -d --build
+           

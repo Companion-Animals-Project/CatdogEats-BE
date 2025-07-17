@@ -37,6 +37,7 @@ public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationF
         }
 
         String url = urlProperties.getLoginUrl();
+        log.error("OAuth2 Authentication Failure: {}", exception.getMessage());
         /* 3) 그 외 예외 */
         response.sendRedirect(url+"?error=oauth2");
     }

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html xmlns:th="http://www.thymeleaf.org">
   <head>
     <meta charset="utf-8" />
     <link crossorigin="" href="https://fonts.gstatic.com/" rel="preconnect" />
@@ -282,6 +282,98 @@
         background-color: #e69500;
         border-color: #e69500;
       }
+      /* 애니메이션 효과 */
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+
+      .animate-spin {
+        animation: spin 1s linear infinite;
+      }
+
+      /* 드롭다운 애니메이션 (선택사항) */
+      #urgentLevelDropdown {
+        transition: opacity 0.2s, transform 0.2s;
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+
+      #urgentLevelDropdown:not(.hidden) {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* 강제 종료 버튼 스타일 */
+      .action-button.force-close {
+        background-color: #ef4444;
+        color: white;
+      }
+
+      .action-button.force-close:hover {
+        background-color: #dc2626;
+      }
+
+      /* 종료된 문의 상태 배지 */
+      .status-force-closed {
+        background-color: #1f2937;
+        color: #f3f4f6;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+      #inquiryModal {
+        z-index: 50;
+      }
+
+      #urgentLevelModal, #forceCloseModal {
+        z-index: 60;
+      }
+
+      /* 모달 스타일 */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 50;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+      }
+
+      .modal-overlay.active {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      .modal-content {
+        background-color: white;
+        border-radius: 0.75rem;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+        0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        max-width: 800px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        transform: scale(0.95) translateY(-20px);
+        transition: transform 0.3s ease-in-out;
+      }
+
+      .modal-overlay.active .modal-content {
+        transform: scale(1) translateY(0);
+      }
+
+      .form-textarea {
+        min-height: 120px;
+        resize: vertical;
+      }
     </style>
   </head>
   <body class="bg-FAF8F5">
@@ -315,28 +407,22 @@
           </h2>
         </div>
         <nav class="flex flex-col space-y-1">
-          <a
-            class="inactive-tab flex items-center gap-3 px-3 py-2.5 rounded-md"
-            href="#"
-          >
+          <a class="inactive-tab flex items-center gap-3 px-3 py-2.5 rounded-md" th:href="@{/v1/admin/dashboard}">
+
             <span class="material-icons-outlined sidebar-link-icon text-xl"
               >dashboard</span
             >
             <span class="sidebar-link-text text-sm font-medium">대시보드</span>
           </a>
-          <a
-            class="inactive-tab flex items-center gap-3 px-3 py-2.5 rounded-md"
-            href="#"
-          >
+          <a class="inactive-tab flex items-center gap-3 px-3 py-2.5 rounded-md" th:href="@{/v1/admin/dashboard}">
+
             <span class="material-icons-outlined sidebar-link-icon text-xl"
               >report_problem</span
             >
             <span class="sidebar-link-text text-sm font-medium">신고 관리</span>
           </a>
-          <a
-            class="inactive-tab flex items-center gap-3 px-3 py-2.5 rounded-md"
-            href="#"
-          >
+          <a class="inactive-tab flex items-center gap-3 px-3 py-2.5 rounded-md" th:href="@{/v1/admin/dashboard}">
+
             <span class="material-icons-outlined sidebar-link-icon text-xl"
               >campaign</span
             >
@@ -344,32 +430,21 @@
               >공지사항 관리</span
             >
           </a>
-          <a
-            class="inactive-tab flex items-center gap-3 px-3 py-2.5 rounded-md"
-            href="#"
-          >
+          <a class="inactive-tab flex items-center gap-3 px-3 py-2.5 rounded-md" th:href="@{/v1/admin/dashboard}">
+
             <span class="material-icons-outlined sidebar-link-icon text-xl"
               >quiz</span
             >
             <span class="sidebar-link-text text-sm font-medium">FAQ 관리</span>
           </a>
-          <a
-            class="active-tab flex items-center gap-3 px-3 py-2.5 rounded-md"
-            href="#"
-          >
-            <span class="material-icons-outlined sidebar-link-icon text-xl"
-              >support_agent</span
-            >
-            <span class="sidebar-link-text text-sm font-medium"
-              >1:1 문의 관리</span
-            >
+          <a class="active-tab flex items-center gap-3 px-3 py-2.5 rounded-md" th:href="@{/v1/admin/inquiries}">
+            <span class="material-icons-outlined sidebar-link-icon text-xl">support_agent</span>
+            <span class="sidebar-link-text text-sm font-medium">1:1 문의 관리</span>
           </a>
         </nav>
         <div class="mt-auto pt-4 border-t border-beige-200">
-          <a
-            class="inactive-tab flex items-center gap-3 px-3 py-2.5 rounded-md"
-            href="#"
-          >
+          <a class="inactive-tab flex items-center gap-3 px-3 py-2.5 rounded-md" th:href="@{/v1/admin/dashboard}">
+
             <span class="material-icons-outlined sidebar-link-icon text-xl"
               >settings</span
             >
@@ -383,7 +458,7 @@
         >
           <div class="flex items-center"></div>
           <div class="flex flex-1 justify-end gap-6 items-center">
-            <span class="text-sm accent-text">admin@catdogeats.com</span>
+            <span class="text-sm accent-text" th:text="${adminEmail}">admin@catdogeats.com</span>
             <div
               class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-slate-200"
               style="
@@ -416,13 +491,9 @@
                         class="material-icons-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg"
                         >search</span
                       >
-                      <input
-                        class="search-input !pl-10 w-64"
-                        placeholder="문의 내용 검색..."
-                        type="text"
-                      />
+                      <input id="searchKeyword" class="search-input !pl-10 w-64" placeholder="문의 내용 검색..." type="text" />
                     </div>
-                    <button class="action-button primary-button">검색</button>
+                    <button id="searchBtn" class="action-button primary-button">검색</button>
                   </div>
                 </div>
 
@@ -434,10 +505,13 @@
                     <label class="block text-sm font-medium accent-text mb-2"
                       >답변 상태</label
                     >
-                    <select class="form-select w-full">
+                    <select id="filterStatus" class="form-select w-full">
                       <option value="">전체</option>
-                      <option value="answered">답변 완료</option>
-                      <option value="pending">답변 대기</option>
+                      <option value="ANSWERED">답변 완료</option>
+                      <option value="PENDING">답변 대기</option>
+                      <option value="FOLLOWUP">추가 문의</option>
+                      <option value="CLOSED">문의 종료</option>
+                      <option value="FORCE_CLOSED">강제 종료</option>
                     </select>
                   </div>
 
@@ -446,12 +520,15 @@
                     <label class="block text-sm font-medium accent-text mb-2"
                       >문의 유형</label
                     >
-                    <select class="form-select w-full">
+                    <select id="filterType" class="form-select w-full">
                       <option value="">전체</option>
-                      <option value="account">계정 관련</option>
-                      <option value="payment">결제 관련</option>
-                      <option value="technical">기술적 문제</option>
-                      <option value="other">기타</option>
+                      <option value="ACCOUNT">계정</option>
+                      <option value="PAYMENT">결제</option>
+                      <option value="PRODUCT">제품</option>
+                      <option value="ORDER">주문</option>
+                      <option value="DELIVERY">배송</option>
+                      <option value="RETURN">환불/교환</option>
+                      <option value="ETC">기타</option>
                     </select>
                   </div>
 
@@ -460,11 +537,11 @@
                     <label class="block text-sm font-medium accent-text mb-2"
                       >긴급도</label
                     >
-                    <select class="form-select w-full">
+                    <select id="filterUrgentLevel" class="form-select w-full">
                       <option value="">전체</option>
-                      <option value="high">높음</option>
-                      <option value="medium">중간</option>
-                      <option value="low">낮음</option>
+                      <option value="HIGH">높음</option>
+                      <option value="MIDDLE">중간</option>
+                      <option value="LOW">낮음</option>
                     </select>
                   </div>
 
@@ -474,9 +551,9 @@
                       >기간</label
                     >
                     <div class="flex gap-2">
-                      <input class="search-input text-xs" type="date" />
+                      <input id="startDate" class="search-input text-xs" type="date" />
                       <span class="self-center text-slate-400">~</span>
-                      <input class="search-input text-xs" type="date" />
+                      <input id="endDate" class="search-input text-xs" type="date" />
                     </div>
                   </div>
                 </div>
@@ -504,117 +581,8 @@
                           <th class="table-header w-[11%] text-center">작업</th>
                         </tr>
                       </thead>
-                      <tbody class="bg-white divide-y divide-slate-200">
-                        <tr class="hover:bg-slate-50 transition-colors">
-                          <td class="table-cell table-cell-highlight">#001</td>
-                          <td class="table-cell">계정</td>
-                          <td class="table-cell table-cell-highlight">
-                            계정 복구 요청합니다
-                          </td>
-                          <td class="table-cell">
-                            <span class="status-answered">답변 완료</span>
-                          </td>
-                          <td class="table-cell">2024-01-15</td>
-                          <td class="table-cell">
-                            <span class="priority-high">높음</span>
-                          </td>
-                          <td class="table-cell text-center">
-                            <button
-                              class="detail-button"
-                              onclick="openInquiryModal('#001', '계정 복구 요청합니다', '계정', '2024-01-15', '높음', 'answered')"
-                            >
-                              상세보기
-                            </button>
-                          </td>
-                        </tr>
-                        <tr class="hover:bg-slate-50 transition-colors">
-                          <td class="table-cell table-cell-highlight">#002</td>
-                          <td class="table-cell">결제</td>
-                          <td class="table-cell table-cell-highlight">
-                            구독 결제 관련 문의
-                          </td>
-                          <td class="table-cell">
-                            <span class="status-pending">답변 대기</span>
-                          </td>
-                          <td class="table-cell">2024-01-16</td>
-                          <td class="table-cell">
-                            <span class="priority-medium">중간</span>
-                          </td>
-                          <td class="table-cell text-center">
-                            <button
-                              class="detail-button"
-                              onclick="openInquiryModal('#002', '구독 결제 관련 문의', '결제', '2024-01-16', '중간', 'pending')"
-                            >
-                              상세보기
-                            </button>
-                          </td>
-                        </tr>
-                        <tr class="hover:bg-slate-50 transition-colors">
-                          <td class="table-cell table-cell-highlight">#003</td>
-                          <td class="table-cell">기술</td>
-                          <td class="table-cell table-cell-highlight">
-                            앱 사용 중 오류 발생
-                          </td>
-                          <td class="table-cell">
-                            <span class="status-answered">답변 완료</span>
-                          </td>
-                          <td class="table-cell">2024-01-17</td>
-                          <td class="table-cell">
-                            <span class="priority-low">낮음</span>
-                          </td>
-                          <td class="table-cell text-center">
-                            <button
-                              class="detail-button"
-                              onclick="openInquiryModal('#003', '앱 사용 중 오류 발생', '기술', '2024-01-17', '낮음', 'answered')"
-                            >
-                              상세보기
-                            </button>
-                          </td>
-                        </tr>
-                        <tr class="hover:bg-slate-50 transition-colors">
-                          <td class="table-cell table-cell-highlight">#004</td>
-                          <td class="table-cell">기타</td>
-                          <td class="table-cell table-cell-highlight">
-                            서비스 이용 방법 문의
-                          </td>
-                          <td class="table-cell">
-                            <span class="status-pending">답변 대기</span>
-                          </td>
-                          <td class="table-cell">2024-01-18</td>
-                          <td class="table-cell">
-                            <span class="priority-low">낮음</span>
-                          </td>
-                          <td class="table-cell text-center">
-                            <button
-                              class="detail-button"
-                              onclick="openInquiryModal('#004', '서비스 이용 방법 문의', '기타', '2024-01-18', '낮음', 'pending')"
-                            >
-                              상세보기
-                            </button>
-                          </td>
-                        </tr>
-                        <tr class="hover:bg-slate-50 transition-colors">
-                          <td class="table-cell table-cell-highlight">#005</td>
-                          <td class="table-cell">계정</td>
-                          <td class="table-cell table-cell-highlight">
-                            비밀번호 변경 문제
-                          </td>
-                          <td class="table-cell">
-                            <span class="status-answered">답변 완료</span>
-                          </td>
-                          <td class="table-cell">2024-01-19</td>
-                          <td class="table-cell">
-                            <span class="priority-medium">중간</span>
-                          </td>
-                          <td class="table-cell text-center">
-                            <button
-                              class="detail-button"
-                              onclick="openInquiryModal('#005', '비밀번호 변경 문제', '계정', '2024-01-19', '중간', 'answered')"
-                            >
-                              상세보기
-                            </button>
-                          </td>
-                        </tr>
+                      <tbody id="inquiryTableBody" class="bg-white divide-y divide-slate-200">
+
                       </tbody>
                     </table>
                   </div>
@@ -625,28 +593,12 @@
                   class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 mt-6 border-t border-slate-200"
                 >
                   <span class="text-sm accent-text">
-                    총 <span class="font-medium">127</span>개 중
-                    <span class="font-medium">1</span> ~
-                    <span class="font-medium">5</span>개 표시
+                      총 <span id="totalCount" class="font-medium">0</span>개 중
+                      <span id="startCount" class="font-medium">0</span> ~
+                      <span id="endCount" class="font-medium">0</span>개 표시
                   </span>
-                  <div class="flex items-center gap-2">
-                    <button class="pagination-button">
-                      <span class="material-icons-outlined text-sm"
-                        >chevron_left</span
-                      >
-                    </button>
-                    <button class="pagination-button pagination-active">
-                      1
-                    </button>
-                    <button class="pagination-button">2</button>
-                    <button class="pagination-button">3</button>
-                    <span class="px-3 py-2 text-slate-400">...</span>
-                    <button class="pagination-button">26</button>
-                    <button class="pagination-button">
-                      <span class="material-icons-outlined text-sm"
-                        >chevron_right</span
-                      >
-                    </button>
+                  <div id="pagination" class="flex items-center gap-2">
+
                   </div>
                 </div>
               </div>
@@ -677,8 +629,8 @@
             <div class="bg-gray-50 p-4 rounded-lg">
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <span class="text-slate-500">문의 번호</span>
-                  <p class="font-medium" id="modalInquiryId">#001</p>
+                  <span class="text-slate-500">문의 ID</span>
+                  <p class="font-medium" id="modalInquiryId">-</p>
                 </div>
                 <div>
                   <span class="text-slate-500">카테고리</span>
@@ -690,9 +642,39 @@
                 </div>
                 <div>
                   <span class="text-slate-500">긴급도</span>
-                  <p class="font-medium" id="modalInquiryPriority">높음</p>
+                  <div class="relative inline-block">
+                    <button
+                            id="urgentLevelButton"
+                            onclick="toggleUrgentLevelDropdown()"
+                            class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors group"
+                    >
+                      <span id="modalInquiryPriority" class="font-medium">높음</span>
+                      <span class="material-icons-outlined text-base text-gray-400 group-hover:text-gray-600">
+        edit
+      </span>
+                    </button>
+
+                    <!-- 드롭다운 메뉴 -->
+                    <div
+                            id="urgentLevelDropdown"
+                            class="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 hidden min-w-[120px]"
+                    >
+                      <button onclick="updateUrgentLevelDirect('HIGH')" class="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                        <span>높음</span>
+                      </button>
+                      <button onclick="updateUrgentLevelDirect('MIDDLE')" class="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
+                        <span>중간</span>
+                      </button>
+                      <button onclick="updateUrgentLevelDirect('LOW')" class="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                        <span>낮음</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </div>  <!-- 이 닫는 태그가 누락되었습니다 -->
             </div>
 
             <!-- 문의 제목 -->
@@ -753,43 +735,48 @@
 
             <!-- 답변 섹션 -->
             <div class="border-t border-slate-200 pt-6">
-              <div class="flex items-center gap-2 mb-4">
-                <label class="text-lg font-medium accent-text"
-                  >관리자 답변</label
-                >
-                <span class="status-pending text-xs" id="modalAnswerStatus"
-                  >답변 대기</span
-                >
-              </div>
-
-              <!-- 기존 답변 (있는 경우) -->
-              <div id="existingAnswer" class="mb-4 hidden">
-                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                  <div class="flex items-center gap-2 mb-2">
-                    <span class="material-icons-outlined text-blue-600 text-sm"
-                      >admin_panel_settings</span
-                    >
-                    <span class="text-sm font-medium text-blue-800"
-                      >관리자 답변</span
-                    >
-                    <span class="text-xs text-blue-600" id="answerDate"
-                      >2024-01-15 14:30</span
-                    >
-                  </div>
-                  <p class="text-blue-800" id="existingAnswerContent">
-                    안녕하세요. 문의해주셔서 감사합니다. 계정 문제를 확인하여
-                    임시 비밀번호를 발송해드렸습니다. 이메일을 확인해주세요.
-                  </p>
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                  <label class="text-lg font-medium accent-text">관리자 답변</label>
+                  <span class="status-pending text-xs" id="modalAnswerStatus">답변 대기</span>
                 </div>
+                <!-- 강제 종료 버튼 추가 -->
+                <button
+                        id="forceCloseBtn"
+                        onclick="openForceCloseModal()"
+                        class="action-button bg-red-500 hover:bg-red-600 text-white text-sm"
+                >
+                  <span class="material-icons-outlined text-base mr-1">block</span>
+                  강제 종료
+                </button>
               </div>
 
               <!-- 답변 작성 폼 -->
               <form id="answerForm" onsubmit="submitAnswer(event)">
-                <textarea
-                  id="adminAnswer"
-                  class="form-input form-textarea w-full min-h-[120px] mb-4"
-                  placeholder="사용자의 문의에 대한 답변을 작성해주세요..."
-                ></textarea>
+  <textarea
+          id="adminAnswer"
+          class="form-input form-textarea w-full min-h-[120px] mb-4"
+          placeholder="사용자의 문의에 대한 답변을 작성해주세요..."
+  ></textarea>
+
+                <!-- 파일 첨부 영역 추가 -->
+                <div class="mb-4">
+                  <label class="block text-sm font-medium accent-text mb-2">파일 첨부 (선택)</label>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-xs text-slate-600 mb-1">이미지 파일 (JPG, PNG, WebP - 최대 5MB)</label>
+                      <input type="file" id="imageFiles" name="imageFiles"
+                             accept=".jpg,.jpeg,.png,.webp" multiple
+                             class="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100" />
+                    </div>
+                    <div>
+                      <label class="block text-xs text-slate-600 mb-1">문서 파일 (PDF, DOC, DOCX, XLS, XLSX, HWP - 최대 10MB)</label>
+                      <input type="file" id="documentFiles" name="documentFiles"
+                             accept=".pdf,.doc,.docx,.xls,.xlsx,.hwp" multiple
+                             class="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100" />
+                    </div>
+                  </div>
+                </div>
 
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-4">
@@ -828,121 +815,612 @@
       </div>
     </div>
 
-    <style>
-      /* 모달 스타일 */
-      .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 50;
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
-      }
+    <!-- 긴급도 수정 모달 -->
+    <div id="urgentLevelModal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 400px;">
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold accent-text">긴급도 수정</h3>
+            <button onclick="closeUrgentLevelModal()" class="icon-button">
+              <span class="material-icons-outlined text-xl text-slate-400 hover:text-slate-600">close</span>
+            </button>
+          </div>
 
-      .modal-overlay.active {
-        opacity: 1;
-        visibility: visible;
-      }
+          <form id="urgentLevelForm" onsubmit="updateUrgentLevel(event)">
+            <div class="mb-4">
+              <label class="block text-sm font-medium accent-text mb-2">긴급도 선택</label>
+              <select id="newUrgentLevel" class="form-select w-full" required>
+                <option value="HIGH">높음</option>
+                <option value="MIDDLE">중간</option>
+                <option value="LOW">낮음</option>
+              </select>
+            </div>
 
-      .modal-content {
-        background-color: white;
-        border-radius: 0.75rem;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
-          0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        max-width: 800px;
-        width: 90%;
-        max-height: 90vh;
-        overflow-y: auto;
-        transform: scale(0.95) translateY(-20px);
-        transition: transform 0.3s ease-in-out;
-      }
+            <div class="flex justify-end gap-3">
+              <button type="button" onclick="closeUrgentLevelModal()" class="action-button secondary-button">
+                취소
+              </button>
+              <button type="submit" class="action-button primary-button">
+                저장
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
 
-      .modal-overlay.active .modal-content {
-        transform: scale(1) translateY(0);
-      }
+    <!-- 강제 종료 확인 모달 -->
+    <div id="forceCloseModal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 500px;">
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold accent-text">문의 강제 종료</h3>
+            <button onclick="closeForceCloseModal()" class="icon-button">
+              <span class="material-icons-outlined text-xl text-slate-400 hover:text-slate-600">close</span>
+            </button>
+          </div>
 
-      .form-textarea {
-        min-height: 120px;
-        resize: vertical;
-      }
-    </style>
+          <div class="mb-6">
+            <p class="text-sm text-gray-600 mb-4">
+              이 문의를 강제로 종료하시겠습니까? 강제 종료된 문의는 사용자가 더 이상 추가 문의를 할 수 없습니다.
+            </p>
+
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div class="flex items-start gap-2">
+                <span class="material-icons-outlined text-red-500 text-sm mt-0.5">warning</span>
+                <div class="text-sm">
+                  <p class="font-medium text-red-800 mb-1">주의사항</p>
+                  <ul class="text-red-700 space-y-1 text-xs">
+                    <li>• 강제 종료 후에는 취소할 수 없습니다</li>
+                    <li>• 악성 문의나 스팸의 경우에만 사용하세요</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <form id="forceCloseForm" onsubmit="submitForceClose(event)">
+            <div class="mb-4">
+              <label class="block text-sm font-medium accent-text mb-2">종료 사유 <span class="text-red-500">*</span></label>
+              <textarea
+                      id="forceCloseReason"
+                      class="form-textarea w-full min-h-[100px]"
+                      placeholder="강제 종료 사유를 입력해주세요. (관리자 기록용)"
+                      required
+              ></textarea>
+            </div>
+
+            <div class="flex justify-end gap-3">
+              <button type="button" onclick="closeForceCloseModal()" class="action-button bg-gray-200 hover:bg-gray-300 text-gray-700">
+                취소
+              </button>
+              <button type="submit" class="action-button bg-red-500 hover:bg-red-600 text-white">
+                <span class="material-icons-outlined text-base mr-1">block</span>
+                강제 종료
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
 
     <script>
-      // 문의 상세보기 모달 열기
-      function openInquiryModal(id, title, category, date, priority, status) {
-        document.getElementById("modalInquiryId").textContent = id;
-        document.getElementById("modalInquiryTitle").textContent = title;
-        document.getElementById("modalInquiryCategory").textContent = category;
-        document.getElementById("modalInquiryDate").textContent = date;
-        document.getElementById("modalInquiryPriority").textContent = priority;
+      // 전역 변수
+      let currentPage = 0;
+      let totalPages = 0;
+      let totalElements = 0;
 
-        // 상태에 따른 답변 섹션 설정
-        const answerStatus = document.getElementById("modalAnswerStatus");
-        const existingAnswer = document.getElementById("existingAnswer");
+      // 페이지 로드 시 초기화
+      document.addEventListener('DOMContentLoaded', function() {
+        // 초기 데이터 로드
+        loadInquiries();
 
-        if (status === "answered") {
-          answerStatus.textContent = "답변 완료";
-          answerStatus.className = "status-answered text-xs";
-          existingAnswer.classList.remove("hidden");
-        } else {
-          answerStatus.textContent = "답변 대기";
-          answerStatus.className = "status-pending text-xs";
-          existingAnswer.classList.add("hidden");
+        // 이벤트 리스너 등록
+        document.getElementById('searchBtn').addEventListener('click', function() {
+          loadInquiries(0); // 검색 시 첫 페이지로
+        });
+
+        document.getElementById('searchKeyword').addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            loadInquiries(0);
+          }
+        });
+
+        // 필터 변경 시 자동 검색
+        ['filterStatus', 'filterType', 'filterUrgentLevel', 'startDate', 'endDate'].forEach(id => {
+          document.getElementById(id).addEventListener('change', function() {
+            loadInquiries(0);
+          });
+        });
+      });
+
+      // 문의 목록 로드
+      async function loadInquiries(page = 0) {
+        try {
+          // 로딩 표시 (선택사항)
+          const tbody = document.getElementById('inquiryTableBody');
+          tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8">데이터를 불러오는 중...</td></tr>';
+
+          // 필터 값 가져오기
+          const params = new URLSearchParams({
+            page: page,
+            size: 10,
+            sort: 'createdAt',
+            direction: 'desc'
+          });
+
+          // 검색 조건 추가
+          const keyword = document.getElementById('searchKeyword').value;
+          const status = document.getElementById('filterStatus').value;
+          const type = document.getElementById('filterType').value;
+          const urgentLevel = document.getElementById('filterUrgentLevel').value;
+          const startDate = document.getElementById('startDate').value;
+          const endDate = document.getElementById('endDate').value;
+
+          if (keyword) params.append('keyword', keyword);
+          if (status) params.append('status', status);
+          if (type) params.append('type', type);
+          if (urgentLevel) params.append('urgentLevel', urgentLevel);
+          if (startDate) params.append('startDate', startDate);
+          if (endDate) params.append('endDate', endDate);
+
+          // API 호출
+          const response = await fetch(`/v1/admin/inquiries/test?${params}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include' // 세션 쿠키 포함
+          });
+
+          if (!response.ok) {
+            if (response.status === 401) {
+              alert('로그인이 필요합니다.');
+              window.location.href = '/v1/admin/login';
+              return;
+            }
+            throw new Error('데이터를 불러오는데 실패했습니다.');
+          }
+
+          const result = await response.json();
+
+          if (result.success) {
+            displayInquiries(result.data);
+            updatePagination(result.data);
+          } else {
+            throw new Error(result.message || '데이터를 불러오는데 실패했습니다.');
+          }
+
+        } catch (error) {
+          console.error('Error loading inquiries:', error);
+          const tbody = document.getElementById('inquiryTableBody');
+          tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-red-500">${error.message}</td></tr>`;
+        }
+      }
+
+      // 문의 목록 표시
+      function displayInquiries(pageData) {
+        const tbody = document.getElementById('inquiryTableBody');
+        tbody.innerHTML = '';
+
+        if (!pageData.content || pageData.content.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-8 text-slate-500">
+                    조회된 문의사항이 없습니다.
+                </td>
+            </tr>
+        `;
+          return;
         }
 
-        // 문의별 상세 내용 설정 (실제로는 서버에서 가져올 데이터)
-        const inquiryContents = {
-          "#001": `안녕하세요. 계정에 로그인할 수 없어서 문의드립니다.
+        pageData.content.forEach(inquiry => {
+          const row = document.createElement('tr');
+          row.className = 'hover:bg-slate-50 transition-colors';
+          row.innerHTML = `
+            <td class="table-cell table-cell-highlight">${inquiry.inquiryNumber}</td>
+            <td class="table-cell">${inquiry.inquiryType}</td>
+            <td class="table-cell table-cell-highlight">${escapeHtml(inquiry.title)}</td>
+            <td class="table-cell">${getStatusBadge(inquiry.inquiryStatus)}</td>
+            <td class="table-cell">${formatDate(inquiry.createdAt)}</td>
+            <td class="table-cell">${getUrgentLevelBadge(inquiry.inquiryUrgentLevel)}</td>
+            <td class="table-cell text-center">
+                <button class="detail-button" onclick="openInquiryDetail('${inquiry.inquiryId}')">
+                    상세보기
+                </button>
+            </td>
+        `;
+          tbody.appendChild(row);
+        });
+      }
 
-어제까지는 정상적으로 로그인이 되었는데, 오늘 아침부터 갑자기 "잘못된 비밀번호입니다"라는 메시지가 계속 나타납니다. 비밀번호를 여러 번 확인했지만 분명히 맞는 비밀번호입니다.
+      // HTML 이스케이프
+      function escapeHtml(unsafe) {
+        return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+      }
 
-비밀번호 재설정도 시도해봤지만 이메일이 오지 않습니다. 계정 복구를 도와주세요.
-
-사용자 이메일: user123@example.com
-가입일: 2023년 5월 15일
-마지막 정상 로그인: 2024년 1월 14일 오후 6시`,
-          "#002": `구독 결제 관련해서 문의드립니다.
-
-이번 달 결제가 실패했다는 알림을 받았는데, 카드에는 충분한 잔액이 있습니다. 다른 서비스에서는 정상적으로 결제가 진행되고 있어서 카드 문제는 아닌 것 같습니다.
-
-결제 방법을 변경하거나 다시 시도할 수 있는 방법이 있을까요?
-
-현재 구독: 프리미엄 플랜
-결제 카드: ****-****-****-1234 (KB국민카드)`,
-          "#003": `앱을 사용하던 중 계속 오류가 발생합니다.
-
-상품 상세페이지에서 "장바구니에 추가" 버튼을 누르면 앱이 강제 종료됩니다. 앱을 다시 실행해도 같은 현상이 반복됩니다.
-
-앱 버전: 2.1.3
-기기: iPhone 14 Pro (iOS 17.2)
-발생 시점: 2024년 1월 17일 오전 10시경부터`,
-          "#004": `서비스 이용 방법에 대해 문의드립니다.
-
-처음 가입한 신규 사용자인데, 주문한 상품의 배송 상태를 어디서 확인할 수 있는지 모르겠습니다. 
-
-또한 적립금은 어떻게 사용하는지, 등급별 혜택은 무엇인지 자세히 알고 싶습니다.
-
-주문번호: CDE2024011800123`,
-          "#005": `비밀번호 변경이 안됩니다.
-
-마이페이지에서 비밀번호 변경을 시도했는데 "현재 비밀번호가 일치하지 않습니다"라는 메시지가 나타납니다. 하지만 현재 비밀번호로 로그인은 정상적으로 됩니다.
-
-여러 번 시도해봤지만 같은 오류가 계속 발생합니다. 해결 방법을 알려주세요.`,
+      // 상태 배지 생성
+      function getStatusBadge(status) {
+        const statusClasses = {
+          '답변 대기': 'status-pending',
+          '답변 완료': 'status-answered',
+          '추가 문의': 'status-followup',
+          '문의 종료': 'status-closed',
+          '강제 종료': 'status-force-closed'
         };
 
-        document.getElementById("modalInquiryContent").innerHTML =
-          inquiryContents[id].replace(/\n/g, "<br>");
+        const className = statusClasses[status] || 'status-pending';
+        return `<span class="${className}">${status}</span>`;
+      }
 
-        const modal = document.getElementById("inquiryModal");
-        modal.classList.add("active");
-        document.body.style.overflow = "hidden";
+      // 긴급도 배지 생성
+      function getUrgentLevelBadge(level) {
+        const levelClasses = {
+          '높음': 'priority-high',
+          '중간': 'priority-medium',
+          '낮음': 'priority-low'
+        };
+
+        const className = levelClasses[level] || 'priority-low';
+        return `<span class="${className}">${level}</span>`;
+      }
+
+      // 날짜 포맷
+      function formatDate(dateString) {
+        return dateString.split(' ')[0]; // YYYY-MM-DD 부분만 표시
+      }
+
+      // 페이지네이션 업데이트
+      function updatePagination(pageData) {
+        currentPage = pageData.number;
+        totalPages = pageData.totalPages;
+        totalElements = pageData.totalElements;
+
+        // 카운트 업데이트
+        document.getElementById('totalCount').textContent = totalElements;
+        const startCount = totalElements > 0 ? currentPage * pageData.size + 1 : 0;
+        const endCount = Math.min((currentPage + 1) * pageData.size, totalElements);
+        document.getElementById('startCount').textContent = startCount;
+        document.getElementById('endCount').textContent = endCount;
+
+        // 페이지네이션 버튼 생성
+        const pagination = document.getElementById('pagination');
+        pagination.innerHTML = '';
+
+        // 이전 버튼
+        const prevButton = document.createElement('button');
+        prevButton.className = 'pagination-button';
+        prevButton.innerHTML = '<span class="material-icons-outlined text-sm">chevron_left</span>';
+        prevButton.onclick = () => loadInquiries(currentPage - 1);
+        prevButton.disabled = currentPage === 0;
+        if (currentPage === 0) {
+          prevButton.style.opacity = '0.5';
+          prevButton.style.cursor = 'not-allowed';
+        }
+        pagination.appendChild(prevButton);
+
+        // 페이지 번호
+        for (let i = 0; i < totalPages; i++) {
+          if (i === 0 || i === totalPages - 1 || (i >= currentPage - 2 && i <= currentPage + 2)) {
+            const pageButton = document.createElement('button');
+            pageButton.className = i === currentPage ? 'pagination-button pagination-active' : 'pagination-button';
+            pageButton.textContent = i + 1;
+            pageButton.onclick = () => loadInquiries(i);
+            pagination.appendChild(pageButton);
+          } else if (i === currentPage - 3 || i === currentPage + 3) {
+            const dots = document.createElement('span');
+            dots.className = 'px-3 py-2 text-slate-400';
+            dots.textContent = '...';
+            pagination.appendChild(dots);
+          }
+        }
+
+        // 다음 버튼
+        const nextButton = document.createElement('button');
+        nextButton.className = 'pagination-button';
+        nextButton.innerHTML = '<span class="material-icons-outlined text-sm">chevron_right</span>';
+        nextButton.onclick = () => loadInquiries(currentPage + 1);
+        nextButton.disabled = currentPage >= totalPages - 1;
+        if (currentPage >= totalPages - 1) {
+          nextButton.style.opacity = '0.5';
+          nextButton.style.cursor = 'not-allowed';
+        }
+        pagination.appendChild(nextButton);
+      }
+
+      // 문의 상세보기 (API 호출)
+      async function openInquiryDetail(inquiryId) {
+        try {
+          const response = await fetch(`/v1/admin/inquiries/test/${inquiryId}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+          });
+
+          if (!response.ok) {
+            if (response.status === 401) {
+              alert('로그인이 필요합니다.');
+              window.location.href = '/v1/admin/login';
+              return;
+            }
+            throw new Error('문의 상세 정보를 불러오는데 실패했습니다.');
+          }
+
+          const result = await response.json();
+
+          if (result.success) {
+            displayInquiryDetail(result.data);
+            document.getElementById('inquiryModal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+          } else {
+            throw new Error(result.message || '문의 상세 정보를 불러오는데 실패했습니다.');
+          }
+
+        } catch (error) {
+          console.error('Error loading inquiry detail:', error);
+          alert(error.message);
+        }
+      }
+
+      // 문의 상세 정보 표시 (수정된 버전)
+      function displayInquiryDetail(inquiry) {
+        // 기본 정보
+        document.getElementById('modalInquiryId').textContent = inquiry.inquiryId;
+        document.getElementById('modalInquiryCategory').textContent = inquiry.inquiryType;
+        document.getElementById('modalInquiryDate').textContent = formatDate(inquiry.createdAt);
+        document.getElementById('modalInquiryPriority').textContent = inquiry.urgentLevel; // 이 부분 수정
+        document.getElementById('modalInquiryTitle').textContent = inquiry.title;
+
+        // 강제 종료 버튼 표시/숨김 처리
+        const forceCloseBtn = document.getElementById('forceCloseBtn');
+        if (inquiry.inquiryStatus === '문의 종료' || inquiry.inquiryStatus === '강제 종료') {
+          forceCloseBtn.style.display = 'none';
+        } else {
+          forceCloseBtn.style.display = 'flex';
+        }
+
+        // 답변 폼 표시/숨김 처리
+        const answerForm = document.getElementById('answerForm');
+        if (inquiry.inquiryStatus === '문의 종료' || inquiry.inquiryStatus === '강제 종료') {
+          answerForm.style.display = 'none';
+          // 종료된 문의 메시지 표시
+          const closedMessage = document.createElement('div');
+          closedMessage.className = 'bg-gray-100 p-4 rounded-lg text-center text-gray-600';
+          closedMessage.innerHTML = `
+      <span class="material-icons-outlined text-3xl mb-2">lock</span>
+      <p class="font-medium">종료된 문의입니다</p>
+      <p class="text-sm mt-1">${inquiry.inquiryStatus === '강제 종료' ? '관리자에 의해 강제 종료되었습니다.' : '문의가 종료되었습니다.'}</p>
+    `;
+          answerForm.parentElement.appendChild(closedMessage);
+        } else {
+          answerForm.style.display = 'block';
+        }
+
+        // 상태 업데이트
+        const statusElement = document.getElementById('modalAnswerStatus');
+        statusElement.textContent = inquiry.inquiryStatus;
+        statusElement.className = getStatusClass(inquiry.inquiryStatus) + ' text-xs';
+
+        // 메시지 스레드 표시 (문의 내용과 답변들)
+        const contentDiv = document.getElementById('modalInquiryContent');
+        contentDiv.innerHTML = '';
+
+// 모든 메시지를 시간순으로 정렬하여 표시
+        const allMessages = [];
+
+// 1. 원본 문의를 첫 번째 메시지로 추가
+        if (inquiry.content) {
+          allMessages.push({
+            messageId: 'original',
+            content: inquiry.content,
+            messageType: '최초 문의',
+            authorType: 'USER',
+            createdAt: inquiry.createdAt,
+            attachments: [] // 첨부파일은 별도 섹션에서 표시하므로 여기서는 제거
+          });
+        }
+
+// 2. messages 배열의 모든 메시지 추가
+        if (inquiry.messages && inquiry.messages.length > 0) {
+          allMessages.push(...inquiry.messages);
+        }
+
+// 3. 시간순 정렬
+        allMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+// 4. 각 메시지 표시
+        allMessages.forEach((message, index) => {
+          const messageDiv = document.createElement('div');
+          const isAdmin = message.authorType === 'ADMIN';
+
+          // 메시지 타입에 따른 스타일 지정
+          if (isAdmin) {
+            messageDiv.className = 'bg-blue-50 p-4 rounded-lg mb-3 border border-blue-200';
+          } else {
+            messageDiv.className = 'bg-gray-50 p-4 rounded-lg mb-3 border border-gray-200';  // border 추가
+            // 최초 문의는 다른 스타일로 구분
+            if (message.messageType === '최초 문의') {
+              messageDiv.className += ' border-2 border-orange-200';  // 더 굵은 테두리
+            }
+          }
+
+          // 헤더 생성
+          const headerDiv = document.createElement('div');
+          headerDiv.className = 'flex items-center gap-2 mb-2';
+
+          if (isAdmin) {
+            headerDiv.innerHTML = `
+      <span class="material-icons-outlined text-blue-600 text-sm">admin_panel_settings</span>
+      <span class="text-sm font-medium text-blue-800">${message.messageType}</span>
+      <span class="text-xs text-blue-600">${message.createdAt}</span>
+    `;
+          } else {
+            const iconColor = message.messageType === '최초 문의' ? 'text-orange-600' : 'text-gray-600';
+            const textColor = message.messageType === '최초 문의' ? 'text-orange-800' : 'text-gray-800';
+            headerDiv.innerHTML = `
+      <span class="material-icons-outlined ${iconColor} text-sm">person</span>
+      <span class="text-sm font-medium ${textColor}">${message.messageType}</span>
+      <span class="text-xs text-gray-600">${message.createdAt}</span>
+    `;
+          }
+
+          // 내용 추가
+          const contentP = document.createElement('p');
+          contentP.className = isAdmin ? 'text-blue-800' : 'text-gray-800';
+          contentP.innerHTML = message.content.replace(/\n/g, '<br>');
+
+          messageDiv.appendChild(headerDiv);
+          messageDiv.appendChild(contentP);
+
+          // 메시지별 첨부파일 표시
+          if (message.attachments && message.attachments.length > 0) {
+            const attachDiv = document.createElement('div');
+            attachDiv.className = 'mt-3 pt-3 border-t ' +
+                    (isAdmin ? 'border-blue-200' : 'border-gray-200');
+
+            const attachHeader = document.createElement('div');
+            attachHeader.className = 'text-xs font-medium mb-2 ' +
+                    (isAdmin ? 'text-blue-700' : 'text-gray-700');
+            attachHeader.textContent = '첨부파일:';
+            attachDiv.appendChild(attachHeader);
+
+            message.attachments.forEach(file => {
+              const fileDiv = document.createElement('div');
+              fileDiv.className = 'flex items-center gap-2 text-sm mb-1';
+              const iconColor = isAdmin ? 'text-blue-600' : 'text-gray-600';
+              fileDiv.innerHTML = `
+        <span class="material-icons-outlined text-base ${iconColor}">
+          ${file.imageFile ? 'image' : 'description'}
+        </span>
+        <span>${file.originalFileName} (${file.formattedFileSize || file.fileSize + 'B'})</span>
+        <a href="/v1/admin/inquiries/test/${inquiry.inquiryId}/files/${file.fileId}"
+           class="text-primary-text hover:underline ml-2" download>
+            다운로드
+        </a>
+      `;
+              attachDiv.appendChild(fileDiv);
+            });
+
+            messageDiv.appendChild(attachDiv);
+          }
+
+          contentDiv.appendChild(messageDiv);
+        });
+
+        // 전체 첨부파일 섹션 (최초 문의의 첨부파일만 표시)
+        const attachmentSection = document.querySelector('#inquiryModal .space-y-6 > div:nth-child(4)');
+        if (inquiry.attachments && inquiry.attachments.length > 0) {
+          attachmentSection.style.display = 'block';
+          attachmentSection.innerHTML = `
+    <label class="block text-sm font-medium accent-text mb-2">첨부파일</label>
+    <div class="space-y-2">
+        ${inquiry.attachments.map(file => `
+            <div class="flex items-center gap-2 text-sm text-slate-600">
+                <span class="material-icons-outlined text-base">
+                  ${file.imageFile ? 'image' : 'description'}
+                </span>
+                <span>${file.originalFileName} (${file.formattedFileSize || file.fileSize + 'B'})</span>
+                <a href="/v1/admin/inquiries/test/${inquiry.inquiryId}/files/${file.fileId}"
+                   class="text-primary-text hover:underline ml-2" download>
+                    다운로드
+                </a>
+            </div>
+        `).join('')}
+    </div>
+  `;
+        } else {
+          attachmentSection.style.display = 'none';
+        }
+
+        // inquiryId를 hidden input에 저장
+        let hiddenInput = document.getElementById('modalInquiryIdHidden');
+        if (!hiddenInput) {
+          hiddenInput = document.createElement('input');
+          hiddenInput.type = 'hidden';
+          hiddenInput.id = 'modalInquiryIdHidden';
+          document.getElementById('answerForm').appendChild(hiddenInput);
+        }
+        hiddenInput.value = inquiry.inquiryId;
+      }
+
+      // submitAnswer 함수도 수정
+      async function submitAnswer(event) {
+        event.preventDefault();
+
+        const answer = document.getElementById("adminAnswer").value;
+        const inquiryId = document.getElementById('modalInquiryIdHidden').value;
+
+        if (!answer.trim()) {
+          alert("답변 내용을 입력해주세요.");
+          return;
+        }
+
+        try {
+          const formData = new FormData();
+          formData.append('inquiryId', inquiryId);
+          formData.append('content', answer);
+
+          // 이미지 파일 추가
+          const imageFiles = document.getElementById('imageFiles').files;
+          for (let i = 0; i < imageFiles.length; i++) {
+            formData.append('imageFiles', imageFiles[i]);
+          }
+
+          // 문서 파일 추가
+          const documentFiles = document.getElementById('documentFiles').files;
+          for (let i = 0; i < documentFiles.length; i++) {
+            formData.append('documentFiles', documentFiles[i]);
+          }
+
+          const response = await fetch('/v1/admin/inquiries/test/reply', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+          });
+
+          if (!response.ok) {
+            if (response.status === 401) {
+              alert('로그인이 필요합니다.');
+              window.location.href = '/v1/admin/login';
+              return;
+            }
+            throw new Error('답변 등록에 실패했습니다.');
+          }
+
+          const result = await response.json();
+
+          if (result.success) {
+            alert("답변이 성공적으로 전송되었습니다!");
+            closeInquiryModal();
+            loadInquiries(currentPage);
+          } else {
+            throw new Error(result.message || '답변 등록에 실패했습니다.');
+          }
+
+        } catch (error) {
+          console.error('Error submitting answer:', error);
+          alert(error.message);
+        }
+      }
+
+
+      // 상태별 클래스 가져오기
+      function getStatusClass(status) {
+        const statusClasses = {
+          '답변 대기': 'status-pending',
+          '답변 완료': 'status-answered',
+          '추가 문의': 'status-followup',
+          '문의 종료': 'status-closed',
+          '강제 종료': 'status-force-closed'
+        };
+        return statusClasses[status] || 'status-pending';
       }
 
       // 문의 상세보기 모달 닫기
@@ -956,13 +1434,11 @@
       }
 
       // 모달 외부 클릭 시 닫기
-      document
-        .getElementById("inquiryModal")
-        .addEventListener("click", function (e) {
-          if (e.target === this) {
-            closeInquiryModal();
-          }
-        });
+      document.getElementById("inquiryModal").addEventListener("click", function (e) {
+        if (e.target === this) {
+          closeInquiryModal();
+        }
+      });
 
       // ESC 키로 모달 닫기
       document.addEventListener("keydown", function (e) {
@@ -974,25 +1450,257 @@
         }
       });
 
-      // 답변 제출 처리
-      function submitAnswer(event) {
+      // 긴급도 수정 모달 열기
+      function openUrgentLevelModal() {
+        const currentLevel = document.getElementById('modalInquiryPriority').textContent;
+        const levelMap = { '높음': 'HIGH', '중간': 'MIDDLE', '낮음': 'LOW' };
+        document.getElementById('newUrgentLevel').value = levelMap[currentLevel] || 'MIDDLE';
+        document.getElementById('urgentLevelModal').classList.add('active');
+      }
+
+      // 긴급도 수정 모달 닫기
+      function closeUrgentLevelModal() {
+        document.getElementById('urgentLevelModal').classList.remove('active');
+      }
+
+      // 긴급도 업데이트
+      async function updateUrgentLevel(event) {
         event.preventDefault();
 
-        const answer = document.getElementById("adminAnswer").value;
-        const sendEmail = document.getElementById("sendEmail").checked;
+        const inquiryId = document.getElementById('modalInquiryIdHidden').value;
+        const urgentLevel = document.getElementById('newUrgentLevel').value;
 
-        if (!answer.trim()) {
-          alert("답변 내용을 입력해주세요.");
+        try {
+          const response = await fetch('/v1/admin/inquiries/test/urgent-level', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              inquiryId: inquiryId,
+              urgentLevel: urgentLevel
+            }),
+            credentials: 'include'
+          });
+
+          if (!response.ok) {
+            throw new Error('긴급도 수정에 실패했습니다.');
+          }
+
+          const result = await response.json();
+
+          if (result.success) {
+            alert('긴급도가 수정되었습니다.');
+            closeUrgentLevelModal();
+
+            // 긴급도 텍스트 업데이트
+            const levelTextMap = { 'HIGH': '높음', 'MIDDLE': '중간', 'LOW': '낮음' };
+            document.getElementById('modalInquiryPriority').textContent = levelTextMap[urgentLevel];
+
+            // 목록 새로고침
+            loadInquiries(currentPage);
+          } else {
+            throw new Error(result.message || '긴급도 수정에 실패했습니다.');
+          }
+        } catch (error) {
+          console.error('Error updating urgent level:', error);
+          alert(error.message);
+        }
+      }
+      // 드롭다운 토글
+      function toggleUrgentLevelDropdown() {
+        const dropdown = document.getElementById('urgentLevelDropdown');
+        dropdown.classList.toggle('hidden');
+
+        // 클릭 외부 영역 클릭 시 닫기
+        if (!dropdown.classList.contains('hidden')) {
+          document.addEventListener('click', closeDropdownOnOutsideClick);
+        }
+      }
+
+      // 외부 클릭 시 드롭다운 닫기
+      function closeDropdownOnOutsideClick(e) {
+        const button = document.getElementById('urgentLevelButton');
+        const dropdown = document.getElementById('urgentLevelDropdown');
+
+        if (!button.contains(e.target) && !dropdown.contains(e.target)) {
+          dropdown.classList.add('hidden');
+          document.removeEventListener('click', closeDropdownOnOutsideClick);
+        }
+      }
+
+      // 긴급도 즉시 업데이트
+      async function updateUrgentLevelDirect(urgentLevel) {
+        const inquiryId = document.getElementById('modalInquiryIdHidden').value;
+
+        if (!inquiryId) {
+          console.error('inquiryId를 찾을 수 없습니다.');
           return;
         }
 
-        // 여기에 실제 서버 전송 로직 구현
-        console.log("답변 데이터:", { answer, sendEmail });
+        // 드롭다운 즉시 닫기
+        document.getElementById('urgentLevelDropdown').classList.add('hidden');
 
-        alert("답변이 성공적으로 전송되었습니다!");
-        closeInquiryModal();
+        // 로딩 표시
+        const button = document.getElementById('urgentLevelButton');
+        const prioritySpan = document.getElementById('modalInquiryPriority');
+        const originalText = prioritySpan ? prioritySpan.textContent : '';
 
-        // 테이블의 상태를 답변 완료로 업데이트 (실제로는 페이지 새로고침이나 동적 업데이트)
+        if (prioritySpan) {
+          prioritySpan.innerHTML = '<span class="material-icons-outlined text-base animate-spin">refresh</span>';
+        }
+        button.disabled = true;
+
+        try {
+          const response = await fetch('/v1/admin/inquiries/test/urgent-level', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              inquiryId: inquiryId,
+              urgentLevel: urgentLevel
+            }),
+            credentials: 'include'
+          });
+
+          if (!response.ok) {
+            throw new Error('긴급도 수정에 실패했습니다.');
+          }
+
+          const result = await response.json();
+
+          if (result.success) {
+            // 성공 시 UI 즉시 업데이트
+            const levelTextMap = { 'HIGH': '높음', 'MIDDLE': '중간', 'LOW': '낮음' };
+            const levelColorMap = {
+              'HIGH': 'bg-red-100 text-red-700',
+              'MIDDLE': 'bg-yellow-100 text-yellow-700',
+              'LOW': 'bg-blue-100 text-blue-700'
+            };
+
+            // 텍스트 업데이트
+            if (prioritySpan) {
+              prioritySpan.textContent = levelTextMap[urgentLevel];
+            }
+
+            // 버튼 색상 변경
+            button.className = `flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors group ${levelColorMap[urgentLevel]}`;
+
+            // 토스트 메시지
+            showToast('긴급도가 변경되었습니다.', 'success');
+
+            // 목록 새로고침
+            loadInquiries(currentPage);
+          } else {
+            throw new Error(result.message || '긴급도 수정에 실패했습니다.');
+          }
+        } catch (error) {
+          console.error('Error updating urgent level:', error);
+          alert(error.message);
+
+          // 에러 시 원래 텍스트로 복원
+          if (prioritySpan) {
+            prioritySpan.textContent = originalText;
+          }
+        } finally {
+          // 버튼 활성화
+          button.disabled = false;
+        }
+      }
+
+      // 토스트 메시지 함수 (선택사항)
+      function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg shadow-lg text-white z-[100] transition-all duration-300 -translate-y-full ${
+                type === 'success' ? 'bg-green-500' : 'bg-gray-800'
+        }`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        // requestAnimationFrame을 사용하여 다음 프레임에서 애니메이션 시작
+        requestAnimationFrame(() => {
+          toast.classList.remove('-translate-y-full');
+          toast.classList.add('translate-y-0');
+        });
+
+        setTimeout(() => {
+          toast.classList.add('-translate-y-full');
+          setTimeout(() => toast.remove(), 300);
+        }, 2000);
+      }
+
+      // 강제 종료 모달 열기
+      function openForceCloseModal() {
+        // 이미 강제 종료된 상태인지 확인
+        const currentStatus = document.getElementById('modalAnswerStatus').textContent;
+        if (currentStatus === '강제 종료') {
+          alert('이미 강제 종료된 문의입니다.');
+          return;
+        }
+
+        document.getElementById('forceCloseModal').classList.add('active');
+      }
+
+      // 강제 종료 모달 닫기
+      function closeForceCloseModal() {
+        document.getElementById('forceCloseModal').classList.remove('active');
+        document.getElementById('forceCloseForm').reset();
+      }
+
+      // 강제 종료 처리
+      async function submitForceClose(event) {
+        event.preventDefault();
+
+        const inquiryId = document.getElementById('modalInquiryIdHidden').value;
+        const reason = document.getElementById('forceCloseReason').value;
+
+        if (!reason.trim()) {
+          alert('종료 사유를 입력해주세요.');
+          return;
+        }
+
+        // 확인 한번 더
+        if (!confirm('정말로 이 문의를 강제 종료하시겠습니까?\n이 작업은 취소할 수 없습니다.')) {
+          return;
+        }
+
+        try {
+          const response = await fetch('/v1/admin/inquiries/test/close', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              inquiryId: inquiryId,
+              reason: reason
+            }),
+            credentials: 'include'
+          });
+
+          if (!response.ok) {
+            if (response.status === 401) {
+              alert('로그인이 필요합니다.');
+              window.location.href = '/v1/admin/login';
+              return;
+            }
+            throw new Error('강제 종료 처리에 실패했습니다.');
+          }
+
+          const result = await response.json();
+
+          if (result.success) {
+            showToast('문의가 강제 종료되었습니다.', 'success');
+            closeForceCloseModal();
+            closeInquiryModal();
+            loadInquiries(currentPage);
+          } else {
+            throw new Error(result.message || '강제 종료 처리에 실패했습니다.');
+          }
+        } catch (error) {
+          console.error('Error force closing inquiry:', error);
+          alert(error.message);
+        }
       }
     </script>
   </body>

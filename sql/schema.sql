@@ -577,6 +577,7 @@ CREATE TABLE inquiries (
                            admin_id VARCHAR(36) NULL,
                            title VARCHAR(255) NULL,
                            content TEXT NOT NULL,
+                           reason TEXT NULL,
                            status ENUM('PENDING', 'ANSWERED', 'FOLLOWUP', 'CLOSED', 'FORCE_CLOSED') NOT NULL DEFAULT 'PENDING',
                            type ENUM('PRODUCT', 'ORDER', 'PAYMENT', 'DELIVERY', 'RETURN', 'ACCOUNT', 'ETC') NOT NULL,
                            receive_method ENUM('WEB', 'CALL', 'SMS', 'NONE') NOT NULL DEFAULT 'WEB',

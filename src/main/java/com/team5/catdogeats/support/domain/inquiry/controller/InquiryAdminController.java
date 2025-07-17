@@ -38,7 +38,7 @@ import java.time.LocalDate;
 
 @Slf4j
 @RestController
-@RequestMapping("/v1/admin/inquiries")
+@RequestMapping("/v1/admin/inquiries/test")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Inquiry (Admin)", description = "1:1 문의 관리자 API - 관리자만 접근 가능")

@@ -73,16 +73,20 @@ public class InquiryServiceImpl implements InquiryService {
         Inquires rootInquiry = inquiryRepository.findRootInquiryWithRepliesByIdAndUserId(inquiryId, user.getId())
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없거나 접근 권한이 없습니다: " + inquiryId));
 
-        // 답글들을 DTO로 변환 (메모리에서 처리, 추가 DB 쿼리 없음)
+        // 3. 각 메시지별로 첨부파일을 조회하여 DTO 변환
         List<InquiryMessageDTO> messages = rootInquiry.getReplies().stream()
                 .sorted((r1, r2) -> r1.getCreatedAt().compareTo(r2.getCreatedAt()))
-                .map(InquiryMessageDTO::from)
+                .map(reply -> {
+                    // 각 답글별로 첨부파일 조회
+                    List<InquiryAttachmentDTO> attachments = inquiryFileService.getMessageAttachments(reply.getId());
+                    return InquiryMessageDTO.from(reply, attachments);
+                })
                 .collect(Collectors.toList());
 
-        // 첨부파일들 조회
-        List<InquiryAttachmentDTO> attachments = inquiryFileService.getInquiryThreadAttachments(rootInquiry.getId());
+        // 4. 루트 문의의 첨부파일도 조회
+        List<InquiryAttachmentDTO> rootAttachments = inquiryFileService.getMessageAttachments(rootInquiry.getId());
 
-        return InquiryDetailResponseDTO.forUser(rootInquiry, messages, attachments);
+        return InquiryDetailResponseDTO.forUser(rootInquiry, messages, rootAttachments);
     }
 
     @Override
@@ -276,20 +280,24 @@ public class InquiryServiceImpl implements InquiryService {
     @Override
     @JpaTransactional(readOnly = true)
     public InquiryDetailResponseDTO getInquiryDetailForAdmin(String inquiryId) {
-        // 🎯 핵심: 1차 쿼리로 루트 문의 + 모든 답글을 한번에!
+        // 1. 루트 문의 + 모든 답글을 한번에 조회
         Inquires rootInquiry = inquiryRepository.findRootInquiryWithRepliesById(inquiryId)
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: " + inquiryId));
 
-        // 답글들을 DTO로 변환 (메모리에서 처리, 추가 DB 쿼리 없음)
+        // 2. 각 메시지별로 첨부파일을 조회하여 DTO 변환
         List<InquiryMessageDTO> messages = rootInquiry.getReplies().stream()
                 .sorted((r1, r2) -> r1.getCreatedAt().compareTo(r2.getCreatedAt()))
-                .map(InquiryMessageDTO::from)
+                .map(reply -> {
+                    // 각 답글별로 첨부파일 조회
+                    List<InquiryAttachmentDTO> attachments = inquiryFileService.getMessageAttachments(reply.getId());
+                    return InquiryMessageDTO.from(reply, attachments);
+                })
                 .collect(Collectors.toList());
 
-        // 2차 쿼리: 첨부파일들만 별도 조회 (개선 예정)
-        List<InquiryAttachmentDTO> attachments = inquiryFileService.getInquiryThreadAttachments(rootInquiry.getId());
+        // 3. 루트 문의의 첨부파일도 조회
+        List<InquiryAttachmentDTO> rootAttachments = inquiryFileService.getMessageAttachments(rootInquiry.getId());
 
-        return InquiryDetailResponseDTO.forAdmin(rootInquiry, messages, attachments);
+        return InquiryDetailResponseDTO.forAdmin(rootInquiry, messages, rootAttachments);
     }
 
     @Override
@@ -374,6 +382,7 @@ public class InquiryServiceImpl implements InquiryService {
 
         rootInquiry.setInquiryStatus(InquiryStatus.FORCE_CLOSED);
         rootInquiry.setAdmins(admin);
+        rootInquiry.setReason(reason);  // 추가
 
         // 강제 종료 사유는 별도 로깅 또는 필요시 엔티티에 추가 필드로 저장
         log.info("문의 강제 종료 - inquiryId: {}, adminId: {}, reason: {}",

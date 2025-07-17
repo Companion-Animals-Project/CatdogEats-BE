@@ -24,6 +24,8 @@ import javax.sql.DataSource;
                 "com.team5.catdogeats.reviews.repository",
                 "com.team5.catdogeats.storage.repository",
                 "com.team5.catdogeats.support.domain.notice.repository",
+                "com.team5.catdogeats.notifications.repository",
+                "com.team5.catdogeats.storage.repository",
                 "com.team5.catdogeats.coupons.repository",
                 "com.team5.catdogeats.admins.repository",
                 "com.team5.catdogeats.outbox.repository",

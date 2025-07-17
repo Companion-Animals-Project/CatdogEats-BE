@@ -25,6 +25,17 @@ public interface InquiryFileRepository extends JpaRepository<InquiryFiles, Strin
     List<InquiryFiles> findByInquiryThreadOrderByCreatedAt(@Param("rootInquiryId") String rootInquiryId);
 
     /**
+     * 🆕 추가: 특정 메시지의 첨부파일만 조회
+     */
+    @Query("SELECT if FROM InquiryFiles if " +
+            "LEFT JOIN FETCH if.images " +
+            "LEFT JOIN FETCH if.files " +
+            "LEFT JOIN FETCH if.inquires i " +
+            "WHERE i.id = :messageId " +
+            "ORDER BY if.createdAt ASC")
+    List<InquiryFiles> findByInquiresIdOrderByCreatedAt(@Param("messageId") String messageId);
+
+    /**
      * 파일 ID로 문의 첨부 파일 조회 (기본)
      */
     @Query("SELECT if FROM InquiryFiles if " +
