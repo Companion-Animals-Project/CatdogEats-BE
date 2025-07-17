@@ -1,6 +1,7 @@
 package com.team5.catdogeats.orders.dto.response;
 
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
+import com.team5.catdogeats.pets.domain.Pets;
 import lombok.Builder;
 
 import java.time.ZonedDateTime;
@@ -16,6 +17,7 @@ public record SellerOrderDetailResponse(
         OrderStatus orderStatus,
         ZonedDateTime orderDate,
         ShippingAddress shippingAddress,
+        PetInfo petInfo,
         List<SellerOrderDetailItem> orderItems,
         OrderSummary orderSummary,
         ShipmentInfo shipmentInfo,
@@ -77,7 +79,40 @@ public record SellerOrderDetailResponse(
             String fullAddress,
             String deliveryRequest
     ) {}
+    /**
+     * 반려동물 정보
+     */
+    @Builder
+    public record PetInfo(
+            String name,
+            String category,
+            String breed,
+            String age,
+            String gender,
+            Boolean hasAllergies,
+            String healthCondition,
+            String specialRequests
+    ) {
+        /**
+         * Pets 엔티티로부터 PetInfo 생성
+         */
+        public static PetInfo from(Pets pet) {
+            if (pet == null) {
+                return null;
+            }
 
+            return PetInfo.builder()
+                    .name(pet.getName())
+                    .category(pet.getPetCategory().name().toLowerCase() + "s") // DOG -> dogs, CAT -> cats
+                    .breed(pet.getBreed())
+                    .age(String.valueOf(pet.getAge()))
+                    .gender(pet.getGender().name().toLowerCase()) // M -> m, F -> f
+                    .hasAllergies(pet.isAllergy())
+                    .healthCondition(pet.getHealthState())
+                    .specialRequests(pet.getRequestion())
+                    .build();
+        }
+    }
     /**
      * 상태 관리 정보
      */
