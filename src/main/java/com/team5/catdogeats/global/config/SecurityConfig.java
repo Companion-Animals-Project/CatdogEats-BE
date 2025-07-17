@@ -109,7 +109,7 @@ public class SecurityConfig {
                     .csrf(AbstractHttpConfigurer::disable)
                     .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                     .sessionManagement(session
-                            -> session.sessionCreationPolicy(SessionCreationPolicy.NEVER)
+                            -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                             .sessionFixation().none())
                     .authorizeHttpRequests(authorize
                             -> authorize
