@@ -172,7 +172,11 @@ jwt:
 
 logging:
   level:
-    com.team5.catdogeats: debug
+    com.team5.catdogeats: DEBUG
+    org:
+      springframework:
+        security: DEBUG
+        oauth2: DEBUG
 
 toss:
   payments:
