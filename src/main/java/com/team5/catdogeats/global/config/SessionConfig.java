@@ -17,7 +17,7 @@ public class SessionConfig {
         FilterRegistrationBean<SessionRepositoryFilter<?>> registration =
                 new FilterRegistrationBean<>(springSessionRepositoryFilter);
 
-        registration.addUrlPatterns("/v1/admins/**", "/login/oauth2/*", "/oauth2/authorization/*");
+        registration.addUrlPatterns("/v1/admins/**");
 
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
 

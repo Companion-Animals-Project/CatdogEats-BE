@@ -20,7 +20,10 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
+import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
+import org.springframework.security.oauth2.client.web.HttpSessionOAuth2AuthorizationRequestRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -148,10 +151,13 @@ public class SecurityConfig {
                             .anyRequest().authenticated())
 
                     .oauth2Login(oauth2 -> oauth2
+                            .authorizationEndpoint(endPoint ->
+                                    endPoint.authorizationRequestRepository(authorizationRequestRepository()))
                             .successHandler(oAuth2AuthenticationSuccessHandler)
                             .failureHandler(oAuth2AuthenticationFailureHandler)
                             .userInfoEndpoint(userInfo -> userInfo
-                                    .userService(customOAuth2UserService) // 여기에 커스텀 서비스 주입
+                                    .userService(customOAuth2UserService)
+
                             )
                     )
                     .httpBasic(AbstractHttpConfigurer::disable)
@@ -194,5 +200,11 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    @Bean
+    public AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository() {
+        // 세션에 OAuth2 인가 요청을 저장/조회해 주는 기본 구현체
+        return new HttpSessionOAuth2AuthorizationRequestRepository();
     }
 }
