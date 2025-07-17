@@ -50,5 +50,6 @@ public class AddressRequestDto {
     @NotNull(message = "주소 타입은 필수입니다")
     private AddressType addressType;
 
+    @Builder.Default
     private boolean isDefault = false;
 }

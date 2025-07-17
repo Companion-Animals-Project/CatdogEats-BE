@@ -45,4 +45,46 @@ public class Reports extends BaseEntity {
 
     @Column(name = "processed_at")
     private ZonedDateTime processedAt;
+
+
+
+    // 신고 상세 내용 추가
+    @Column(name = "content", nullable = false, length = 1000)
+    private String content;
+
+    // 첨부파일 URL 추가
+    @Column(name = "attachment_url", length = 500)
+    private String attachmentUrl;
+
+    // 관리자 메모 추가
+    @Column(name = "admin_note", length = 1000)
+    private String adminNote;
+
+    // 처리한 관리자 ID 추가
+    @Column(name = "processed_by_admin_id", length = 36)
+    private String processedByAdminId;
+
+    // === 비즈니스 메서드 ===
+    // 신고 상태 변경
+    public void updateStatus(ReportStatus newStatus, String adminId, String note) {
+        this.reportStatus = newStatus;
+        this.processedByAdminId = adminId;
+        this.adminNote = note;
+        this.processedAt = ZonedDateTime.now();
+    }
+
+    // 상품 신고인지 확인
+    public boolean isProductReport() {
+        return this.reportType == ReportType.PRODUCT;
+    }
+
+    // 리뷰 신고인지 확인
+    public boolean isReviewReport() {
+        return this.reportType == ReportType.REVIEW;
+    }
+
+    // 처리 완료 여부 확인
+    public boolean isProcessed() {
+        return this.reportStatus != ReportStatus.PENDING;
+    }
 }
