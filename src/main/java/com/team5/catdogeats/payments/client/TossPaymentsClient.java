@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
  */
 @FeignClient(
         name = "toss-payments-client",
-        url = "${toss.payments.api.base-url}",
+         url = "https://api.tosspayments.com",
         configuration = TossPaymentsClientConfig.class
 )
 public interface TossPaymentsClient {
