@@ -83,6 +83,7 @@ public class PaymentServiceImpl implements PaymentService {
                     orderId, groupOrdersAndPayments.payments().getId(), tossResponse.getPaymentKey());
 
             createPaymentCompletedOutbox(groupOrdersAndPayments.orders(), groupOrdersAndPayments.payments(), tossResponse);
+            log.info("PaymentCompletedEvent Outbox 메시지 생성 완료: orderId={}", orderId);
 
             // 6. OrderPendingDetails 정리 (결제 완료 후 더 이상 필요 없음)
             orderPendingDetailsRepository.deleteByOrderId(orderId);

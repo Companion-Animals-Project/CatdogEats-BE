@@ -81,12 +81,18 @@ public record OrderItemInfo(
     }
 
     public static OrderItemInfo of(Products p, int qty) {
+        // 추가: null 체크 방어 코드
+        Long discountedPrice = p.getDiscountedPrice();
+        if (discountedPrice == null) {
+            discountedPrice = p.getPrice(); // 할인가격이 null이면 원가 사용
+        }
+
         return new OrderItemInfo(
                 p.getId(),
                 p.getTitle(),
                 qty,
-                p.getDiscountedPrice(),
-                p.getDiscountedPrice() * qty,
+                discountedPrice,  // 수정: null 체크된 가격 사용
+                discountedPrice * qty,  // 정: null 체크된 가격으로 계산
                 p.getSeller().getUserId()
         );
     }
