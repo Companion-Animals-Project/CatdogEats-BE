@@ -3,6 +3,7 @@ package com.team5.catdogeats.storage.controller;
 import com.team5.catdogeats.storage.service.ObjectStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,7 +18,7 @@ public class UploadTestController {
     private final ObjectStorageService objectStorageService;
 
     // 이미지 업로드
-    @PostMapping("/upload/image")
+    @PostMapping(value = "/upload/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> uploadImage(@RequestPart MultipartFile file) {
         try {
             String url = objectStorageService.uploadImage(
@@ -33,7 +34,7 @@ public class UploadTestController {
     }
 
     // 파일 업로드
-    @PostMapping("/upload/file")
+    @PostMapping(value = "/upload/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> uploadFile(@RequestPart MultipartFile file) {
         try {
             String url = objectStorageService.uploadFile(

@@ -3,14 +3,13 @@ package com.team5.catdogeats.storage.service.impl;
 import com.team5.catdogeats.global.config.AwsS3Config;
 import com.team5.catdogeats.storage.service.ObjectStorageService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.InputStream;
 
-@Service
+//@Service
 @RequiredArgsConstructor
 public class AwsS3ServiceImpl implements ObjectStorageService {
     private final S3Client s3Client;
