@@ -6,10 +6,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 public interface ReviewImageService {
-    List<ReviewImageUploadResponseDto> uploadReviewImage(UserPrincipal userPrincipal, String reviewId, List<MultipartFile> images) throws IOException;
+    List<ReviewImageUploadResponseDto> uploadReviewImage(UserPrincipal userPrincipal, String reviewId, List<MultipartFile> images) throws IOException, ExecutionException, InterruptedException;
     void deleteReviewImage(String reviewId, String imageId);
-    List<ReviewImageUploadResponseDto> updateReviewImage(UserPrincipal userPrincipal, String reviewId, List<String> oldImageIds, List<MultipartFile> images) throws IOException;
+    List<ReviewImageUploadResponseDto> updateReviewImage(UserPrincipal userPrincipal, String reviewId, List<String> oldImageIds, List<MultipartFile> images) throws IOException, ExecutionException, InterruptedException;
 
 }

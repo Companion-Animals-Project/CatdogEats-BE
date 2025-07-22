@@ -33,6 +33,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -72,9 +73,7 @@ public class InquiryFileServiceImpl implements InquiryFileService {
                 String fileName = generateInquiryFileName(imageFile.getOriginalFilename());
                 String imageUrl = objectStorageService.uploadImage(
                         fileName,
-                        imageFile.getInputStream(),
-                        imageFile.getSize(),
-                        imageFile.getContentType()
+                        imageFile
                 );
 
                 Images image = Images.builder()
@@ -100,7 +99,7 @@ public class InquiryFileServiceImpl implements InquiryFileService {
                 log.info("이미지 업로드 완료 - inquiryId: {}, imageId: {}, fileName: {}",
                         inquiryId, savedImage.getId(), imageFile.getOriginalFilename());
 
-            } catch (IOException e) {
+            } catch (IOException | ExecutionException | InterruptedException e) {
                 log.error("이미지 업로드 실패 - fileName: {}", imageFile.getOriginalFilename(), e);
                 throw new RuntimeException("이미지 업로드 중 오류가 발생했습니다: " + imageFile.getOriginalFilename(), e);
             }
@@ -146,9 +145,7 @@ public class InquiryFileServiceImpl implements InquiryFileService {
                 String fileName = generateInquiryFileName(documentFile.getOriginalFilename());
                 String fileUrl = objectStorageService.uploadFile(
                         fileName,
-                        documentFile.getInputStream(),
-                        documentFile.getSize(),
-                        documentFile.getContentType()
+                        documentFile
                 );
 
                 Files file = Files.builder()
@@ -174,7 +171,7 @@ public class InquiryFileServiceImpl implements InquiryFileService {
                 log.info("문서 파일 업로드 완료 - inquiryId: {}, fileId: {}, fileName: {}",
                         inquiry.getId(), savedFile.getId(), documentFile.getOriginalFilename());
 
-            } catch (IOException e) {
+            } catch (IOException | ExecutionException | InterruptedException e) {
                 log.error("문서 파일 업로드 실패 - fileName: {}", documentFile.getOriginalFilename(), e);
                 throw new RuntimeException("문서 파일 업로드 중 오류가 발생했습니다: " + documentFile.getOriginalFilename(), e);
             }

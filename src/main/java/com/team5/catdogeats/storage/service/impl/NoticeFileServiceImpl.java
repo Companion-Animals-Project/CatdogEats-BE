@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
 @Service
 @RequiredArgsConstructor
@@ -34,9 +35,7 @@ public class NoticeFileServiceImpl implements NoticeFileService {
 
             String fileUrl = objectStorageService.uploadFile(
                     fileName,
-                    file.getInputStream(),
-                    file.getSize(),
-                    file.getContentType()
+                    file
             );
 
             log.info("공지사항 파일 업로드 완료: {}", fileUrl);
@@ -47,7 +46,7 @@ public class NoticeFileServiceImpl implements NoticeFileService {
 
             return fileRepository.save(fileEntity);
 
-        } catch (IOException e) {
+        } catch (IOException | ExecutionException | InterruptedException e) {
             log.error("공지사항 파일 업로드 실패 - 파일명: {}", file.getOriginalFilename(), e);
             throw new RuntimeException("공지사항 파일 업로드 중 오류가 발생했습니다.", e);
         }
@@ -98,9 +97,7 @@ public class NoticeFileServiceImpl implements NoticeFileService {
             String newFileName = generateNoticeFileName(newFile.getOriginalFilename());
             String newFileUrl = objectStorageService.uploadFile(
                     newFileName,
-                    newFile.getInputStream(),
-                    newFile.getSize(),
-                    newFile.getContentType()
+                    newFile
             );
 
             // 기존 파일 삭제
@@ -112,7 +109,7 @@ public class NoticeFileServiceImpl implements NoticeFileService {
 
             log.info("공지사항 파일 교체 완료: {} -> {}", oldFileUrl, newFileUrl);
 
-        } catch (IOException e) {
+        } catch (IOException | ExecutionException | InterruptedException e) {
             log.error("공지사항 파일 교체 실패 - 파일 ID: {}", fileId, e);
             throw new RuntimeException("공지사항 파일 교체 중 오류가 발생했습니다.", e);
         }

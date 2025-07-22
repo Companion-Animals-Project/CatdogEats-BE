@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 @RestController
 @RequiredArgsConstructor
@@ -19,17 +22,18 @@ public class UploadTestController {
 
     // 이미지 업로드
     @PostMapping(value = "/upload/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<String> uploadImage(@RequestPart MultipartFile file) {
+    public ResponseEntity<List<String>> uploadImage(@RequestPart List<MultipartFile> file) {
         try {
-            String url = objectStorageService.uploadImage(
-                    file.getOriginalFilename(),
-                    file.getInputStream(),
-                    file.getSize(),
-                    file.getContentType()
-            );
-            return ResponseEntity.ok(url);
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("이미지 업로드 실패");
+            List<String> urls = new ArrayList<>();
+            for (MultipartFile multipartFile : file) {
+                urls.add((objectStorageService.uploadImage(
+                        multipartFile.getOriginalFilename(),
+                        multipartFile
+                )));
+            }
+            return ResponseEntity.ok(urls);
+        } catch (IOException | ExecutionException | InterruptedException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -39,12 +43,10 @@ public class UploadTestController {
         try {
             String url = objectStorageService.uploadFile(
                     file.getOriginalFilename(),
-                    file.getInputStream(),
-                    file.getSize(),
-                    file.getContentType()
+                    file
             );
             return ResponseEntity.ok(url);
-        } catch (IOException e) {
+        } catch (IOException | ExecutionException | InterruptedException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("파일 업로드 실패");
         }
     }

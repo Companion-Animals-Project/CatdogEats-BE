@@ -161,9 +161,7 @@ public class SellerBrandImageServiceImpl implements SellerBrandImageService {
             // S3에 업로드
             String imageUrl = objectStorageService.uploadImage(
                     uniqueFileName,
-                    imageFile.getInputStream(),
-                    imageFile.getSize(),
-                    imageFile.getContentType()
+                    imageFile
             );
 
             log.debug("새 브랜드 이미지 업로드 완료 - fileName: {}, imageUrl: {}", uniqueFileName, imageUrl);

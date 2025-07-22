@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
 @Slf4j
 @Service
@@ -42,7 +43,7 @@ public class ReviewImageSerivceImpl implements ReviewImageService {
 
     @JpaTransactional
     @Override
-    public List<ReviewImageUploadResponseDto> uploadReviewImage(UserPrincipal userPrincipal, String reviewId, List<MultipartFile> images) throws IOException {
+    public List<ReviewImageUploadResponseDto> uploadReviewImage(UserPrincipal userPrincipal, String reviewId, List<MultipartFile> images) throws IOException, ExecutionException, InterruptedException {
 
         BuyerDTO buyerDTO = buyerRepository.findOnlyBuyerByProviderAndProviderId(userPrincipal.provider(), userPrincipal.providerId())
                 .orElseThrow(() -> new NoSuchElementException("해당 유저 정보를 찾을 수 없습니다."));
@@ -68,9 +69,7 @@ public class ReviewImageSerivceImpl implements ReviewImageService {
             // S3 업로드
             s3Url = objectStorageService.uploadImage(
                     uniqueKey,
-                    file.getInputStream(),
-                    file.getSize(),
-                    file.getContentType()
+                    file
             );
 
             // Images 저장 (retryable)
@@ -118,7 +117,7 @@ public class ReviewImageSerivceImpl implements ReviewImageService {
 
     @JpaTransactional
     @Override
-    public List<ReviewImageUploadResponseDto> updateReviewImage(UserPrincipal userPrincipal, String reviewId, List<String> oldImageIds, List<MultipartFile> images) throws IOException {
+    public List<ReviewImageUploadResponseDto> updateReviewImage(UserPrincipal userPrincipal, String reviewId, List<String> oldImageIds, List<MultipartFile> images) throws IOException, ExecutionException, InterruptedException {
         // 1. 기존 이미지/매핑/S3에 있는 이미지들 중 골라서 삭제
         for (String oldImageId : oldImageIds) {
             this.deleteReviewImage(reviewId, oldImageId);

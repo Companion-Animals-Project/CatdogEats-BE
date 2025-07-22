@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 
 @Slf4j
 @Service
@@ -39,7 +40,7 @@ public class ProductImageSerivceImpl implements ProductImageService {
 
     @JpaTransactional
     @Override
-    public List<ProductImageUploadResponseDto> uploadProductImage(UserPrincipal userPrincipal, String productId, List<MultipartFile> images) throws IOException {
+    public List<ProductImageUploadResponseDto> uploadProductImage(UserPrincipal userPrincipal, String productId, List<MultipartFile> images) throws IOException, ExecutionException, InterruptedException {
 
         SellerDTO sellerDTO = sellerRepository.findSellerDtoByProviderAndProviderId(userPrincipal.provider(), userPrincipal.providerId())
                 .orElseThrow(() -> new NoSuchElementException("해당 유저 정보를 찾을 수 없습니다."));
@@ -65,9 +66,7 @@ public class ProductImageSerivceImpl implements ProductImageService {
             // S3 업로드
             s3Url = objectStorageService.uploadImage(
                     uniqueKey,
-                    file.getInputStream(),
-                    file.getSize(),
-                    file.getContentType()
+                    file
             );
 
             // Images 저장 (retryable)
@@ -115,7 +114,7 @@ public class ProductImageSerivceImpl implements ProductImageService {
 
     @JpaTransactional
     @Override
-    public List<ProductImageUploadResponseDto> updateProductImage(UserPrincipal userPrincipal, String productId, List<String> oldImageIds, List<MultipartFile> images) throws IOException {
+    public List<ProductImageUploadResponseDto> updateProductImage(UserPrincipal userPrincipal, String productId, List<String> oldImageIds, List<MultipartFile> images) throws IOException, ExecutionException, InterruptedException {
         // 1. 기존 이미지/매핑/S3에 있는 이미지들 중 골라서 삭제
         for (String oldImageId : oldImageIds) {
             this.deleteProductImage(productId, oldImageId);
