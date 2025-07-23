@@ -1,7 +1,6 @@
-package com.team5.catdogeats.storage.domain.service.impl;
+package com.team5.catdogeats.storage.service.impl;
 
-import com.team5.catdogeats.global.config.AwsS3Config;
-import com.team5.catdogeats.storage.service.impl.AwsS3ServiceImpl;
+import com.team5.catdogeats.global.config.R2Config;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,6 +14,7 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.function.Consumer;
 
@@ -23,26 +23,27 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-class AwsS3ServiceImplTest {
+class R2ServiceImplTest {
     @Mock
     S3Client s3Client;
 
     @Mock
-    AwsS3Config awsS3Config;
+    R2Config r2Config;
 
     @InjectMocks
-    AwsS3ServiceImpl awsS3Service;
+    R2ServiceImpl r2Service;
+
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        when(awsS3Config.getBucket()).thenReturn("test-bucket");
-        when(awsS3Config.getDomain()).thenReturn("https://cdn.example.com");
+        when(r2Config.getBucket()).thenReturn("test-bucket");
+        when(r2Config.getDomain()).thenReturn("https://cdn.example.com");
     }
 
     @Test
     @DisplayName("이미지 업로드 성공 - 이미지 폴더에 저장")
-    void uploadImage_Success() {
+    void uploadImage_Success() throws IOException {
         // given
         String key = "cat.png";
         byte[] data = "hello".getBytes();
@@ -51,7 +52,7 @@ class AwsS3ServiceImplTest {
         String contentType = "image/png";
 
         // when
-        String url = awsS3Service.uploadImage(key, inputStream, size, contentType);
+        String url = r2Service.uploadImage(key, inputStream, size, contentType);
 
         // then
         ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
@@ -67,7 +68,7 @@ class AwsS3ServiceImplTest {
 
     @Test
     @DisplayName("파일 업로드 성공 - files 폴더에 저장")
-    void uploadFile_Success() {
+    void uploadFile_Success() throws IOException {
         // given
         String key = "document.pdf";
         byte[] data = "pdf-content".getBytes();
@@ -76,7 +77,7 @@ class AwsS3ServiceImplTest {
         String contentType = "application/pdf";
 
         // when
-        String url = awsS3Service.uploadFile(key, inputStream, size, contentType);
+        String url = r2Service.uploadFile(key, inputStream, size, contentType);
 
         // then
         ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
@@ -95,7 +96,7 @@ class AwsS3ServiceImplTest {
     void deleteFile_Success() {
         String key = "document.pdf";
 
-        awsS3Service.deleteFile(key);
+        r2Service.deleteFile(key);
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Consumer<DeleteObjectRequest.Builder>> captor =
@@ -116,7 +117,7 @@ class AwsS3ServiceImplTest {
     void deleteImage_Success() {
         String key = "document.pdf";
 
-        awsS3Service.deleteImage(key);
+        r2Service.deleteImage(key);
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Consumer<DeleteObjectRequest.Builder>> captor =
@@ -131,4 +132,5 @@ class AwsS3ServiceImplTest {
         assertEquals("test-bucket", request.bucket());
         assertEquals("images/"+key, request.key());
     }
+
 }

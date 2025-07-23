@@ -3,11 +3,15 @@ package com.team5.catdogeats.storage.controller;
 import com.team5.catdogeats.storage.service.ObjectStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 @RestController
 @RequiredArgsConstructor
@@ -17,33 +21,32 @@ public class UploadTestController {
     private final ObjectStorageService objectStorageService;
 
     // 이미지 업로드
-    @PostMapping("/upload/image")
-    public ResponseEntity<String> uploadImage(@RequestPart MultipartFile file) {
+    @PostMapping(value = "/upload/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<List<String>> uploadImage(@RequestPart List<MultipartFile> file) {
         try {
-            String url = objectStorageService.uploadImage(
-                    file.getOriginalFilename(),
-                    file.getInputStream(),
-                    file.getSize(),
-                    file.getContentType()
-            );
-            return ResponseEntity.ok(url);
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("이미지 업로드 실패");
+            List<String> urls = new ArrayList<>();
+            for (MultipartFile multipartFile : file) {
+                urls.add((objectStorageService.uploadImage(
+                        multipartFile.getOriginalFilename(),
+                        multipartFile
+                )));
+            }
+            return ResponseEntity.ok(urls);
+        } catch (IOException | ExecutionException | InterruptedException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
     // 파일 업로드
-    @PostMapping("/upload/file")
+    @PostMapping(value = "/upload/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> uploadFile(@RequestPart MultipartFile file) {
         try {
             String url = objectStorageService.uploadFile(
                     file.getOriginalFilename(),
-                    file.getInputStream(),
-                    file.getSize(),
-                    file.getContentType()
+                    file
             );
             return ResponseEntity.ok(url);
-        } catch (IOException e) {
+        } catch (IOException | ExecutionException | InterruptedException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("파일 업로드 실패");
         }
     }
