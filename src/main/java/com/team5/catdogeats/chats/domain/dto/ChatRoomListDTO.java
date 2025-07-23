@@ -8,7 +8,7 @@ import lombok.Builder;
 import java.time.Instant;
 
 @Builder
-public record ChatRoomListDTO(String roomId,
+public record ChatRoomListDTO(String id,
                               String opponentId,
                               String opponentName,
                               String lastMessage,
@@ -43,7 +43,7 @@ public record ChatRoomListDTO(String roomId,
         }
 
         return ChatRoomListDTO.builder()
-                .roomId(room.getId())
+                .id(room.getId())
                 .opponentId(opponentId)
                 .opponentName(opponentName)
                 .lastMessage(room.getLastMessage())

@@ -56,7 +56,7 @@ public class ChatRoomCreateServiceImpl implements ChatRoomCreateService {
                                 .updatedAt(now)
                                 .buyerLastReadAt(now)
                                 .sellerLastReadAt(now)
-                                .lastMessage(null)
+                                .lastMessage("%s님이 채팅방에 들어왔습니다.".formatted(buyerName))
                                 .lastMessageAt(now)
                                 .lastSenderId(buyerId)
                                 .lastBehaviorType(BehaviorType.ENTER)
