@@ -14,7 +14,5 @@ public interface ChatRoomUpdateService {
 
     int getUnreadCount(String roomId, String userId);
 
-    int getTotalUnreadCount(String userId);
-
 }
 

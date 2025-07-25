@@ -9,9 +9,7 @@ import com.team5.catdogeats.chats.mongo.repository.ChatMessageRepository;
 import com.team5.catdogeats.chats.mongo.repository.ChatRoomRepository;
 import com.team5.catdogeats.chats.service.ChatMessageService;
 import com.team5.catdogeats.chats.service.ChatRoomUpdateService;
-import com.team5.catdogeats.chats.service.UserIdCacheService;
 import com.team5.catdogeats.global.annotation.MongoTransactional;
-import com.team5.catdogeats.users.domain.enums.Role;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -27,7 +25,6 @@ import java.util.UUID;
 public class ChatMessageServiceImpl implements ChatMessageService {
     private final ChatMessageRepository chatMessageRepository;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final UserIdCacheService userIdCacheService;
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomUpdateService chatRoomUpdateService;
 
@@ -35,21 +32,22 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     @MongoTransactional
     public ChatMessageDTO saveAndPublish(ChatMessageDTO dto, String userId) {
         try {
-            // 1) 발신자 ID: WebSocket 세션에서 직접 전달된 userId
+            // 1) 전송 시간
+            Instant sentAt = Instant.now();
 
-            // 2) 전송 시간
-            Instant sentAt = dto.sentAt() != null ? dto.sentAt() : Instant.now();
-
-            // 3) 채팅방 존재 확인
+            // 2) 채팅방 존재 확인
             ChatRooms chatRooms = chatRoomRepository.findById(dto.roomId())
                     .orElseThrow(() -> new NoSuchElementException("존재하지 않는 방입니다."));
 
+            // 사용자가 채팅방에 참여중인지 확인 (Soft Delete 체크)
+            validateUserParticipation(chatRooms, userId);
+            validateMessageContent(dto.message());
             String targetId = getTargetId(userId, chatRooms);
             log.debug("메시지 전송 준비: senderId={}, targetId={}, roomId={}",
                     userId, targetId, dto.roomId());
 
             saveMessage(dto, userId, sentAt);
-            updateRoomInformation(dto, userId, sentAt, targetId);
+            updateRoomInformation(dto, userId, sentAt);
             sendingSubscribe(dto, userId, sentAt, targetId);
 
             return dto;
@@ -59,6 +57,11 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         }
     }
 
+    private void validateUserParticipation(ChatRooms chatRoom, String userId) {
+        if (!chatRoom.isUserActive(userId)) {
+            throw new IllegalStateException("나간 채팅방에는 메시지를 보낼 수 없습니다.");
+        }
+    }
 
     private void sendingSubscribe(ChatMessageDTO dto, String userId, Instant sentAt, String targetId) {
         // 7) 발신자에게 SelfDTO 전송
@@ -86,13 +89,11 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         log.debug("Redis 수신자 채널 전송: user:{} -> {}", targetId, publish);
     }
 
-    private void updateRoomInformation(ChatMessageDTO dto, String userId, Instant sentAt, String targetId) {
+    private void updateRoomInformation(ChatMessageDTO dto, String userId, Instant sentAt        ) {
         // 7) 채팅방 정보 업데이트 (마지막 메시지 + 수신자 안읽은 개수 증가)
         chatRoomUpdateService.updateRoomOnNewMessage(
                 dto.roomId(), userId, dto.message(), dto.behaviorType(), sentAt);
 
-//        // 8) 수신자의 현재 안읽은 메시지 개수 조회
-//        int receiverUnreadCount = chatRoomUpdateService.getUnreadCount(dto.roomId(), targetId);
     }
 
     private void saveMessage(ChatMessageDTO dto, String userId, Instant sentAt) {
@@ -112,27 +113,33 @@ public class ChatMessageServiceImpl implements ChatMessageService {
 
     private String getTargetId(String userId, ChatRooms chatRooms) {
 
-        // 4) 발신자 Role 조회 (userId 기준)
-        String role = userIdCacheService.getCachedRoleByUserId(userId);
-
-
-        // 5) 수신자 ID 결정
-        if (Role.ROLE_BUYER.toString().equals(role)) {
-            return chatRooms.getSellerId();
-        } else if (Role.ROLE_SELLER.toString().equals(role)) {
-            return chatRooms.getBuyerId();
+        String targetId = chatRooms.getOtherUserId(userId);
+        if (targetId == null) {
+            throw new IllegalStateException("채팅방 참여자가 아닙니다.");
         }
-        throw new IllegalStateException("허용되지 않은 역할(Role)입니다.");
+        return targetId;
     }
 
-//    private void validateMessageContent(String message) {
-//        if (message == null || message.trim().isEmpty()) {
-//            throw new IllegalArgumentException("빈 메시지는 전송할 수 없습니다.");
-//        }
-//
-//        // XSS 방지
-//        if (containsScript(message)) {
-//            throw new InvalidMessageException("허용되지 않는 내용입니다.");
-//        }
-//    }
+    private void validateMessageContent(String message) {
+        if (message == null || message.trim().isEmpty()) {
+            throw new IllegalArgumentException("빈 메시지는 전송할 수 없습니다.");
+        }
+
+        if (message.length() > 1000) {
+            throw new IllegalArgumentException("메시지는 1000자 이내로 작성해주세요.");
+        }
+
+        // XSS 방지 등 추가 검증 로직
+        if (containsScript(message)) {
+            throw new IllegalArgumentException("허용되지 않는 내용입니다.");
+        }
+    }
+
+    private boolean containsScript(String message) {
+        String lowerCase = message.toLowerCase();
+        return lowerCase.contains("<script") ||
+                lowerCase.contains("javascript:") ||
+                lowerCase.contains("onload=") ||
+                lowerCase.contains("onerror=");
+    }
 }

@@ -13,12 +13,6 @@ import java.util.Optional;
 
 public interface ChatRoomRepository extends MongoRepository<ChatRooms, String> {
     Optional<ChatRooms> findByBuyerIdAndSellerId(String buyerId, String sellerId);
-    List<ChatRooms> findByBuyerIdOrderByLastMessageAtDesc(String buyerId);
-    List<ChatRooms> findBySellerIdOrderByLastMessageAtDesc(String sellerId);
-
-    Optional<ChatRooms> findByIdAndSellerId(String id, String sellerId);
-    Optional<ChatRooms> findByIdAndBuyerId(String id, String buyerId);
-
 
     // 커서 페이징 용
     @Query(
@@ -30,34 +24,35 @@ public interface ChatRoomRepository extends MongoRepository<ChatRooms, String> {
             Instant cursor,
             Pageable pageable);
 
-    // buyerId 최신순 페이징
+    // 활성 구매자 채팅방 커서 페이징
     @Query(
-            value = "{ 'buyerId': ?0 }",
+            value = "{ 'buyerId': ?0, 'buyerActive': true, 'lastMessageAt': { $lt: ?1 } }",
             sort  = "{ 'lastMessageAt': -1 }"
     )
-    List<ChatRooms> findByBuyerIdOrderByLastMessageAtDesc(
-            String buyerId,
-            Pageable pageable);
+    List<ChatRooms> findByBuyerIdAndBuyerActiveTrueAndLastMessageAtLessThanOrderByLastMessageAtDesc(
+            String buyerId, Instant cursor, Pageable pageable);
 
-    // sellerId + cursor 페이징 (sort 추가)
     @Query(
-            value = "{ 'sellerId': ?0, 'lastMessageAt': { $lt: ?1 } }",
+            value = "{ 'buyerId': ?0, 'buyerActive': true }",
             sort  = "{ 'lastMessageAt': -1 }"
     )
-    List<ChatRooms> findBySellerIdAndLastMessageAtLessThanOrderByLastMessageAtDesc(
-            String sellerId,
-            Instant cursor,
-            Pageable pageable);
+    List<ChatRooms> findByBuyerIdAndBuyerActiveTrueOrderByLastMessageAtDesc(
+            String buyerId, Pageable pageable);
 
-    // sellerId 최신순 페이징
+    // 활성 판매자 채팅방 커서 페이징
     @Query(
-            value = "{ 'sellerId': ?0 }",
+            value = "{ 'sellerId': ?0, 'sellerActive': true, 'lastMessageAt': { $lt: ?1 } }",
             sort  = "{ 'lastMessageAt': -1 }"
     )
-    List<ChatRooms> findBySellerIdOrderByLastMessageAtDesc(
-            String sellerId,
-            Pageable pageable);
+    List<ChatRooms> findBySellerIdAndSellerActiveTrueAndLastMessageAtLessThanOrderByLastMessageAtDesc(
+            String sellerId, Instant cursor, Pageable pageable);
 
+    @Query(
+            value = "{ 'sellerId': ?0, 'sellerActive': true }",
+            sort  = "{ 'lastMessageAt': -1 }"
+    )
+    List<ChatRooms> findBySellerIdAndSellerActiveTrueOrderByLastMessageAtDesc(
+            String sellerId, Pageable pageable);
 
 
     @Query("{ '_id': ?0 }")
@@ -72,27 +67,6 @@ public interface ChatRoomRepository extends MongoRepository<ChatRooms, String> {
     @Update("{ '$set': { 'sellerUnreadCount': 0, 'sellerLastReadAt': ?1 } }")
     void resetSellerUnreadCountAndUpdateLastReadAt(String roomId, Instant readAt);
 
-    // 구매자 안읽은 메시지 개수 초기화
-    @Query("{ '_id': ?0 }")
-    @Update("{ '$set': { 'buyerUnreadCount': 0 } }")
-    void resetBuyerUnreadCount(String roomId);
-
-
-    // 판매자 안읽은 메시지 개수 초기화
-    @Query("{ '_id': ?0 }")
-    @Update("{ '$set': { 'sellerUnreadCount': 0 } }")
-    void resetSellerUnreadCount(String roomId);
-
-    // 구매자 마지막 읽음 시간 업데이트
-    @Query("{ '_id': ?0 }")
-    @Update("{ '$set': { 'buyerLastReadAt': ?1 } }")
-    void updateBuyerLastReadAt(String roomId, Instant readAt);
-
-    // 판매자 마지막 읽음 시간 업데이트
-    @Query("{ '_id': ?0 }")
-    @Update("{ '$set': { 'sellerLastReadAt': ?1 } }")
-    void updateSellerLastReadAt(String roomId, Instant readAt);
-
 
     // 새 메시지 전송 시 한 번에 업데이트 (마지막 메시지 + 안읽은 개수 증가)
     @Query("{ '_id': ?0 }")
@@ -102,4 +76,25 @@ public interface ChatRoomRepository extends MongoRepository<ChatRooms, String> {
     @Query("{ '_id': ?0 }")
     @Update("{ '$set': { 'lastMessage': ?1, 'lastMessageAt': ?2, 'lastSenderId': ?3, 'lastBehaviorType': ?4, 'updatedAt': ?2 }, '$inc': { 'sellerUnreadCount': ?5 } }")
     void updateLastMessageAndIncrementSellerUnread(String roomId, String message, Instant sentAt, String senderId, BehaviorType behaviorType, int increment);
+
+    // 구매자 나가기 상태 업데이트
+    @Query("{ '_id': ?0 }")
+    @Update("{ '$set': { 'buyerLeftAt': ?1, 'buyerActive': ?2, 'updatedAt': ?1 } }")
+    void updateBuyerLeftStatus(String roomId, Instant leftAt, boolean active);
+
+    // 판매자 나가기 상태 업데이트
+    @Query("{ '_id': ?0 }")
+    @Update("{ '$set': { 'sellerLeftAt': ?1, 'sellerActive': ?2, 'updatedAt': ?1 } }")
+    void updateSellerLeftStatus(String roomId, Instant leftAt, boolean active);
+
+    // 구매자 재입장 상태 업데이트
+    @Query("{ '_id': ?0 }")
+    @Update("{ '$set': { 'buyerActive': ?2, 'buyerLastSeenAt': ?1, 'updatedAt': ?1 } }")
+    void updateBuyerRejoinStatus(String roomId, Instant rejoinAt, boolean active);
+
+    // 판매자 재입장 상태 업데이트
+    @Query("{ '_id': ?0 }")
+    @Update("{ '$set': { 'sellerActive': ?2, 'sellerLastSeenAt': ?1, 'updatedAt': ?1 } }")
+    void updateSellerRejoinStatus(String roomId, Instant rejoinAt, boolean active);
+
 }

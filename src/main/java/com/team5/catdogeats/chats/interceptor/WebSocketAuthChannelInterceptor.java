@@ -6,17 +6,21 @@ import com.team5.catdogeats.users.domain.enums.Role;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.safety.Safelist;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -27,6 +31,10 @@ import java.util.Objects;
 public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
     private final UserIdCacheService userIdCacheService;
     private final JwtUtils jwtUtils;
+
+    // 길이 제한 상수
+    private static final int MAX_MESSAGE_LENGTH = 1000;
+
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -62,8 +70,20 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
             // 5) Authentication 생성 (principal = userId)
             Authentication auth = new UsernamePasswordAuthenticationToken(userId, token, authorities);
             log.debug("auth: {}", auth.getName());
+
             accessor.setUser(auth);
             SecurityContextHolder.getContext().setAuthentication(auth);
+            return message;
+        }
+
+        if (StompCommand.SEND.equals(cmd)) {
+            String payload = new String((byte[]) message.getPayload(), StandardCharsets.UTF_8);
+            String sanitizedPayload = validateAndSanitize(payload);
+
+            return MessageBuilder
+                    .withPayload(sanitizedPayload.getBytes(StandardCharsets.UTF_8))
+                    .copyHeaders(message.getHeaders())
+                    .build();
         }
 
         return message;
@@ -73,5 +93,17 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
         if (Role.ROLE_WITHDRAWN.toString().equals(role) || Role.ROLE_TEMP.toString().equals(role)) {
             throw new IllegalStateException("인증 정보가 올바르지 않은 유저입니다.");
         }
+    }
+
+    private String validateAndSanitize(String message) {
+        if (message == null || message.trim().isEmpty()) {
+            throw new IllegalArgumentException("빈 메시지는 전송할 수 없습니다.");
+        }
+
+        if (message.length() > MAX_MESSAGE_LENGTH) {
+            throw new IllegalArgumentException("메시지 길이는 " + MAX_MESSAGE_LENGTH + "자를 초과할 수 없습니다.");
+        }
+
+        return Jsoup.clean(message, Safelist.none());
     }
 }
