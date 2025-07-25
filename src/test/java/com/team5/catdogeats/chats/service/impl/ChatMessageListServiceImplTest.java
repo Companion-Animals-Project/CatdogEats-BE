@@ -75,7 +75,7 @@ class ChatMessageListServiceImplTest {
 
         // when
         when(userIdCacheService.getCachedUserId(provider, providerId)).thenReturn(userId);
-        when(chatMessageRepository.findByRoomIdAndSentAtLessThanOrderBySentAtDesc(eq(roomId), any(), any()))
+        when(chatMessageRepository.findByRoomIdAndSentAtLessThanOrderBySentAt(eq(roomId), any(), any()))
                 .thenReturn(mockMessages);
 
         ChatMessagePageResponseDTO<ChatMessageListDTO> response =

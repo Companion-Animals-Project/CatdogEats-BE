@@ -6,7 +6,6 @@ import com.team5.catdogeats.chats.domain.dto.ChatMessagePageRequestDTO;
 import com.team5.catdogeats.chats.domain.dto.ChatMessagePageResponseDTO;
 import com.team5.catdogeats.chats.domain.mapping.ChatMessages;
 import com.team5.catdogeats.chats.mongo.repository.ChatMessageRepository;
-import com.team5.catdogeats.chats.mongo.repository.ChatRoomRepository;
 import com.team5.catdogeats.chats.service.ChatMessageListService;
 import com.team5.catdogeats.chats.service.UserIdCacheService;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +20,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ChatMessageListServiceImpl implements ChatMessageListService {
 
-    private final ChatRoomRepository chatRoomRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final UserIdCacheService userIdCacheService;
 
@@ -36,8 +34,8 @@ public class ChatMessageListServiceImpl implements ChatMessageListService {
         Pageable pageable = PageRequest.of(0, size + 1); // +1 for hasNext 판단
 
         List<ChatMessages> messages = (cursor != null)
-                ? chatMessageRepository.findByRoomIdAndSentAtLessThanOrderBySentAtDesc(roomId, cursor, pageable)
-                : chatMessageRepository.findByRoomIdOrderBySentAtDesc(roomId, pageable);
+                ? chatMessageRepository.findByRoomIdAndSentAtLessThanOrderBySentAt(roomId, cursor, pageable)
+                : chatMessageRepository.findByRoomIdOrderBySentAt(roomId, pageable);
         boolean hasNext = messages.size() > size;
 
         if (hasNext) {

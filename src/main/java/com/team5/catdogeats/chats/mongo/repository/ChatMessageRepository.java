@@ -9,11 +9,11 @@ import java.util.List;
 
 public interface ChatMessageRepository extends MongoRepository<ChatMessages, String> {
     // 커서가 있을 경우
-    List<ChatMessages> findByRoomIdAndSentAtLessThanOrderBySentAtDesc(
+    List<ChatMessages> findByRoomIdAndSentAtLessThanOrderBySentAt(
             String roomId, Instant cursor, Pageable pageable);
 
     // 커서가 없을 경우 (최신 메시지부터)
-    List<ChatMessages> findByRoomIdOrderBySentAtDesc(
+    List<ChatMessages> findByRoomIdOrderBySentAt(
             String roomId, Pageable pageable);
 
     List<ChatMessages> findByRoomId(String roomId);
