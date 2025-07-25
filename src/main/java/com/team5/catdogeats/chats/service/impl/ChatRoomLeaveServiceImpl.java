@@ -120,7 +120,8 @@ public class ChatRoomLeaveServiceImpl implements ChatRoomLeaveService {
             return;
         }
 
-        chatRoomRepository.updateBuyerRejoinStatus(roomId, rejoinAt, true);
+        // 재입장 시 leftAt 시간을 유지하면서 활성 상태만 변경
+        chatRoomRepository.updateBuyerRejoinStatusKeepLeftAt(roomId, rejoinAt, true);
         log.debug("구매자가 채팅방에 다시 입장했습니다: roomId={}, userId={}", roomId, userId);
 
         // 재입장 메시지 추가
@@ -141,7 +142,8 @@ public class ChatRoomLeaveServiceImpl implements ChatRoomLeaveService {
             return;
         }
 
-        chatRoomRepository.updateSellerRejoinStatus(roomId, rejoinAt, true);
+        // 재입장 시 leftAt 시간을 유지하면서 활성 상태만 변경
+        chatRoomRepository.updateSellerRejoinStatusKeepLeftAt(roomId, rejoinAt, true);
         log.debug("판매자가 채팅방에 다시 입장했습니다: roomId={}, userId={}", roomId, userId);
 
         // 재입장 메시지 추가

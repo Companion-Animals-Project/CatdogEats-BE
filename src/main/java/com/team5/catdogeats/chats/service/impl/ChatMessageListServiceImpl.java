@@ -87,14 +87,16 @@ public class ChatMessageListServiceImpl implements ChatMessageListService {
     }
 
     private Instant getAccessLimit(ChatRooms chatRoom, String userId) {
-        if (chatRoom.isUserActive(userId)) {
-            return null; // 활성 사용자는 모든 메시지 조회 가능
+        // 사용자의 leftAt 시간을 가져옴 (활성/비활성 상태와 관계없이)
+        Instant leftAt = chatRoom.getUserLeftAt(userId);
+
+        // leftAt이 null이면 한 번도 나간 적이 없음 → 모든 메시지 조회 가능
+        if (leftAt == null) {
+            log.debug("사용자가 한 번도 나간 적이 없음: userId={}", userId);
+            return null;
         }
 
-        Instant leftAt = chatRoom.getUserLeftAt(userId);
         log.debug("사용자 접근 제한 확인: userId={}, leftAt={}", userId, leftAt);
-
-        return leftAt; // 나간 시간 이전 메시지만 조회 가능
+        return leftAt;
     }
 }
-
