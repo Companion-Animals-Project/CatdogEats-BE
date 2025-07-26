@@ -8,6 +8,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
@@ -15,7 +16,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,20 +44,25 @@ class R2ServiceImplTest {
 
     @Test
     @DisplayName("이미지 업로드 성공 - 이미지 폴더에 저장")
-    void uploadImage_Success() throws IOException {
+    void uploadImage_Success() throws IOException, ExecutionException, InterruptedException {
         // given
         String key = "cat.png";
-        byte[] data = "hello".getBytes();
-        InputStream inputStream = new ByteArrayInputStream(data);
-        long size = data.length;
+        MultipartFile file = mock(MultipartFile.class);
         String contentType = "image/png";
+        byte[] fileContent = "file-content".getBytes();
+
+        when(file.getContentType()).thenReturn(contentType);
+        when(file.getInputStream()).thenReturn(new ByteArrayInputStream(fileContent));
+        when(file.getSize()).thenReturn((long) fileContent.length);
 
         // when
-        String url = r2Service.uploadImage(key, inputStream, size, contentType);
+        String url = r2Service.uploadImage(key, file);
 
         // then
         ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
-        verify(s3Client, times(1)).putObject(requestCaptor.capture(), any(RequestBody.class));
+        ArgumentCaptor<RequestBody> bodyCaptor = ArgumentCaptor.forClass(RequestBody.class);
+
+        verify(s3Client, times(1)).putObject(requestCaptor.capture(), bodyCaptor.capture());
 
         PutObjectRequest request = requestCaptor.getValue();
         assertThat(request.bucket()).isEqualTo("test-bucket");
@@ -66,18 +72,21 @@ class R2ServiceImplTest {
         assertThat(url).isEqualTo("https://cdn.example.com/images/" + key);
     }
 
+
     @Test
     @DisplayName("파일 업로드 성공 - files 폴더에 저장")
-    void uploadFile_Success() throws IOException {
+    void uploadFile_Success() throws IOException, ExecutionException, InterruptedException {
         // given
         String key = "document.pdf";
-        byte[] data = "pdf-content".getBytes();
-        InputStream inputStream = new ByteArrayInputStream(data);
-        long size = data.length;
+        MultipartFile file = mock(MultipartFile.class);
         String contentType = "application/pdf";
+        byte[] fileContent = "file-content".getBytes();
 
+        when(file.getContentType()).thenReturn(contentType);
+        when(file.getInputStream()).thenReturn(new ByteArrayInputStream(fileContent));
+        when(file.getSize()).thenReturn((long) fileContent.length);
         // when
-        String url = r2Service.uploadFile(key, inputStream, size, contentType);
+        String url = r2Service.uploadFile(key, file);
 
         // then
         ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);

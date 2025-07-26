@@ -58,6 +58,9 @@ public class ChatMessageServiceImpl implements ChatMessageService {
             sendingSubscribe(dto, userId, sentAt, targetId);
 
             return dto;
+        } catch (IllegalStateException e) {
+            throw e;
+
         } catch (Exception e) {
             log.error("메시지 저장 및 전송 실패", e);
             throw e;
