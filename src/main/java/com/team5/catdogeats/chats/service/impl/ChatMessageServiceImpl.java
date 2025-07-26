@@ -44,7 +44,6 @@ public class ChatMessageServiceImpl implements ChatMessageService {
 
             // 사용자가 채팅방에 참여중인지 확인 (Soft Delete 체크)
             validateUserParticipation(chatRooms, userId);
-            validateMessageContent(dto.message());
             String targetId = getTargetId(userId, chatRooms);
 
             // 비활성 상대방이 있다면 활성화 처리
@@ -144,28 +143,5 @@ public class ChatMessageServiceImpl implements ChatMessageService {
             throw new IllegalStateException("채팅방 참여자가 아닙니다.");
         }
         return targetId;
-    }
-
-    private void validateMessageContent(String message) {
-        if (message == null || message.trim().isEmpty()) {
-            throw new IllegalArgumentException("빈 메시지는 전송할 수 없습니다.");
-        }
-
-        if (message.length() > 1000) {
-            throw new IllegalArgumentException("메시지는 1000자 이내로 작성해주세요.");
-        }
-
-        // XSS 방지 등 추가 검증 로직
-        if (containsScript(message)) {
-            throw new IllegalArgumentException("허용되지 않는 내용입니다.");
-        }
-    }
-
-    private boolean containsScript(String message) {
-        String lowerCase = message.toLowerCase();
-        return lowerCase.contains("<script") ||
-                lowerCase.contains("javascript:") ||
-                lowerCase.contains("onload=") ||
-                lowerCase.contains("onerror=");
     }
 }

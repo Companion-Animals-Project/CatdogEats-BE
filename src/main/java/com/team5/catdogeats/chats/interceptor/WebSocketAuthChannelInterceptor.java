@@ -1,5 +1,9 @@
 package com.team5.catdogeats.chats.interceptor;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.team5.catdogeats.auth.util.JwtUtils;
 import com.team5.catdogeats.chats.service.UserIdCacheService;
 import com.team5.catdogeats.users.domain.enums.Role;
@@ -31,6 +35,7 @@ import java.util.Objects;
 public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
     private final UserIdCacheService userIdCacheService;
     private final JwtUtils jwtUtils;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // 길이 제한 상수
     private static final int MAX_MESSAGE_LENGTH = 1000;
@@ -99,11 +104,26 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
         if (message == null || message.trim().isEmpty()) {
             throw new IllegalArgumentException("빈 메시지는 전송할 수 없습니다.");
         }
-
         if (message.length() > MAX_MESSAGE_LENGTH) {
             throw new IllegalArgumentException("메시지 길이는 " + MAX_MESSAGE_LENGTH + "자를 초과할 수 없습니다.");
         }
 
-        return Jsoup.clean(message, Safelist.none());
+        try {
+            JsonNode payloadNode = objectMapper.readTree(message);
+            if (payloadNode.has("message")) {
+                String originalMessage = payloadNode.get("message").asText();
+                String sanitizedMessage = sanitizeMessage(originalMessage);
+                ((ObjectNode) payloadNode).put("message", sanitizedMessage);
+            }
+            return objectMapper.writeValueAsString(payloadNode);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("메시지 파싱 중 오류 발생", e);
+        }
     }
+
+    private String sanitizeMessage(String input) {
+        return Jsoup.clean(input, Safelist.none());
+    }
+
+
 }

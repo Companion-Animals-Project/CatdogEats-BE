@@ -105,7 +105,7 @@ public class ChatRoomCreateServiceImpl implements ChatRoomCreateService {
         String rejoinMessage = "%s님이 채팅방에 입장했습니다.".formatted(buyerName);
 
         // 구매자 재입장 상태 업데이트
-        chatRoomRepository.updateBuyerRejoinStatus(room.getId(), now, true);
+        chatRoomRepository.updateBuyerRejoinStatusKeepLeftAt(room.getId(), now, true);
 
         // 재입장 메시지 추가
         chatRoomRepository.updateLastMessage(room.getId(), rejoinMessage, now, buyerId, BehaviorType.ENTER);

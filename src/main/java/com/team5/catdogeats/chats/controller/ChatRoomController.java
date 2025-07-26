@@ -123,6 +123,10 @@ public class ChatRoomController {
         try {
             chatRoomLeaveService.leaveRoom(requestDTO, userPrincipal);
             return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(APIResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage()));
         } catch(Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }

@@ -87,10 +87,6 @@ public interface ChatRoomRepository extends MongoRepository<ChatRooms, String> {
     @Update("{ '$set': { 'sellerLeftAt': ?1, 'sellerActive': ?2, 'updatedAt': ?1 } }")
     void updateSellerLeftStatus(String roomId, Instant leftAt, boolean active);
 
-    // 구매자 재입장 상태 업데이트 (기존)
-    @Query("{ '_id': ?0 }")
-    @Update("{ '$set': { 'buyerActive': ?2, 'buyerLastSeenAt': ?1, 'updatedAt': ?1 } }")
-    void updateBuyerRejoinStatus(String roomId, Instant rejoinAt, boolean active);
 
     // 구매자 재입장 시 leftAt 시간 유지 (새로 추가)
     @Query("{ '_id': ?0 }")
