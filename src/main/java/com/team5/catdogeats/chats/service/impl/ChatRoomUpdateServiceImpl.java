@@ -36,21 +36,36 @@ public class ChatRoomUpdateServiceImpl implements ChatRoomUpdateService {
 
             // 발신자 역할 조회
             String senderRole = userIdCacheService.getCachedRoleByUserId(senderId);
+            String targetId = chatRoom.getOtherUserId(senderId);
+
 
             if (Role.ROLE_BUYER.toString().equals(senderRole)) {
-                chatRoomRepository.updateLastMessageAndIncrementSellerUnread(
-                        roomId, message, sentAt, senderId, behaviorType, 1);
-                log.debug("구매자 → 판매자 메시지: roomId={}, 판매자 안읽은 개수 +1", roomId);
+                // 구매자 → 판매자 메시지
+                // 판매자가 활성 상태일 때만 안읽은 개수 증가
+                if (chatRoom.isSellerActive()) {
+                    chatRoomRepository.updateLastMessageAndIncrementSellerUnread(
+                            roomId, message, sentAt, senderId, behaviorType, 1);
+                    log.debug("구매자 → 판매자 메시지: roomId={}, 판매자 안읽은 개수 +1", roomId);
+                } else {
+                    chatRoomRepository.updateLastMessage(roomId, message, sentAt, senderId, behaviorType);
+                    log.debug("구매자 → 비활성 판매자 메시지: roomId={}, 안읽은 개수 증가 안함", roomId);
+                }
 
             } else if (Role.ROLE_SELLER.toString().equals(senderRole)) {
-                chatRoomRepository.updateLastMessageAndIncrementBuyerUnread(
-                        roomId, message, sentAt, senderId, behaviorType, 1);
-                log.debug("판매자 → 구매자 메시지: roomId={}, 구매자 안읽은 개수 +1", roomId);
+                // 판매자 → 구매자 메시지
+                // 구매자가 활성 상태일 때만 안읽은 개수 증가
+                if (chatRoom.isBuyerActive()) {
+                    chatRoomRepository.updateLastMessageAndIncrementBuyerUnread(
+                            roomId, message, sentAt, senderId, behaviorType, 1);
+                    log.debug("판매자 → 구매자 메시지: roomId={}, 구매자 안읽은 개수 +1", roomId);
+                } else {
+                    chatRoomRepository.updateLastMessage(roomId, message, sentAt, senderId, behaviorType);
+                    log.debug("판매자 → 비활성 구매자 메시지: roomId={}, 안읽은 개수 증가 안함", roomId);
+                }
 
             } else {
                 throw new IllegalStateException("허용되지 않은 역할입니다: " + senderRole);
-            }
-        });
+            }        });
 
 
     }
@@ -83,9 +98,6 @@ public class ChatRoomUpdateServiceImpl implements ChatRoomUpdateService {
 
     }
 
-    /**
-     * 사용자의 특정 채팅방 안읽은 메시지 개수 조회
-     */
     @Override
     public int getUnreadCount(String roomId, String userId) {
         try {
@@ -107,38 +119,5 @@ public class ChatRoomUpdateServiceImpl implements ChatRoomUpdateService {
             return 0;
         }
     }
-
-    /**
-     * 사용자의 전체 안읽은 메시지 개수 조회
-     */
-    @Override
-    public int getTotalUnreadCount(String userId) {
-        try {
-            String userRole = userIdCacheService.getCachedRoleByUserId(userId);
-
-            if (Role.ROLE_BUYER.toString().equals(userRole)) {
-                return chatRoomRepository.findByBuyerIdOrderByLastMessageAtDesc(userId)
-                        .stream()
-                        .mapToInt(ChatRooms::getBuyerUnreadCount)
-                        .sum();
-
-            } else if (Role.ROLE_SELLER.toString().equals(userRole)) {
-                return chatRoomRepository.findBySellerIdOrderByLastMessageAtDesc(userId)
-                        .stream()
-                        .mapToInt(ChatRooms::getSellerUnreadCount)
-                        .sum();
-
-            } else {
-                throw new IllegalStateException("허용되지 않은 역할입니다: " + userRole);
-            }
-
-        } catch (Exception e) {
-            log.error("전체 안읽은 메시지 개수 조회 실패: userId={}", userId, e);
-            return 0;
-        }
-    }
-
-
-
 
 }

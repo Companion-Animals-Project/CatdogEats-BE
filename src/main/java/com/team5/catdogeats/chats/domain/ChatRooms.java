@@ -18,6 +18,9 @@ import java.time.Instant;
 @CompoundIndex(name = "idx_seller_lastmessage", def = "{'sellerId': 1, 'lastMessageAt': -1}")
 @CompoundIndex(name = "idx_buyer_unread", def = "{'buyerId': 1, 'buyerUnreadCount': -1}")
 @CompoundIndex(name = "idx_seller_unread", def = "{'sellerId': 1, 'sellerUnreadCount': -1}")
+
+@CompoundIndex(name = "idx_buyer_active_lastmessage", def = "{'buyerId': 1, 'buyerActive': 1, 'lastMessageAt': -1}")
+@CompoundIndex(name = "idx_seller_active_lastmessage", def = "{'sellerId': 1, 'sellerActive': 1, 'lastMessageAt': -1}")
 public class ChatRooms {
 
     private String id;
@@ -51,5 +54,38 @@ public class ChatRooms {
     private Instant buyerLastSeenAt;    // 구매자 마지막 접속 시간
     private Instant sellerLastSeenAt;   // 판매자 마지막 접속 시간
 
+    private Instant buyerLeftAt;     // 구매자가 나간 시간 (null이면 참여중)
+    private Instant sellerLeftAt;    // 판매자가 나간 시간 (null이면 참여중)
+    @Builder.Default
+    private boolean buyerActive = true;
+    @Builder.Default
+    private boolean sellerActive = true;
 
+
+    public boolean isUserActive(String userId) {
+        if (buyerId.equals(userId)) {
+            return buyerActive;
+        } else if (sellerId.equals(userId)) {
+            return sellerActive;
+        }
+        return false;
+    }
+
+    public Instant getUserLeftAt(String userId) {
+        if (buyerId.equals(userId)) {
+            return buyerLeftAt;
+        } else if (sellerId.equals(userId)) {
+            return sellerLeftAt;
+        }
+        return null;
+    }
+
+    public String getOtherUserId(String userId) {
+        if (buyerId.equals(userId)) {
+            return sellerId;
+        } else if (sellerId.equals(userId)) {
+            return buyerId;
+        }
+        return null;
+    }
 }

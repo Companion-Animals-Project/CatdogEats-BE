@@ -8,13 +8,13 @@ import com.team5.catdogeats.chats.domain.dto.ChatRoomPageResponseDTO;
 import com.team5.catdogeats.chats.mongo.repository.ChatRoomRepository;
 import com.team5.catdogeats.chats.service.ChatRoomListService;
 import com.team5.catdogeats.chats.service.UserIdCacheService;
+import com.team5.catdogeats.global.annotation.MongoTransactional;
 import com.team5.catdogeats.users.domain.enums.Role;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -27,7 +27,7 @@ public class ChatRoomListServiceImpl implements ChatRoomListService {
     private final ChatRoomRepository chatRoomRepository;
 
     @Override
-    @Transactional(readOnly = true)
+    @MongoTransactional(readOnly = true)
     public ChatRoomPageResponseDTO<ChatRoomListDTO> getChatRooms(UserPrincipal userPrincipal,
                                                                  ChatRoomPageRequestDTO pageRequest) {
         try {
@@ -39,7 +39,7 @@ public class ChatRoomListServiceImpl implements ChatRoomListService {
             Pageable pageable = PageRequest.of(0, pageRequest.size() + 1);
             Instant cursor = pageRequest.getCursorAsInstant();
 
-            List<ChatRooms> chatRooms = getChatRoomsWithCursor(userRole, userId, cursor, pageable);
+            List<ChatRooms> chatRooms = getActiveChatRoomsWithCursor(userRole, userId, cursor, pageable);
 
             boolean hasNext = chatRooms.size() > pageRequest.size();
             if (hasNext) {
@@ -52,12 +52,11 @@ public class ChatRoomListServiceImpl implements ChatRoomListService {
                     .toList();
 
 
-            String nextCursor = null;
-            if (hasNext && !chatRooms.isEmpty()) {
-                ChatRooms lastRoom = chatRooms.get(chatRooms.size() - 1);
-                nextCursor = lastRoom.getLastMessageAt() != null ?
-                        lastRoom.getLastMessageAt().toString() : null;
-            }
+            String nextCursor = (hasNext && !chatRooms.isEmpty())
+                    ? (chatRooms.get(chatRooms.size() - 1).getLastMessageAt() != null
+                        ? chatRooms.get(chatRooms.size() - 1).getLastMessageAt().toString()
+                        : null)
+                    : null;
 
             return ChatRoomPageResponseDTO.of(
                     chatRoomDTOs,
@@ -81,17 +80,21 @@ public class ChatRoomListServiceImpl implements ChatRoomListService {
         return userId;
     }
 
-    private List<ChatRooms> getChatRoomsWithCursor( String userRole,
-                                                    String userId,
-                                                    Instant cursor,
-                                                    Pageable pageable) {
+    private List<ChatRooms> getActiveChatRoomsWithCursor(String userRole,
+                                                         String userId,
+                                                         Instant cursor,
+                                                         Pageable pageable) {
 
         if (Role.ROLE_BUYER.toString().equals(userRole)) {
-            return cursor != null ? chatRoomRepository.findByBuyerIdAndLastMessageAtLessThanOrderByLastMessageAtDesc(userId, cursor, pageable)
-                                    : chatRoomRepository.findByBuyerIdOrderByLastMessageAtDesc(userId, pageable);
+            return cursor != null
+                    ? chatRoomRepository.findByBuyerIdAndBuyerActiveTrueAndLastMessageAtLessThanOrderByLastMessageAtDesc(userId, cursor, pageable)
+                    : chatRoomRepository.findByBuyerIdAndBuyerActiveTrueOrderByLastMessageAtDesc(userId, pageable);
+
         } else if (Role.ROLE_SELLER.toString().equals(userRole)) {
-            return cursor != null ? chatRoomRepository.findBySellerIdAndLastMessageAtLessThanOrderByLastMessageAtDesc(userId, cursor, pageable)
-                                    : chatRoomRepository.findBySellerIdOrderByLastMessageAtDesc(userId, pageable);
+            return cursor != null
+                    ? chatRoomRepository.findBySellerIdAndSellerActiveTrueAndLastMessageAtLessThanOrderByLastMessageAtDesc(userId, cursor, pageable)
+                    : chatRoomRepository.findBySellerIdAndSellerActiveTrueOrderByLastMessageAtDesc(userId, pageable);
+
         } else {
             throw new IllegalStateException("허용되지 않은 역할입니다: " + userRole);
         }

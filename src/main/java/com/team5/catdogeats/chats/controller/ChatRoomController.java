@@ -5,6 +5,7 @@ import com.team5.catdogeats.chats.domain.ChatRooms;
 import com.team5.catdogeats.chats.domain.dto.*;
 import com.team5.catdogeats.chats.service.ChatMessageListService;
 import com.team5.catdogeats.chats.service.ChatRoomCreateService;
+import com.team5.catdogeats.chats.service.ChatRoomLeaveService;
 import com.team5.catdogeats.chats.service.ChatRoomListService;
 import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
@@ -30,6 +31,7 @@ public class ChatRoomController {
     private final ChatRoomCreateService ChatRoomCreateService;
     private final ChatRoomListService chatRoomListService;
     private final ChatMessageListService chatMessageListService;
+    private final ChatRoomLeaveService chatRoomLeaveService;
 
     @Operation(summary = "채팅방 생성", description = "채팅방을 생성하는 API입니다.")
     @PostMapping("/rooms")
@@ -110,5 +112,23 @@ public class ChatRoomController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }
 
+    }
+
+    @DeleteMapping("/rooms")
+    public ResponseEntity<APIResponse<Void>> deleteRooms(@AuthenticationPrincipal UserPrincipal userPrincipal,@RequestBody ChatRoomDeleteRequestDTO requestDTO) {
+        if (userPrincipal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
+        }
+
+        try {
+            chatRoomLeaveService.leaveRoom(requestDTO, userPrincipal);
+            return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(APIResponse.error(ResponseCode.ENTITY_NOT_FOUND, e.getMessage()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(APIResponse.error(ResponseCode.ACCESS_DENIED, e.getMessage()));
+        } catch(Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+        }
     }
 }

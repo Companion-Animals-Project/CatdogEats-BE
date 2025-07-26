@@ -43,35 +43,48 @@ public class ChatRoomCreateServiceImpl implements ChatRoomCreateService {
         }
 
             // 4) buyerId/sellerId 순서 그대로 find or create
-            return chatRoomRepository
-                    .findByBuyerIdAndSellerId(buyerId, sellerId)
-                    .orElseGet(() -> {
-                        Instant now = Instant.now();
-                        ChatRooms room = ChatRooms.builder()
-                                .buyerId(buyerId)
-                                .sellerId(sellerId)
-                                .buyerName(buyerName)
-                                .sellerName(sellerName)
-                                .createdAt(now)
-                                .updatedAt(now)
-                                .buyerLastReadAt(now)
-                                .sellerLastReadAt(now)
-                                .lastMessage(null)
-                                .lastMessageAt(now)
-                                .lastSenderId(buyerId)
-                                .lastBehaviorType(BehaviorType.ENTER)
-                                .buyerUnreadCount(0)
-                                .sellerUnreadCount(0)
-                                .buyerLastSeenAt(now)
-                                .sellerLastSeenAt(now)
-                                .build();
+        return chatRoomRepository.findByBuyerIdAndSellerId(buyerId, sellerId)
+                .map(existingRoom -> {
+                    reactivateBuyer(existingRoom, buyerId, buyerName);
+                    return existingRoom;
+                }).orElseGet(() -> createNewRoom(buyerId, buyerName, sellerId, sellerName));
 
-                        return chatRoomRepository.save(room);
-                    });
         } catch (Exception e) {
             log.error("Error creating chat room", e);
             throw e;
         }
+    }
+
+    private ChatRooms createNewRoom(String buyerId, String buyerName, String sellerId, String sellerName) {
+        Instant now = Instant.now();
+        String enterMessage = "%s님이 채팅방에 들어왔습니다.".formatted(buyerName);
+
+        ChatRooms room = ChatRooms.builder()
+                .buyerId(buyerId)
+                .sellerId(sellerId)
+                .buyerName(buyerName)
+                .sellerName(sellerName)
+                .createdAt(now)
+                .updatedAt(now)
+                .buyerLastReadAt(now)
+                .sellerLastReadAt(now)
+                .lastMessage(enterMessage)
+                .lastMessageAt(now)
+                .lastSenderId(buyerId)
+                .lastBehaviorType(BehaviorType.ENTER)
+                .buyerUnreadCount(0)
+                .sellerUnreadCount(1) // 판매자에게는 입장 알림이 안읽음으로 표시
+                .buyerLastSeenAt(now)
+                .sellerLastSeenAt(null) // 판매자는 아직 방에 들어오지 않음
+                .buyerActive(true)     // @Builder.Default로 설정되지만 명시적으로 표시
+                .sellerActive(true)
+                .build();
+
+        ChatRooms savedRoom = chatRoomRepository.save(room);
+        log.debug("새 채팅방 생성 완료: roomId={}, buyerId={}, sellerId={}",
+                savedRoom.getId(), buyerId, sellerId);
+
+        return savedRoom;
     }
 
 
@@ -85,5 +98,22 @@ public class ChatRoomCreateServiceImpl implements ChatRoomCreateService {
             }
         }
         return userId;
+    }
+
+    private void reactivateBuyer(ChatRooms room, String buyerId, String buyerName) {
+        Instant now = Instant.now();
+        String rejoinMessage = "%s님이 채팅방에 입장했습니다.".formatted(buyerName);
+
+        // 구매자 재입장 상태 업데이트
+        chatRoomRepository.updateBuyerRejoinStatusKeepLeftAt(room.getId(), now, true);
+
+        // 재입장 메시지 추가
+        chatRoomRepository.updateLastMessage(room.getId(), rejoinMessage, now, buyerId, BehaviorType.ENTER);
+
+        // 판매자가 활성 상태라면 안읽은 메시지 증가
+        if (room.isSellerActive()) {
+            chatRoomRepository.updateLastMessageAndIncrementSellerUnread(
+                    room.getId(), rejoinMessage, now, buyerId, BehaviorType.ENTER, 1);
+        }
     }
 }

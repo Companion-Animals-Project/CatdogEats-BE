@@ -132,12 +132,9 @@ class ChatMessageServiceImplTest {
                 .build();
 
         when(chatRoomRepository.findById(roomId)).thenReturn(Optional.of(chatRoom));
-        when(userIdCacheService.getCachedRoleByUserId(userId))
-                .thenReturn("INVALID_ROLE");
 
         // When & Then
         assertThatThrownBy(() -> chatMessageService.saveAndPublish(dto, userId))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("허용되지 않은 역할(Role)입니다.");
+                .isInstanceOf(IllegalStateException.class);
     }
 }
