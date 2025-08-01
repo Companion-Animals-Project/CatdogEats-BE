@@ -423,7 +423,7 @@
                                 <span>부서: </span><span th:text="${admin.department}">ADMIN</span>
                                 <span class="mx-2">|</span>
                                 <span>로그인 시간: </span>
-                                <span th:text="${#temporals.format(admin.loginTime, 'yyyy-MM-dd HH:mm', #locale)}"></span>
+                                <span th:text="${admin.loginTime != null ? #temporals.format(admin.loginTime, 'yyyy-MM-dd HH:mm', #locale) : '기록 없음'}"></span>
                             </div>
                         </div>
                         <div class="hidden md:block">

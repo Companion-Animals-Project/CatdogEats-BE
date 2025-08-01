@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.team5.catdogeats.global.util.TimeConstants;
+
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -32,8 +34,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 //    private final ReportRepository reportRepository;
     private final OrderRepository orderRepository;
 
-    // 상수 정의
-    public static final ZoneId SEOUL_ZONE_ID = ZoneId.of("Asia/Seoul");
 
     @Override
     public DashboardResponseDTO getDashboardData() {
@@ -61,7 +61,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         // 이번 달 신규 회원 수
         ZonedDateTime startOfMonth = LocalDate.now()
                 .withDayOfMonth(1)
-                .atStartOfDay(SEOUL_ZONE_ID); // 수정
+                .atStartOfDay(TimeConstants.SEOUL_ZONE_ID); // 수정
         long monthlyNewUsers = userRepository.countByCreatedAtAfter(startOfMonth);
 
         // 지난달 신규 회원 수 (전월 대비 계산용)
@@ -110,11 +110,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             LocalDate targetMonth = now.minusMonths(i);
             ZonedDateTime startOfMonth = targetMonth
                     .withDayOfMonth(1)
-                    .atStartOfDay(SEOUL_ZONE_ID); // 수정
+                    .atStartOfDay(TimeConstants.SEOUL_ZONE_ID); // 수정
             ZonedDateTime endOfMonth = targetMonth
                     .plusMonths(1)
                     .withDayOfMonth(1)
-                    .atStartOfDay(SEOUL_ZONE_ID)// 수정
+                    .atStartOfDay(TimeConstants.SEOUL_ZONE_ID)// 수정
                     .minusSeconds(1);
 
             long userCount = userRepository.countByCreatedAtBetween(startOfMonth, endOfMonth);
@@ -142,7 +142,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         // 7일 전부터 오늘까지
         ZonedDateTime sevenDaysAgo = LocalDate.now()
                 .minusDays(6)
-                .atStartOfDay(SEOUL_ZONE_ID);
+                .atStartOfDay(TimeConstants.SEOUL_ZONE_ID);
 
         // ✅ DTO를 직접 받아서 처리 - 타입 캐스팅 불필요
         List<DailyUserStatsDTO> dailyUsers = userRepository.getDailyNewUsers(sevenDaysAgo);
