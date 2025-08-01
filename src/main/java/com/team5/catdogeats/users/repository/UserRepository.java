@@ -1,5 +1,6 @@
 package com.team5.catdogeats.users.repository;
 
+import com.team5.catdogeats.admins.domain.dto.dashboard.DailyUserStatsDTO;
 import com.team5.catdogeats.users.domain.Users;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -29,14 +30,16 @@ public interface UserRepository extends JpaRepository<Users, String> {
 
     long countByCreatedAtBetween(ZonedDateTime startDate, ZonedDateTime endDate);
 
-    // 일일 신규 가입자 통계 조회 (대시보드)
+
     @Query("""
-    SELECT DATE(u.createdAt) as joinDate, 
-           COUNT(u.id) as userCount
+    SELECT new com.team5.catdogeats.admins.domain.dto.dashboard.DailyUserStatsDTO(
+        CAST(u.createdAt AS date),
+        COUNT(u.id)
+    )
     FROM Users u
     WHERE u.createdAt >= :startDate
-    GROUP BY DATE(u.createdAt)
-    ORDER BY DATE(u.createdAt)
+    GROUP BY CAST(u.createdAt AS date)
+    ORDER BY CAST(u.createdAt AS date)
 """)
-    List<Object[]> getDailyNewUsers(@Param("startDate") ZonedDateTime startDate);
+    List<DailyUserStatsDTO> getDailyNewUsers(@Param("startDate") ZonedDateTime startDate);
 }

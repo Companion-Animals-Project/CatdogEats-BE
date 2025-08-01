@@ -1,9 +1,6 @@
 package com.team5.catdogeats.admins.service.impl;
 
-import com.team5.catdogeats.admins.domain.dto.dashboard.DailyTrendDTO;
-import com.team5.catdogeats.admins.domain.dto.dashboard.DashboardResponseDTO;
-import com.team5.catdogeats.admins.domain.dto.dashboard.DashboardStatsDTO;
-import com.team5.catdogeats.admins.domain.dto.dashboard.MonthlyUserStatsDTO;
+import com.team5.catdogeats.admins.domain.dto.dashboard.*;
 import com.team5.catdogeats.admins.service.AdminDashboardService;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
@@ -22,6 +19,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -32,6 +31,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     private final UserRepository userRepository;
 //    private final ReportRepository reportRepository;
     private final OrderRepository orderRepository;
+
+    // 상수 정의
+    public static final ZoneId SEOUL_ZONE_ID = ZoneId.of("Asia/Seoul");
 
     @Override
     public DashboardResponseDTO getDashboardData() {
@@ -59,7 +61,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         // 이번 달 신규 회원 수
         ZonedDateTime startOfMonth = LocalDate.now()
                 .withDayOfMonth(1)
-                .atStartOfDay(ZoneId.of("Asia/Seoul"));
+                .atStartOfDay(SEOUL_ZONE_ID); // 수정
         long monthlyNewUsers = userRepository.countByCreatedAtAfter(startOfMonth);
 
         // 지난달 신규 회원 수 (전월 대비 계산용)
@@ -108,11 +110,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             LocalDate targetMonth = now.minusMonths(i);
             ZonedDateTime startOfMonth = targetMonth
                     .withDayOfMonth(1)
-                    .atStartOfDay(ZoneId.of("Asia/Seoul"));
+                    .atStartOfDay(SEOUL_ZONE_ID); // 수정
             ZonedDateTime endOfMonth = targetMonth
                     .plusMonths(1)
                     .withDayOfMonth(1)
-                    .atStartOfDay(ZoneId.of("Asia/Seoul"))
+                    .atStartOfDay(SEOUL_ZONE_ID)// 수정
                     .minusSeconds(1);
 
             long userCount = userRepository.countByCreatedAtBetween(startOfMonth, endOfMonth);
@@ -139,43 +141,41 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     private List<DailyTrendDTO> getDailyTrends() {
         // 7일 전부터 오늘까지
         ZonedDateTime sevenDaysAgo = LocalDate.now()
-                .minusDays(6)  // 오늘 포함 7일
-                .atStartOfDay(ZoneId.of("Asia/Seoul"));
+                .minusDays(6)
+                .atStartOfDay(SEOUL_ZONE_ID);
 
-        // 일별 신규 가입자 조회
-        List<Object[]> dailyUsers = userRepository.getDailyNewUsers(sevenDaysAgo);
-        Map<LocalDate, Long> userMap = new HashMap<>();
-        for (Object[] row : dailyUsers) {
-            LocalDate date = ((java.sql.Date) row[0]).toLocalDate();
-            Long count = ((Number) row[1]).longValue();
-            userMap.put(date, count);
-        }
+        // ✅ DTO를 직접 받아서 처리 - 타입 캐스팅 불필요
+        List<DailyUserStatsDTO> dailyUsers = userRepository.getDailyNewUsers(sevenDaysAgo);
+        Map<LocalDate, Long> userMap = dailyUsers.stream()
+                .collect(Collectors.toMap(
+                        DailyUserStatsDTO::getJoinDate,
+                        DailyUserStatsDTO::getUserCount,
+                        (existing, replacement) -> existing // 중복 키 처리
+                ));
 
-        // 일별 주문 통계 조회
-        List<Object[]> dailyOrders = orderRepository.getDailyOrderStats(
+        // 일별 주문 통계도 같은 방식으로 개선
+        List<DailyOrderStatsDTO> dailyOrders = orderRepository.getDailyOrderStats(
                 sevenDaysAgo,
                 OrderStatus.PAYMENT_PENDING
         );
-        Map<LocalDate, Long[]> orderMap = new HashMap<>();
-        for (Object[] row : dailyOrders) {
-            LocalDate date = ((java.sql.Date) row[0]).toLocalDate();
-            Long customerCount = ((Number) row[1]).longValue();
-            Long orderCount = ((Number) row[2]).longValue();
-            orderMap.put(date, new Long[]{customerCount, orderCount});
-        }
+        Map<LocalDate, DailyOrderStatsDTO> orderMap = dailyOrders.stream()
+                .collect(Collectors.toMap(
+                        DailyOrderStatsDTO::getOrderDate,
+                        Function.identity()
+                ));
 
         // 7일간의 데이터 생성 (데이터 없는 날은 0으로)
         List<DailyTrendDTO> trends = new ArrayList<>();
         for (int i = 6; i >= 0; i--) {
             LocalDate date = LocalDate.now().minusDays(i);
             Long newUsers = userMap.getOrDefault(date, 0L);
-            Long[] orderData = orderMap.getOrDefault(date, new Long[]{0L, 0L});
+            DailyOrderStatsDTO orderData = orderMap.get(date);
 
             trends.add(DailyTrendDTO.builder()
                     .date(date)
                     .newUsers(newUsers)
-                    .orderCount(orderData[1])
-                    .orderCustomers(orderData[0])
+                    .orderCount(orderData != null ? orderData.getOrderCount() : 0L)
+                    .orderCustomers(orderData != null ? orderData.getCustomerCount() : 0L)
                     .build());
         }
 

@@ -1,5 +1,6 @@
 package com.team5.catdogeats.orders.repository;
 
+import com.team5.catdogeats.admins.domain.dto.dashboard.DailyOrderStatsDTO;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.dto.common.GroupOrdersAndPayments;
@@ -71,17 +72,19 @@ public interface OrderRepository extends JpaRepository<Orders, String> {
 
     // 일일 주문 통계 조회 (대시보드)
     @Query("""
-    SELECT DATE(o.createdAt) as orderDate, 
-           COUNT(DISTINCT o.buyers.id) as customerCount,
-           COUNT(o.id) as orderCount
+    SELECT new com.team5.catdogeats.admins.domain.dto.dashboard.DailyOrderStatsDTO(
+        CAST(o.createdAt AS date),
+        COUNT(DISTINCT o.buyers.id),
+        COUNT(o.id)
+    )
     FROM Orders o
     WHERE o.createdAt >= :startDate
-    AND o.orderStatus != :excludedStatus
-    GROUP BY DATE(o.createdAt)
-    ORDER BY DATE(o.createdAt)
+      AND o.orderStatus <> :excludeStatus
+    GROUP BY CAST(o.createdAt AS date)
+    ORDER BY CAST(o.createdAt AS date)
 """)
-    List<Object[]> getDailyOrderStats(
+    List<DailyOrderStatsDTO> getDailyOrderStats(
             @Param("startDate") ZonedDateTime startDate,
-            @Param("excludedStatus") OrderStatus excludedStatus
+            @Param("excludeStatus") OrderStatus excludeStatus
     );
 }
