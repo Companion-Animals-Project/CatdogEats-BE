@@ -1,6 +1,5 @@
 package com.team5.catdogeats.admins.controller;
 
-import com.team5.catdogeats.admins.domain.dto.AdminInfo;
 import com.team5.catdogeats.admins.domain.dto.dashboard.DashboardResponseDTO;
 import com.team5.catdogeats.admins.service.AdminDashboardService;
 import com.team5.catdogeats.admins.util.AdminControllerUtils;

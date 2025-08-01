@@ -631,6 +631,23 @@
         }
     }
 
+    // 헬퍼 함수
+    function updatePercentageElement(element, percentage) {
+        if (!element) return;
+
+        element.innerHTML = '';
+
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'material-icons-outlined text-sm';
+        iconSpan.textContent = percentage >= 0 ? 'trending_up' : 'trending_down';
+
+        const textSpan = document.createElement('span');
+        textSpan.textContent = `전월 대비 ${percentage >= 0 ? '+' : ''}${percentage}%`;
+
+        element.appendChild(iconSpan);
+        element.appendChild(textSpan);
+    }
+
     // 대시보드 통계 업데이트 함수
     function updateDashboardStats(data) {
         // 통계 카드 업데이트
@@ -643,12 +660,7 @@
         }
 
         const totalUsersPercentElement = document.querySelector('[data-stat="total-users-percent"]');
-        if (totalUsersPercentElement) {
-            totalUsersPercentElement.innerHTML = `
-            <span class="material-icons-outlined text-sm">${stats.totalUsersPercentage >= 0 ? 'trending_up' : 'trending_down'}</span>
-            <span>전월 대비 ${stats.totalUsersPercentage >= 0 ? '+' : ''}${stats.totalUsersPercentage}%</span>
-        `;
-        }
+        updatePercentageElement(totalUsersPercentElement, stats.totalUsersPercentage);
 
         // 월간 신규 회원
         const monthlyUsersElement = document.querySelector('[data-stat="monthly-users"]');
@@ -657,12 +669,7 @@
         }
 
         const monthlyUsersPercentElement = document.querySelector('[data-stat="monthly-users-percent"]');
-        if (monthlyUsersPercentElement) {
-            monthlyUsersPercentElement.innerHTML = `
-            <span class="material-icons-outlined text-sm">${stats.monthlyNewUsersPercentage >= 0 ? 'trending_up' : 'trending_down'}</span>
-            <span>전월 대비 ${stats.monthlyNewUsersPercentage >= 0 ? '+' : ''}${stats.monthlyNewUsersPercentage}%</span>
-        `;
-        }
+        updatePercentageElement(monthlyUsersPercentElement, stats.monthlyNewUsersPercentage);
 
         // 이번 달 주문
         const monthlyOrdersElement = document.querySelector('[data-stat="monthly-orders"]');
@@ -671,12 +678,7 @@
         }
 
         const monthlyOrdersPercentElement = document.querySelector('[data-stat="monthly-orders-percent"]');
-        if (monthlyOrdersPercentElement) {
-            monthlyOrdersPercentElement.innerHTML = `
-            <span class="material-icons-outlined text-sm">${stats.monthlyOrdersPercentage >= 0 ? 'trending_up' : 'trending_down'}</span>
-            <span>전월 대비 ${stats.monthlyOrdersPercentage >= 0 ? '+' : ''}${stats.monthlyOrdersPercentage}%</span>
-        `;
-        }
+        updatePercentageElement(monthlyOrdersPercentElement, stats.monthlyOrdersPercentage);
 
         // 대기중인 신고
         const pendingReportsElement = document.querySelector('[data-stat="pending-reports"]');
@@ -803,8 +805,8 @@
 
         // 데이터 준비
         const labels = dailyTrends.map(d => {
-            const date = new Date(d.date);
-            return (date.getMonth() + 1) + '/' + date.getDate();
+            const parts = d.date.split('-');
+            return parseInt(parts[1]) + '/' + parseInt(parts[2]);
         });
 
         // 그룹 막대 차트 생성

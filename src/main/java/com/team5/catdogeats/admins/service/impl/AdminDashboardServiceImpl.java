@@ -58,7 +58,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         // 이번 달 신규 회원 수
         ZonedDateTime startOfMonth = LocalDate.now()
                 .withDayOfMonth(1)
-                .atStartOfDay(TimeConstants.SEOUL_ZONE_ID); // 수정
+                .atStartOfDay(TimeConstants.SEOUL_ZONE_ID);
         long monthlyNewUsers = userRepository.countByCreatedAtAfter(startOfMonth);
 
         // 지난달 신규 회원 수 (전월 대비 계산용)
@@ -106,11 +106,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             LocalDate targetMonth = now.minusMonths(i);
             ZonedDateTime startOfMonth = targetMonth
                     .withDayOfMonth(1)
-                    .atStartOfDay(TimeConstants.SEOUL_ZONE_ID); // 수정
+                    .atStartOfDay(TimeConstants.SEOUL_ZONE_ID);
             ZonedDateTime endOfMonth = targetMonth
                     .plusMonths(1)
                     .withDayOfMonth(1)
-                    .atStartOfDay(TimeConstants.SEOUL_ZONE_ID)// 수정
+                    .atStartOfDay(TimeConstants.SEOUL_ZONE_ID)
                     .minusSeconds(1);
 
             long userCount = userRepository.countByCreatedAtBetween(startOfMonth, endOfMonth);
