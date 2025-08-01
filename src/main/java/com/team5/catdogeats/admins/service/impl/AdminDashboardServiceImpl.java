@@ -10,15 +10,12 @@ import com.team5.catdogeats.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import com.team5.catdogeats.global.util.TimeConstants;
 
 
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -80,7 +77,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         long monthlyOrders = orderRepository.countByCreatedAtAfterAndOrderStatusNot(
                 startOfMonth, OrderStatus.PAYMENT_PENDING);
 
-        // 지난달 주문 수
         // 지난달 주문 수
         long lastMonthOrders = orderRepository.countByCreatedAtBetweenAndOrderStatusNot(
                 startOfLastMonth, endOfLastMonth, OrderStatus.PAYMENT_PENDING);
