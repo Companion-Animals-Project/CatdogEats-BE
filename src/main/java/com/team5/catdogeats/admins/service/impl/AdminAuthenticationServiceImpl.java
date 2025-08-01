@@ -18,6 +18,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -167,7 +168,7 @@ public class AdminAuthenticationServiceImpl implements AdminAuthenticationServic
                 admin.getName(),
                 admin.getDepartment(),
                 admin.getIsFirstLogin(),
-                admin.getLastLoginAt()
+                admin.getLastLoginAt().withZoneSameInstant(ZoneId.of("Asia/Seoul"))
         );
     }
 

@@ -1,6 +1,7 @@
 package com.team5.catdogeats.orders.repository;
 
 import com.team5.catdogeats.orders.domain.Orders;
+import com.team5.catdogeats.orders.domain.enums.OrderStatus;
 import com.team5.catdogeats.orders.dto.common.GroupOrdersAndPayments;
 import com.team5.catdogeats.users.domain.mapping.Buyers;
 import org.springframework.data.domain.Page;
@@ -9,6 +10,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -55,4 +58,30 @@ public interface OrderRepository extends JpaRepository<Orders, String> {
     """)
     Optional<GroupOrdersAndPayments> findGroupByOrdersAndPaymentsOrderId(@Param("orderId") String orderId);
 
+
+    // 대시보드용 메서드 추가
+    @Query("SELECT COUNT(o) FROM Orders o WHERE o.createdAt > :date AND o.orderStatus != :status")
+    long countByCreatedAtAfterAndOrderStatusNot(@Param("date") ZonedDateTime date,
+                                                @Param("status") OrderStatus status);
+
+    @Query("SELECT COUNT(o) FROM Orders o WHERE o.createdAt BETWEEN :startDate AND :endDate AND o.orderStatus != :status")
+    long countByCreatedAtBetweenAndOrderStatusNot(@Param("startDate") ZonedDateTime startDate,
+                                                  @Param("endDate") ZonedDateTime endDate,
+                                                  @Param("status") OrderStatus status);
+
+    // 일일 주문 통계 조회 (대시보드)
+    @Query("""
+    SELECT DATE(o.createdAt) as orderDate, 
+           COUNT(DISTINCT o.buyers.id) as customerCount,
+           COUNT(o.id) as orderCount
+    FROM Orders o
+    WHERE o.createdAt >= :startDate
+    AND o.orderStatus != :excludedStatus
+    GROUP BY DATE(o.createdAt)
+    ORDER BY DATE(o.createdAt)
+""")
+    List<Object[]> getDailyOrderStats(
+            @Param("startDate") ZonedDateTime startDate,
+            @Param("excludedStatus") OrderStatus excludedStatus
+    );
 }

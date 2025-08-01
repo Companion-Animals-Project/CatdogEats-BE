@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import lombok.*;
 
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 @Entity
@@ -81,7 +82,7 @@ public class Admins extends BaseEntity {
      * 로그인 시간 업데이트
      */
     public void updateLastLoginAt() {
-        this.lastLoginAt = ZonedDateTime.now();
+        this.lastLoginAt = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
     }
 
     /**

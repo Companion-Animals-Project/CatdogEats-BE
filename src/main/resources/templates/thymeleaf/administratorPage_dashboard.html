@@ -16,6 +16,7 @@
     <title>CatDogEats Admin Dashboard</title>
     <link href="data:image/x-icon;base64," rel="icon" type="image/x-icon" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- 관리자 공통 JavaScript -->
     <script>
         /**
@@ -81,6 +82,12 @@
                 activeLink = document.querySelector('[data-page="account-management"]');
             } else if (currentPath.includes('/invite')) {
                 activeLink = document.querySelector('[data-page="invite"]');
+            } else if (currentPath.includes('/notice')) {
+                activeLink = document.querySelector('[data-page="notice"]');
+            } else if (currentPath.includes('/faq')) {
+                activeLink = document.querySelector('[data-page="faq"]');
+            } else if (currentPath.includes('/inquiry')) {
+                activeLink = document.querySelector('[data-page="inquiry"]');
             } else if (currentPath.includes('/settings')) {
                 activeLink = document.querySelector('[data-page="settings"]');
             }
@@ -290,6 +297,39 @@
             padding: 2rem;
             margin-bottom: 2rem;
         }
+        .chart-tooltip {
+            position: fixed;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            display: none;
+            z-index: 100;
+            pointer-events: none;
+            white-space: nowrap;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-bar {
+            background-color: #f5a623;
+            border-radius: 0.25rem 0.25rem 0 0;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+
+        .chart-bar:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-bar.current:hover {
+            background-color: #d48800;
+        }
+
+        .chart-bar.muted:hover {
+            background-color: #f5a623;
+        }
     </style>
 </head>
 <body class="bg-FAF8F5">
@@ -325,29 +365,27 @@
                 <span class="sidebar-link-text text-sm font-medium">계정 생성</span>
             </a>
 
-            <!-- 미구현 메뉴들 - 임시 비활성화 -->
+            <!-- 신고 관리는 아직 미구현 -->
             <a class="sidebar-link disabled" href="#" data-page="reports" onclick="showComingSoon('신고 관리')">
                 <span class="material-icons-outlined sidebar-link-icon text-xl">report_problem</span>
                 <span class="sidebar-link-text text-sm font-medium">신고 관리</span>
                 <span class="coming-soon-badge">준비중</span>
             </a>
 
-            <a class="sidebar-link disabled" href="#" data-page="notices" onclick="showComingSoon('공지사항 관리')">
+            <!-- 활성화된 메뉴들 -->
+            <a class="sidebar-link" href="/v1/admin/notice" data-page="notice">
                 <span class="material-icons-outlined sidebar-link-icon text-xl">campaign</span>
                 <span class="sidebar-link-text text-sm font-medium">공지사항 관리</span>
-                <span class="coming-soon-badge">준비중</span>
             </a>
 
-            <a class="sidebar-link disabled" href="#" data-page="faq" onclick="showComingSoon('FAQ 관리')">
+            <a class="sidebar-link" href="/v1/admin/faq" data-page="faq">
                 <span class="material-icons-outlined sidebar-link-icon text-xl">quiz</span>
                 <span class="sidebar-link-text text-sm font-medium">FAQ 관리</span>
-                <span class="coming-soon-badge">준비중</span>
             </a>
 
-            <a class="sidebar-link disabled" href="#" data-page="inquiries" onclick="showComingSoon('1:1 문의 관리')">
+            <a class="sidebar-link" href="/v1/admin/inquiry" data-page="inquiry">
                 <span class="material-icons-outlined sidebar-link-icon text-xl">support_agent</span>
                 <span class="sidebar-link-text text-sm font-medium">1:1 문의 관리</span>
-                <span class="coming-soon-badge">준비중</span>
             </a>
         </nav>
 
@@ -406,7 +444,7 @@
                                 <span>부서: </span><span th:text="${admin.department}">ADMIN</span>
                                 <span class="mx-2">|</span>
                                 <span>로그인 시간: </span>
-                                <span th:text="${#temporals.format(admin.loginTime, 'yyyy-MM-dd HH:mm')}">2024-01-01 09:00</span>
+                                <span th:text="${#temporals.format(admin.loginTime, 'yyyy-MM-dd HH:mm', #locale)}"></span>
                             </div>
                         </div>
                         <div class="hidden md:block">
@@ -422,10 +460,10 @@
                             <span class="material-icons-outlined text-2xl accent-text">group</span>
                             <p class="accent-text text-sm font-medium">총 회원 수</p>
                         </div>
-                        <p class="text-slate-900 text-3xl font-bold">1,234</p>
-                        <div class="growth-indicator text-xs mt-2">
+                        <p class="text-slate-900 text-3xl font-bold" data-stat="total-users">-</p>
+                        <div class="growth-indicator text-xs mt-2" data-stat="total-users-percent">
                             <span class="material-icons-outlined text-sm">trending_up</span>
-                            <span>전월 대비 +5%</span>
+                            <span>로딩 중...</span>
                         </div>
                     </div>
 
@@ -434,10 +472,10 @@
                             <span class="material-icons-outlined text-2xl accent-text">person_add</span>
                             <p class="accent-text text-sm font-medium">월간 신규 회원</p>
                         </div>
-                        <p class="text-slate-900 text-3xl font-bold">123</p>
-                        <div class="growth-indicator text-xs mt-2">
+                        <p class="text-slate-900 text-3xl font-bold" data-stat="monthly-users">-</p>
+                        <div class="growth-indicator text-xs mt-2" data-stat="monthly-users-percent">
                             <span class="material-icons-outlined text-sm">trending_up</span>
-                            <span>전월 대비 +10%</span>
+                            <span>로딩 중...</span>
                         </div>
                     </div>
 
@@ -446,10 +484,10 @@
                             <span class="material-icons-outlined text-2xl accent-text">shopping_cart</span>
                             <p class="accent-text text-sm font-medium">이번 달 주문</p>
                         </div>
-                        <p class="text-slate-900 text-3xl font-bold">456</p>
-                        <div class="growth-indicator text-xs mt-2">
+                        <p class="text-slate-900 text-3xl font-bold" data-stat="monthly-orders">-</p>
+                        <div class="growth-indicator text-xs mt-2" data-stat="monthly-orders-percent">
                             <span class="material-icons-outlined text-sm">trending_up</span>
-                            <span>전월 대비 +8%</span>
+                            <span>로딩 중...</span>
                         </div>
                     </div>
 
@@ -458,7 +496,7 @@
                             <span class="material-icons-outlined text-2xl primary-text">report_problem</span>
                             <p class="primary-text text-sm font-medium">처리 대기 중인 신고</p>
                         </div>
-                        <p class="primary-text text-3xl font-bold">5</p>
+                        <p class="primary-text text-3xl font-bold" data-stat="pending-reports">-</p>
                         <div class="text-xs mt-2 text-orange-600">
                             <span>즉시 확인 필요</span>
                         </div>
@@ -472,84 +510,31 @@
                         <div class="flex items-center justify-between mb-6">
                             <h3 class="accent-text text-lg font-semibold">월간 신규 회원 수</h3>
                             <div class="flex items-center gap-2">
-                                <span class="text-sm text-slate-500">이번 달</span>
-                                <div class="growth-indicator">
-                                    <span class="material-icons-outlined text-sm">trending_up</span>
-                                    <span class="text-sm">+10%</span>
-                                </div>
+                                <span class="text-sm text-slate-500">최근 6개월</span>
                             </div>
                         </div>
-                        <div class="h-64">
-                            <div class="grid h-full grid-flow-col gap-4 grid-rows-[1fr_auto] items-end justify-items-center px-3 pt-4">
-                                <div class="chart-bar muted w-full" style="height: 70%"></div>
-                                <p class="text-slate-500 text-xs font-medium">1월</p>
-                                <div class="chart-bar muted w-full" style="height: 80%"></div>
-                                <p class="text-slate-500 text-xs font-medium">2월</p>
-                                <div class="chart-bar muted w-full" style="height: 50%"></div>
-                                <p class="text-slate-500 text-xs font-medium">3월</p>
-                                <div class="chart-bar muted w-full" style="height: 60%"></div>
-                                <p class="text-slate-500 text-xs font-medium">4월</p>
-                                <div class="chart-bar muted w-full" style="height: 90%"></div>
-                                <p class="text-slate-500 text-xs font-medium">5월</p>
-                                <div class="chart-bar current w-full" style="height: 85%"></div>
-                                <p class="text-slate-900 text-xs font-bold">6월</p>
+                        <div class="h-64 chart-container">
+                            <!-- 차트가 여기에 동적으로 생성됩니다 -->
+                            <div class="flex items-center justify-center h-full text-gray-400">
+                                <span class="material-icons-outlined text-4xl">hourglass_empty</span>
+                                <span class="ml-2">데이터 로딩 중...</span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 최근 활동 -->
+                    <!-- 일일 지표 트렌드 -->
                     <div class="chart-card">
                         <div class="flex items-center justify-between mb-6">
                             <h3 class="accent-text text-lg font-semibold">
-                                <span class="material-icons-outlined text-base mr-2 align-middle">schedule</span>
-                                최근 활동
+                                <span class="material-icons-outlined text-base mr-2 align-middle">trending_up</span>
+                                일일 지표
                             </h3>
-                            <a href="#" class="text-sm primary-text hover:underline">전체 보기</a>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm text-slate-500">최근 7일</span>
+                            </div>
                         </div>
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                <div class="flex items-center gap-3">
-                                    <span class="material-icons-outlined text-blue-500">person_add</span>
-                                    <div>
-                                        <p class="text-sm font-medium text-slate-900">새 회원 가입</p>
-                                        <p class="text-xs text-slate-500">홍길동님이 가입했습니다</p>
-                                    </div>
-                                </div>
-                                <span class="text-xs text-slate-400">5분 전</span>
-                            </div>
-
-                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                <div class="flex items-center gap-3">
-                                    <span class="material-icons-outlined text-green-500">shopping_cart</span>
-                                    <div>
-                                        <p class="text-sm font-medium text-slate-900">새 주문</p>
-                                        <p class="text-xs text-slate-500">주문번호 #ORD-2024-001</p>
-                                    </div>
-                                </div>
-                                <span class="text-xs text-slate-400">10분 전</span>
-                            </div>
-
-                            <div class="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                                <div class="flex items-center gap-3">
-                                    <span class="material-icons-outlined text-red-500">report_problem</span>
-                                    <div>
-                                        <p class="text-sm font-medium text-slate-900">신고 접수</p>
-                                        <p class="text-xs text-slate-500">부적절한 상품 설명 신고</p>
-                                    </div>
-                                </div>
-                                <span class="text-xs text-slate-400">1시간 전</span>
-                            </div>
-
-                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                <div class="flex items-center gap-3">
-                                    <span class="material-icons-outlined text-purple-500">help_outline</span>
-                                    <div>
-                                        <p class="text-sm font-medium text-slate-900">1:1 문의</p>
-                                        <p class="text-xs text-slate-500">결제 관련 문의</p>
-                                    </div>
-                                </div>
-                                <span class="text-xs text-slate-400">2시간 전</span>
-                            </div>
+                        <div class="h-64">
+                            <canvas id="dailyTrendChart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -601,10 +586,10 @@
                         </div>
                         <h3 class="accent-text font-semibold mb-2">공지사항</h3>
                         <p class="text-sm text-slate-500 mb-4">새로운 공지사항을 작성하고 관리합니다.</p>
-                        <button onclick="showComingSoon('공지사항 관리')" class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                        <a href="/v1/admin/notice" class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
                             <span class="material-icons-outlined text-sm mr-2">edit</span>
                             공지 작성
-                        </button>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -646,13 +631,13 @@
     document.addEventListener('DOMContentLoaded', function() {
         initializeSidebar();
         initializeQuickActions();
-        // loadDashboardData(); // 실시간 데이터 로딩 (선택사항)
+        loadDashboardData();
     });
 
-    // 실시간 데이터 로딩 함수 (추후 구현)
+    // 실시간 데이터 로딩 함수
     async function loadDashboardData() {
         try {
-            const response = await fetch('/v1/admin/dashboard/data', {
+            const response = await fetch('/v1/admin/dashboard/api', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -661,8 +646,10 @@
             });
 
             if (response.ok) {
-                const data = await response.json();
-                updateDashboardStats(data);
+                const result = await response.json();
+                if (result.success && result.data) {
+                    updateDashboardStats(result.data);
+                }
             }
         } catch (error) {
             console.error('대시보드 데이터 로딩 실패:', error);
@@ -671,8 +658,232 @@
 
     // 대시보드 통계 업데이트 함수
     function updateDashboardStats(data) {
-        // 실제 데이터로 통계 카드들 업데이트
-        // 추후 백엔드에서 실제 데이터를 받아올 때 구현
+        // 통계 카드 업데이트
+        const stats = data.stats;
+
+        // 총 회원 수
+        const totalUsersElement = document.querySelector('[data-stat="total-users"]');
+        if (totalUsersElement) {
+            totalUsersElement.textContent = stats.totalUsers.toLocaleString();
+        }
+
+        const totalUsersPercentElement = document.querySelector('[data-stat="total-users-percent"]');
+        if (totalUsersPercentElement) {
+            totalUsersPercentElement.innerHTML = `
+            <span class="material-icons-outlined text-sm">${stats.totalUsersPercentage >= 0 ? 'trending_up' : 'trending_down'}</span>
+            <span>전월 대비 ${stats.totalUsersPercentage >= 0 ? '+' : ''}${stats.totalUsersPercentage}%</span>
+        `;
+        }
+
+        // 월간 신규 회원
+        const monthlyUsersElement = document.querySelector('[data-stat="monthly-users"]');
+        if (monthlyUsersElement) {
+            monthlyUsersElement.textContent = stats.monthlyNewUsers.toLocaleString();
+        }
+
+        const monthlyUsersPercentElement = document.querySelector('[data-stat="monthly-users-percent"]');
+        if (monthlyUsersPercentElement) {
+            monthlyUsersPercentElement.innerHTML = `
+            <span class="material-icons-outlined text-sm">${stats.monthlyNewUsersPercentage >= 0 ? 'trending_up' : 'trending_down'}</span>
+            <span>전월 대비 ${stats.monthlyNewUsersPercentage >= 0 ? '+' : ''}${stats.monthlyNewUsersPercentage}%</span>
+        `;
+        }
+
+        // 이번 달 주문
+        const monthlyOrdersElement = document.querySelector('[data-stat="monthly-orders"]');
+        if (monthlyOrdersElement) {
+            monthlyOrdersElement.textContent = stats.monthlyOrders.toLocaleString();
+        }
+
+        const monthlyOrdersPercentElement = document.querySelector('[data-stat="monthly-orders-percent"]');
+        if (monthlyOrdersPercentElement) {
+            monthlyOrdersPercentElement.innerHTML = `
+            <span class="material-icons-outlined text-sm">${stats.monthlyOrdersPercentage >= 0 ? 'trending_up' : 'trending_down'}</span>
+            <span>전월 대비 ${stats.monthlyOrdersPercentage >= 0 ? '+' : ''}${stats.monthlyOrdersPercentage}%</span>
+        `;
+        }
+
+        // 대기중인 신고
+        const pendingReportsElement = document.querySelector('[data-stat="pending-reports"]');
+        if (pendingReportsElement) {
+            pendingReportsElement.textContent = stats.pendingReports || '0';
+        }
+
+        // 월별 회원 차트 업데이트
+        if (data.monthlyUserStats && data.monthlyUserStats.length > 0) {
+            updateMonthlyChart(data.monthlyUserStats);
+        }
+
+        // 일일 트렌드 차트 업데이트
+        if (data.dailyTrends && data.dailyTrends.length > 0) {
+            updateDailyTrendChart(data.dailyTrends);
+        }
+    }
+
+    // 월별 차트 업데이트 함수
+    function updateMonthlyChart(monthlyStats) {
+        const chartContainer = document.querySelector('.chart-container');
+        if (!chartContainer) return;
+
+        // 최대값 찾기
+        const maxValue = Math.max(...monthlyStats.map(stat => stat.userCount));
+
+        // 차트 HTML 재생성
+        let chartHTML = '<div class="grid h-full grid-flow-col gap-4 grid-cols-6 items-end px-3 pt-4">';
+
+        monthlyStats.forEach((stat, index) => {
+            const height = maxValue > 0 ? (stat.userCount / maxValue * 100) : 0;
+            const isCurrentMonth = index === monthlyStats.length - 1;
+            const displayHeight = height > 0 ? height : 5;
+
+            chartHTML += `
+            <div class="flex flex-col h-full justify-end items-center">
+                <div class="chart-bar ${isCurrentMonth ? 'current' : 'muted'} w-full cursor-pointer mb-2"
+                     style="height: ${displayHeight}%"
+                     onmouseover="showTooltip(event, '${stat.month}', ${stat.userCount})"
+                     onmouseout="hideTooltip()">
+                </div>
+                <p class="${isCurrentMonth ? 'text-slate-900 font-bold' : 'text-slate-500'} text-xs font-medium">${stat.month}</p>
+            </div>
+        `;
+        });
+
+        chartHTML += '</div>';
+        chartHTML += '<div id="chartTooltip" class="chart-tooltip"></div>';
+        chartContainer.innerHTML = chartHTML;
+    }
+
+    // 툴팁 표시 함수 수정
+    function showTooltip(event, month, count) {
+        const tooltip = document.getElementById('chartTooltip');
+        const rect = event.target.getBoundingClientRect();
+
+        tooltip.innerHTML = `${count}명`;
+
+        tooltip.style.display = 'block';
+        tooltip.style.left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2) + 'px';
+        tooltip.style.top = rect.top - tooltip.offsetHeight - 10 + 'px';
+    }
+
+    // 툴팁 숨기기 함수
+    function hideTooltip() {
+        const tooltip = document.getElementById('chartTooltip');
+        if (tooltip) {
+            tooltip.style.display = 'none';
+        }
+    }
+
+    // 전역 변수
+    let dailyTrendChartInstance = null;
+
+    // 일일 트렌드 차트 업데이트 함수
+    function updateDailyTrendChart(dailyTrends) {
+        const canvas = document.getElementById('dailyTrendChart');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+
+        // 기존 차트가 있으면 삭제
+        if (dailyTrendChartInstance) {
+            dailyTrendChartInstance.destroy();
+        }
+
+        // 데이터 준비
+        const labels = dailyTrends.map(d => {
+            const date = new Date(d.date);
+            return (date.getMonth() + 1) + '/' + date.getDate();
+        });
+
+        // 그룹 막대 차트 생성
+        dailyTrendChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '신규 가입',
+                    data: dailyTrends.map(d => d.newUsers),
+                    backgroundColor: '#4B7BCA',
+                    borderColor: 'transparent',
+                    borderWidth: 0,
+                    borderRadius: 5,
+                    barPercentage: 0.7
+                }, {
+                    label: '주문 건수',
+                    data: dailyTrends.map(d => d.orderCount),
+                    backgroundColor: '#5A9F5B',
+                    borderColor: 'transparent',
+                    borderWidth: 0,
+                    borderRadius: 5,
+                    barPercentage: 0.7
+                }, {
+                    label: '주문 고객',
+                    data: dailyTrends.map(d => d.orderCustomers),
+                    backgroundColor: '#F5C471',
+                    borderColor: 'transparent',
+                    borderWidth: 0,
+                    borderRadius: 5,
+                    barPercentage: 0.7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: {
+                                size: 12,
+                                family: "'Noto Sans KR', sans-serif"
+                            },
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        cornerRadius: 8,
+                        titleFont: {
+                            size: 13,
+                            weight: 'bold'
+                        },
+                        bodyFont: {
+                            size: 12
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.06)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            precision: 0,
+                            font: {
+                                size: 12
+                            }
+                        }
+                    }
+                }
+            }
+        });
     }
 </script>
 </body>
