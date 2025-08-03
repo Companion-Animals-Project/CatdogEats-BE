@@ -14,7 +14,6 @@ import com.team5.catdogeats.addresses.service.AddressService;
 import com.team5.catdogeats.auth.dto.UserPrincipal;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.users.domain.Users;
-import com.team5.catdogeats.users.domain.dto.BuyerDTO;
 import com.team5.catdogeats.users.repository.BuyerRepository;
 import com.team5.catdogeats.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +21,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
