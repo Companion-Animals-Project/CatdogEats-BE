@@ -17,6 +17,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.team5.catdogeats.global.util.TimeConstants;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -167,7 +168,7 @@ public class AdminAuthenticationServiceImpl implements AdminAuthenticationServic
                 admin.getName(),
                 admin.getDepartment(),
                 admin.getIsFirstLogin(),
-                admin.getLastLoginAt()
+                admin.getLastLoginAt() != null ? admin.getLastLoginAt().withZoneSameInstant(TimeConstants.SEOUL_ZONE_ID) : null
         );
     }
 

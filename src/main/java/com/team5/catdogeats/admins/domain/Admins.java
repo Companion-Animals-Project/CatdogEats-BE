@@ -6,7 +6,9 @@ import com.team5.catdogeats.baseEntity.BaseEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import lombok.*;
+import com.team5.catdogeats.global.util.TimeConstants;
 
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 @Entity
@@ -81,7 +83,7 @@ public class Admins extends BaseEntity {
      * 로그인 시간 업데이트
      */
     public void updateLastLoginAt() {
-        this.lastLoginAt = ZonedDateTime.now();
+        this.lastLoginAt = ZonedDateTime.now(TimeConstants.SEOUL_ZONE_ID);
     }
 
     /**
