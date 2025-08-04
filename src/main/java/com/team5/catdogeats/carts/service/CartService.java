@@ -11,7 +11,7 @@ public interface CartService {
 
     CartResponse getCartByUserPrincipal(UserPrincipal userPrincipal);
 
-    CartResponse addItemToCart(UserPrincipal userPrincipal, AddCartItemRequest request);
+    void addItemToCart(UserPrincipal userPrincipal, AddCartItemRequest request);
 
     CartResponse updateCartItem(UserPrincipal userPrincipal, String cartItemId, UpdateCartItemRequest request);
 

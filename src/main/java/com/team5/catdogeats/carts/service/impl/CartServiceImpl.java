@@ -5,6 +5,7 @@ import com.team5.catdogeats.carts.domain.Carts;
 import com.team5.catdogeats.carts.domain.mapping.CartItems;
 import com.team5.catdogeats.carts.dto.request.AddCartItemRequest;
 import com.team5.catdogeats.carts.dto.request.UpdateCartItemRequest;
+import com.team5.catdogeats.carts.dto.response.CartItemProjection;
 import com.team5.catdogeats.carts.dto.response.CartItemResponse;
 import com.team5.catdogeats.carts.dto.response.CartResponse;
 import com.team5.catdogeats.carts.repository.CartItemRepository;
@@ -20,8 +21,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,24 +40,56 @@ public class CartServiceImpl implements CartService {
 
     @Override
     public CartResponse getCartByUserPrincipal(UserPrincipal userPrincipal) {
-        Buyers user = getUserByPrincipal(userPrincipal);
-        Carts cart = getOrCreateCart(user.getUserId());
-        List<CartItems> cartItems = cartItemRepository.findByCartsIdWithProduct(cart.getId());
+        Carts cart = cartRepository.findByProviderAndProviderId(userPrincipal.provider(), userPrincipal.providerId())
+                .orElseThrow(() -> new NoSuchElementException("장바구니 상품이 존재하지 않습니다."));
 
-        log.debug("장바구니 조회 - userId: {}, 상품 수: {}", user.getUserId(), cartItems.size());
-        return buildCartResponse(cart, cartItems);
+        List<CartItemProjection> cartItems = cartItemRepository.findCartSummaryByCartId(cart.getId());
+
+        log.debug("장바구니 조회 -  상품 수: {}", cartItems.size());
+        Set<String> countedSellers = new HashSet<>();
+        long totalShippingFee = cartItems.stream()
+                .filter(item -> countedSellers.add(item.getSellerId())) // 셀러 ID별로 중복 제거
+                .mapToLong(CartItemProjection::getDeliveryFee)
+                .sum();
+
+
+        // Build response
+        List<CartItemResponse> items = cartItems.stream()
+                .map(s -> CartItemResponse.builder()
+                        .id(s.getCartItemId())
+                        .productNumber(s.getProductNumber())
+                        .productName(s.getTitle())
+                        .productImage(s.getImageUrl())
+                        .quantity(s.getQuantity())
+                        .unitPrice(s.getUnitPrice())
+                        .totalPrice(s.getTotalPrice())
+                        .deliveryFee(s.getDeliveryFee())
+                        .build())
+                .collect(Collectors.toList());
+
+        long totalAmount = items.stream().mapToLong(CartItemResponse::getTotalPrice).sum();
+
+        return CartResponse.builder()
+                .cartId(cart.getId())
+                .items(items)
+                .totalItemCount(items.size())
+                .totalAmount(totalAmount)
+                .totalShippingFee(totalShippingFee)
+                .totalAmount(totalAmount + totalShippingFee)
+                .build();
+
     }
 
     @Override
     @JpaTransactional
-    public CartResponse addItemToCart(UserPrincipal userPrincipal, AddCartItemRequest request) {
+    public void addItemToCart(UserPrincipal userPrincipal, AddCartItemRequest request) {
         Buyers user = getUserByPrincipal(userPrincipal);
         Carts cart = getOrCreateCart(user.getUserId());
-        Products product = getProductById(request.getProductId());
+        Products product = getProductById(request.getProductNumber());
 
         // 기존에 같은 상품이 있는지 확인
         CartItems existingItem = cartItemRepository
-                .findByCartsIdAndProductId(cart.getId(), request.getProductId())
+                .findByCartsIdAndProductNumber(cart.getId(), request.getProductNumber())
                 .orElse(null);
 
         if (existingItem != null) {
@@ -66,7 +101,7 @@ public class CartServiceImpl implements CartService {
             cartItemRepository.save(existingItem);
 
             log.info("장바구니 기존 상품 수량 증가 - productId: {}, 기존: {}, 추가: {}, 총합: {}",
-                    request.getProductId(), existingItem.getQuantity() - request.getQuantity(),
+                    request.getProductNumber(), existingItem.getQuantity() - request.getQuantity(),
                     request.getQuantity(), newQuantity);
         } else {
             // 새로운 상품 추가
@@ -78,10 +113,9 @@ public class CartServiceImpl implements CartService {
             cartItemRepository.save(newItem);
 
             log.info("장바구니 새 상품 추가 - productId: {}, quantity: {}",
-                    request.getProductId(), request.getQuantity());
+                    request.getProductNumber(), request.getQuantity());
         }
 
-        return getCartByUserPrincipal(userPrincipal);
     }
 
     @Override
@@ -177,30 +211,12 @@ public class CartServiceImpl implements CartService {
                 });
     }
 
-    private Products getProductById(String productId) {
-        return productRepository.findById(productId)
+    private Products getProductById(Long productId) {
+        return productRepository.findByProductNumber(productId)
                 .orElseThrow(() -> {
                     log.error("상품을 찾을 수 없음 - productId: {}", productId);
                     return new NoSuchElementException("상품을 찾을 수 없습니다: " + productId);
                 });
-    }
-
-    private CartResponse buildCartResponse(Carts cart, List<CartItems> cartItems) {
-        List<CartItemResponse> itemResponses = cartItems.stream()
-                .map(this::convertToCartItemResponse)
-                .collect(Collectors.toList());
-
-        Long totalAmount = itemResponses.stream()
-                .mapToLong(CartItemResponse::getTotalPrice)
-                .sum();
-
-        return CartResponse.builder()
-                .cartId(cart.getId())
-                .buyerId(cart.getBuyers().getUserId())
-                .items(itemResponses)
-                .totalAmount(totalAmount)
-                .totalItemCount(itemResponses.size())
-                .build();
     }
 
     private CartItemResponse convertToCartItemResponse(CartItems cartItem) {

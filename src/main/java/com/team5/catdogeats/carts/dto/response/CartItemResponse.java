@@ -10,11 +10,13 @@ import java.time.ZonedDateTime;
 public class CartItemResponse {
     private String id;
     private String productId;
+    private Long productNumber;
     private String productName;
     private String productImage;
-    private Long productPrice;
     private int quantity;
+    private Long unitPrice;
     private Long totalPrice; // price * quantity
+    private Long deliveryFee;
     private ZonedDateTime addedAt;
 
     // 프론트엔드 UI 제어용 필드
@@ -30,7 +32,6 @@ public class CartItemResponse {
                 .productId(cartItem.getProduct().getId())
                 .productName(cartItem.getProduct().getTitle())
                 .productImage("") // S3 로직 완성 후 추가
-                .productPrice(cartItem.getProduct().getPrice())
                 .quantity(cartItem.getQuantity())
                 .totalPrice(cartItem.getProduct().getPrice() * cartItem.getQuantity())
                 .addedAt(cartItem.getAddedAt())

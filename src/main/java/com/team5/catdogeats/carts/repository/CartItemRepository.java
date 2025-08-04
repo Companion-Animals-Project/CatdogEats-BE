@@ -1,6 +1,7 @@
 package com.team5.catdogeats.carts.repository;
 
 import com.team5.catdogeats.carts.domain.mapping.CartItems;
+import com.team5.catdogeats.carts.dto.response.CartItemProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,7 +14,37 @@ public interface CartItemRepository extends JpaRepository<CartItems, String> {
 
     List<CartItems> findByCartsId(String cartId);
 
-    Optional<CartItems> findByCartsIdAndProductId(String cartId, String productId);
+
+    @Query("""
+    SELECT
+      ci.id                                       AS cartItemId,
+      p.id                                        AS productId,
+      p.productNumber                             AS productNumber,
+      p.title                                     AS title,
+      (SELECT img.imageUrl
+         FROM ProductsImages pi
+         JOIN pi.images img
+        WHERE pi.products = p
+        ORDER BY pi.createdAt DESC
+        LIMIT 1
+      )                                           AS imageUrl,
+      ci.quantity                                 AS quantity,
+      CASE WHEN p.discounted = true THEN p.discountedPrice ELSE p.price END AS unitPrice,
+      (ci.quantity * CASE WHEN p.discounted = true THEN p.discountedPrice ELSE p.price END) AS totalPrice,
+      s.deliveryFee                               AS deliveryFee,
+      s.id                                        AS sellerId
+    FROM CartItems ci
+      JOIN ci.product p
+      JOIN p.seller s
+    WHERE ci.carts.id = :cartId
+""")
+    List<CartItemProjection> findCartSummaryByCartId(@Param("cartId") String cartId);
+
+
+
+
+    @Query("SELECT ci FROM CartItems ci JOIN FETCH ci.product WHERE ci.carts.id = :cartId AND ci.product.productNumber = :productNumber")
+    Optional<CartItems> findByCartsIdAndProductNumber(String cartId, Long productNumber);
 
     @Query("SELECT ci FROM CartItems ci JOIN FETCH ci.product WHERE ci.carts.id = :cartId")
     List<CartItems> findByCartsIdWithProduct(@Param("cartId") String cartId);

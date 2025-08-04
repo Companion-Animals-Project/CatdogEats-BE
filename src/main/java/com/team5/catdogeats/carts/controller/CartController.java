@@ -51,7 +51,7 @@ public class CartController {
             description = "장바구니에 새로운 상품을 추가하거나 기존 상품의 수량을 증가시킵니다."
     )
     @PostMapping
-    public ResponseEntity<APIResponse<CartResponse>> addCartItem(
+    public ResponseEntity<APIResponse<Void>> addCartItem(
             @Valid @RequestBody AddCartItemRequest request,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
@@ -60,13 +60,13 @@ public class CartController {
             throw new SecurityException("인증이 필요합니다.");
         }
 
-        CartResponse cartResponse = cartService.addItemToCart(userPrincipal, request);
+        cartService.addItemToCart(userPrincipal, request);
 
         log.info("장바구니 상품 추가 완료 - provider: {}, providerId: {}, productId: {}, quantity: {}",
                 userPrincipal.provider(), userPrincipal.providerId(),
-                request.getProductId(), request.getQuantity());
+                request.getProductNumber(), request.getQuantity());
 
-        return ResponseEntity.ok(APIResponse.success(ResponseCode.CART_ITEM_ADDED, cartResponse));
+        return ResponseEntity.ok(APIResponse.success(ResponseCode.CART_ITEM_ADDED));
     }
 
     @Operation(
