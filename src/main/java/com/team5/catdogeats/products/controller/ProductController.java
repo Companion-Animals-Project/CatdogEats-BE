@@ -68,6 +68,8 @@ public class ProductController {
             return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS));
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(APIResponse.error(ResponseCode.ACCESS_DENIED));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(APIResponse.error(ResponseCode.INVALID_INPUT_VALUE));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
         }

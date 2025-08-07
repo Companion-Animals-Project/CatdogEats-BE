@@ -41,14 +41,18 @@ public class InventoryAdjustmentServiceImpl implements InventoryAdjustmentServic
         try {
             Products products = productRepository.findProductsByIdAndProviderId(dto.id(), userPrincipal.provider(), userPrincipal.providerId())
                     .orElseThrow(() -> new IllegalStateException("판매자와 연동된 상품이 아닙니다"));
+            int newStock = products.getStock() + (dto.type() == AdjustmentType.OUT ? -dto.quantity() : dto.quantity());
             if (dto.type() == AdjustmentType.IN) {
-                productRepository.updateStock(dto.id(), products.getStock() + dto.quantity());
+                productRepository.updateStock(dto.id(), newStock);
             } else if (dto.type() == AdjustmentType.OUT) {
-                productRepository.updateStock(dto.id(), products.getStock() - dto.quantity());
+                if (newStock < 0) {
+                    throw new IllegalArgumentException("0 이하로 재고조정을 할 수 없습니다.");
+                }
+                productRepository.updateStock(dto.id(), newStock);
             } else {
                 productRepository.updateStock(dto.id(), products.getStock() + dto.quantity());
             }
-            entityManager.clear();
+            entityManager.flush();
             inventoryAdjustmentRepository.save(AdjustmentRequestDTO.toEntity(dto, products, products.getSeller()));
             log.debug("재고 조정 완료 기존 재고: {}, 수정 후 재고: {}", products.getStock(), products.getStock()+dto.quantity());
         } catch (IllegalStateException | IllegalArgumentException e) {
