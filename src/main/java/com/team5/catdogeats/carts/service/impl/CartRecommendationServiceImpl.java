@@ -6,14 +6,14 @@ import com.team5.catdogeats.carts.dto.response.RecommendationResponse;
 import com.team5.catdogeats.carts.repository.CartItemRepository;
 import com.team5.catdogeats.carts.repository.CartRecommendationRepository;
 import com.team5.catdogeats.carts.service.CartRecommendationService;
-import com.team5.catdogeats.products.domain.Products;
+import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.pets.domain.enums.PetCategory;
+import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@JpaTransactional(readOnly = true)
 public class CartRecommendationServiceImpl implements CartRecommendationService {
 
     private final CartRecommendationRepository cartRecommendationRepository;

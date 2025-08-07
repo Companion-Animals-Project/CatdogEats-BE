@@ -6,6 +6,7 @@ import com.team5.catdogeats.carts.service.CartRecommendationService;
 import com.team5.catdogeats.global.dto.APIResponse;
 import com.team5.catdogeats.global.enums.ResponseCode;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -42,19 +43,19 @@ public class CartRecommendationController {
                     """
     )
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            @ApiResponse(
                     responseCode = "200",
                     description = "추천 상품 조회 성공"
             ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            @ApiResponse(
                     responseCode = "401",
                     description = "인증되지 않은 사용자"
             ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            @ApiResponse(
                     responseCode = "404",
                     description = "사용자를 찾을 수 없음"
             ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            @ApiResponse(
                     responseCode = "500",
                     description = "서버 내부 오류"
             )

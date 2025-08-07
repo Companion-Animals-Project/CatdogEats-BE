@@ -192,7 +192,7 @@ class CartServiceImplTest {
                 .willReturn(Optional.of(testCart));
         given(productRepository.findById("test-product-id"))
                 .willReturn(Optional.of(testProduct));
-        given(cartItemRepository.findByCartsIdAndProductId("test-cart-id", "test-product-id"))
+        given(cartItemRepository.findByCartsIdAndProductNumber("test-cart-id", "test-product-id"))
                 .willReturn(Optional.empty());
 
         CartItems newCartItem = CartItems.builder()
@@ -208,7 +208,7 @@ class CartServiceImplTest {
                 .willReturn(Arrays.asList(newCartItem));
 
         // when
-        CartResponse response = cartService.addItemToCart(userPrincipal, request);
+        cartService.addItemToCart(userPrincipal, request);
 
         // then
         assertThat(response).isNotNull();
