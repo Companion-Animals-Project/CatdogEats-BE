@@ -5,7 +5,6 @@ import com.team5.catdogeats.pets.domain.enums.PetCategory;
 import com.team5.catdogeats.products.domain.dto.ProductCreateRequestDto;
 import com.team5.catdogeats.products.domain.dto.ProductUpdateRequestDto;
 import com.team5.catdogeats.products.domain.enums.ProductCategory;
-import com.team5.catdogeats.products.domain.enums.StockStatus;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Max;
@@ -74,6 +73,7 @@ public class Products extends BaseEntity {
     private Short leadTime;
 
     @Column(nullable = false)
+    @Min(0)
     private Integer stock;
 
     @Column(name = "safety_stock", nullable = false)
@@ -81,17 +81,6 @@ public class Products extends BaseEntity {
 
     @Version // 동시성 제어
     private Long version;
-
-    @Transient
-    public StockStatus getStockStatus() {
-        if (stock <= 0) {
-            return StockStatus.OUT_OF_STOCK;
-        }
-        if (stock <= safetyStock) {
-            return StockStatus.LOW_STOCK;
-        }
-        return StockStatus.IN_STOCK;
-    }
 
     public void decreaseStock(int qty) {
         if (this.stock < qty) throw new IllegalArgumentException("재고 부족");
