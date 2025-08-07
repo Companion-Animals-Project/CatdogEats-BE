@@ -6,12 +6,14 @@ import com.team5.catdogeats.products.domain.Products;
 import com.team5.catdogeats.products.domain.dto.AdjustmentRequestDTO;
 import com.team5.catdogeats.products.domain.dto.InventoryAdjustmentProjection;
 import com.team5.catdogeats.products.domain.dto.ProductInventoryProjection;
+import com.team5.catdogeats.products.domain.enums.AdjustmentType;
 import com.team5.catdogeats.products.repository.InventoryAdjustmentRepository;
 import com.team5.catdogeats.products.repository.ProductRepository;
 import com.team5.catdogeats.products.service.InventoryAdjustmentService;
 import com.team5.catdogeats.users.domain.dto.SellerDTO;
 import com.team5.catdogeats.users.domain.mapping.Sellers;
 import com.team5.catdogeats.users.repository.SellersRepository;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -30,6 +32,7 @@ public class InventoryAdjustmentServiceImpl implements InventoryAdjustmentServic
     private final ProductRepository productRepository;
     private final SellersRepository sellersRepository;
     private final InventoryAdjustmentRepository inventoryAdjustmentRepository;
+    private final EntityManager entityManager;
 
     @Override
     @JpaTransactional
@@ -38,8 +41,14 @@ public class InventoryAdjustmentServiceImpl implements InventoryAdjustmentServic
         try {
             Products products = productRepository.findProductsByIdAndProviderId(dto.id(), userPrincipal.provider(), userPrincipal.providerId())
                     .orElseThrow(() -> new IllegalStateException("판매자와 연동된 상품이 아닙니다"));
-
-            productRepository.updateStock(dto.id(), products.getStock() + dto.quantity());
+            if (dto.type() == AdjustmentType.IN) {
+                productRepository.updateStock(dto.id(), products.getStock() + dto.quantity());
+            } else if (dto.type() == AdjustmentType.OUT) {
+                productRepository.updateStock(dto.id(), products.getStock() - dto.quantity());
+            } else {
+                productRepository.updateStock(dto.id(), products.getStock() + dto.quantity());
+            }
+            entityManager.clear();
             inventoryAdjustmentRepository.save(AdjustmentRequestDTO.toEntity(dto, products, products.getSeller()));
             log.debug("재고 조정 완료 기존 재고: {}, 수정 후 재고: {}", products.getStock(), products.getStock()+dto.quantity());
         } catch (IllegalStateException | IllegalArgumentException e) {
