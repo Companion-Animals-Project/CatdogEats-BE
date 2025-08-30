@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -109,9 +110,13 @@ public class PetController {
 
     @Operation(summary = "펫 정보 수정", description = "기존 펫 정보를 수정합니다.")
     @PatchMapping("/pet")
-    public ResponseEntity<APIResponse<Void>> updatePet(@RequestBody @Valid @Parameter(description = "수정할 펫 정보", required = true) PetUpdateRequestDto dto) {
+    public ResponseEntity<APIResponse<Void>> updatePet(@AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestBody @Valid @Parameter(description = "수정할 펫 정보", required = true) PetUpdateRequestDto dto) {
+        if (userPrincipal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
+        }
         try {
-            petService.updatePet(dto);
+            petService.updatePet(dto, userPrincipal);
             return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS));
         } catch (NoSuchElementException e) {
             return ResponseEntity
@@ -126,9 +131,13 @@ public class PetController {
 
     @Operation(summary = "펫 삭제", description = "펫 정보를 삭제합니다.")
     @DeleteMapping("/pet")
-    public ResponseEntity<APIResponse<Void>> deletePet(@RequestBody @Valid @Parameter(description = "삭제할 펫 id", required = true) PetDeleteRequestDto dto) {
+    public ResponseEntity<APIResponse<Void>> deletePet(@AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestBody @Valid @Parameter(description = "삭제할 펫 id", required = true) PetDeleteRequestDto dto) {
+        if (userPrincipal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
+        }
         try {
-            petService.deletePet(dto);
+            petService.deletePet(dto, userPrincipal);
             return ResponseEntity.ok(APIResponse.success(ResponseCode.SUCCESS));
         } catch (NoSuchElementException e) {
             return ResponseEntity

@@ -17,7 +17,7 @@ public interface PetService {
     Page<PetResponseDto> getMyPetsWithCursor(UserPrincipal userPrincipal, ZonedDateTime cursorUpdatedAt, int size);
 
 
-    void updatePet(PetUpdateRequestDto dto);
+    void updatePet(PetUpdateRequestDto dto, UserPrincipal userPrincipal);
 
-    void deletePet(PetDeleteRequestDto dto);
+    void deletePet(PetDeleteRequestDto dto, UserPrincipal userPrincipal);
 }
