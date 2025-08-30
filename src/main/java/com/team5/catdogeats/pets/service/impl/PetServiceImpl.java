@@ -13,6 +13,7 @@ import com.team5.catdogeats.users.domain.dto.BuyerDTO;
 import com.team5.catdogeats.users.domain.mapping.Buyers;
 import com.team5.catdogeats.users.repository.BuyerRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +21,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PetServiceImpl implements PetService {
@@ -82,16 +84,21 @@ public class PetServiceImpl implements PetService {
 
     @JpaTransactional
     @Override
-    public void updatePet(PetUpdateRequestDto dto) {
-        Pets pet = petRepository.findById(dto.petId())
-                .orElseThrow(() -> new NoSuchElementException("해당 펫 정보를 찾을 수 없습니다."));
-
-        pet.updateFromDto(dto);
+    public void updatePet(PetUpdateRequestDto dto, UserPrincipal userPrincipal) {
+        try {
+            Pets pet = petRepository.findByProviderAndProviderId(userPrincipal.provider(), userPrincipal.providerId(), dto.petId())
+                    .orElseThrow(() -> new NoSuchElementException("해당 펫 정보를 찾을 수 없습니다."));
+            log.info("{} {}", userPrincipal.provider(), userPrincipal.providerId());
+            pet.updateFromDto(dto);
+        } catch (Exception e) {
+            log.error("펫 정보 수정 중 오류 발생 {}", e.getMessage());
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
-    public void deletePet(PetDeleteRequestDto dto) {
-        Pets pet = petRepository.findById(dto.petId())
+    public void deletePet(PetDeleteRequestDto dto, UserPrincipal userPrincipal) {
+        petRepository.findByProviderAndProviderId(userPrincipal.provider(), userPrincipal.providerId(),dto.petId())
                 .orElseThrow(() -> new NoSuchElementException("해당 펫 정보를 찾을 수 없습니다."));
 
         petRepository.deleteById(dto.petId());

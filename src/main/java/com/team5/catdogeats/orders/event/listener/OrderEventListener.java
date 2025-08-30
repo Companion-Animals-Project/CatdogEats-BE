@@ -2,6 +2,9 @@ package com.team5.catdogeats.orders.event.listener;
 
 import com.team5.catdogeats.coupons.repository.BuyerCouponRepository;
 import com.team5.catdogeats.global.annotation.JpaTransactional;
+import com.team5.catdogeats.global.annotation.Notification;
+import com.team5.catdogeats.notifications.domain.dto.OrderCompletedDTO;
+import com.team5.catdogeats.notifications.domain.enums.NotificationType;
 import com.team5.catdogeats.orders.domain.Orders;
 import com.team5.catdogeats.orders.domain.Shipments;
 import com.team5.catdogeats.orders.domain.enums.OrderStatus;
@@ -84,18 +87,19 @@ public class OrderEventListener {
         }
     }
 
+    @Notification(type = NotificationType.NEW_ORDER)
     @RabbitListener(
             queues = "#{@paymentCompletedQueue.name}",
             containerFactory = "listenerContainerFactory"
     )
     @JpaTransactional(propagation = Propagation.REQUIRES_NEW)
-    public void handleOrderItemsAndShipmentsCreation(PaymentCompletedEvent event, Message message) {
+    public OrderCompletedDTO handleOrderItemsAndShipmentsCreation(PaymentCompletedEvent event, Message message) {
         String messageId = message.getMessageProperties().getMessageId();
         String orderId = event.orderId();
 
         if (!idempotentConsumer.processOnce(messageId, "payment-completed-listener")) {
             log.info("이미 처리된 결제 완료 메시지입니다: messageId={}, orderId={}", messageId, orderId);
-            return;
+            return null;
         }
 
 
@@ -134,9 +138,10 @@ public class OrderEventListener {
             productStockManager.decrementStockForConfirmedReservations(orderId);
             log.debug("재고 확정 완료: orderId={}", orderId);
             log.debug("결제 완료 처리 전체 완료: orderId={} ✅", orderId);
-
+            return new OrderCompletedDTO(event.orderId(), event.orderNumber(), event.buyerId(), event.discountedTotalPrice());
         } catch (Exception e) {
             log.error("결제 완료 처리 실패: orderId={}, error={}", orderId, e.getMessage(), e);
+            return null;
         }
     }
 
