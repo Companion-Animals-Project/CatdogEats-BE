@@ -5,9 +5,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
+import org.springframework.scripting.support.ResourceScriptSource;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 
 @Configuration
 public class RedisScriptConfig {
@@ -15,9 +15,8 @@ public class RedisScriptConfig {
     @Bean
     public RedisScript<String> rotateTokenScript() throws IOException {
         DefaultRedisScript<String> redisScript = new DefaultRedisScript<>();
-        redisScript.setScriptText(
-                new String(new ClassPathResource("lua/RotateRefreshToken.lua").getInputStream().readAllBytes(),
-                        StandardCharsets.UTF_8)
+        redisScript.setScriptSource(
+                new ResourceScriptSource(new ClassPathResource("lua/RotateRefreshToken.lua"))
         );
         redisScript.setResultType(String.class);
         return redisScript;
@@ -26,9 +25,8 @@ public class RedisScriptConfig {
     @Bean
     public RedisScript<String> refreshTokenScript() throws IOException {
         DefaultRedisScript<String> redisScript = new DefaultRedisScript<>();
-        redisScript.setScriptText(
-                new String(new ClassPathResource("lua/CreateRefreshToken.lua").getInputStream().readAllBytes(),
-                        StandardCharsets.UTF_8)
+        redisScript.setScriptSource(
+                new ResourceScriptSource(new ClassPathResource("lua/CreateRefreshToken.lua"))
         );
         redisScript.setResultType(String.class);
         return redisScript;
