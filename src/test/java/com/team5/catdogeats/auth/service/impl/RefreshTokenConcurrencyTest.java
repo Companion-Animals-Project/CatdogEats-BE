@@ -158,6 +158,15 @@ class RefreshTokenConcurrencyTest {
     }
 
     @Test
+    @DisplayName("리프레시 토큰 생성")
+    void testCreateRefreshToken() {
+        Authentication auth = createMockAuthentication(0);
+        String tokenId = refreshTokenService.createRefreshToken(auth);
+        log.info("tokenId: {}", tokenId);
+        assertThat(tokenId).isNotNull();
+    }
+
+    @Test
     @DisplayName("동시 로그인 시 토큰 개수 제한")
     void testConcurrentRefreshTokenLimit() throws InterruptedException {
         int threadCount = 5;
