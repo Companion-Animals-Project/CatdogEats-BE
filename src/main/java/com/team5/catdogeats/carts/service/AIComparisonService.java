@@ -1,10 +1,11 @@
 package com.team5.catdogeats.carts.service;
 
 import com.team5.catdogeats.auth.dto.UserPrincipal;
+import com.team5.catdogeats.carts.domain.mapping.CartItems;
 import com.team5.catdogeats.carts.dto.request.ProductComparisonRequest;
 import com.team5.catdogeats.carts.dto.response.ProductComparisonResponse;
 import com.team5.catdogeats.carts.repository.CartItemRepository;
-import com.team5.catdogeats.carts.domain.mapping.CartItems;
+import com.team5.catdogeats.global.annotation.JpaTransactional;
 import com.team5.catdogeats.products.domain.Products;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
@@ -12,17 +13,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Transactional(readOnly = true)
+@JpaTransactional(readOnly = true)
 public class AIComparisonService {
 
     private final CartItemRepository cartItemRepository;
 
-    @Value("${langchain4j.google-ai-gemini.api-key}")
+    @Value("${spring.langchain4j.google-ai-gemini.api-key}")
     private String geminiApiKey;
 
     // AI를 활용한 제품 비교 분석
@@ -122,7 +122,7 @@ public class AIComparisonService {
         prompt.append("- 가격: ").append(product1.getPrice().toString()).append("원\n");
         prompt.append("- 제품 정보: ").append(product1.getProductInfo()).append("\n");
         prompt.append("- 카테고리: ").append(product1.getProductCategory()).append("\n");
-        if (product1.isDiscounted()) {
+        if (product1.getDiscounted()) {
             prompt.append("- 할인율: ").append(product1.getDiscountRate()).append("%\n");
         }
 
@@ -131,7 +131,7 @@ public class AIComparisonService {
         prompt.append("- 가격: ").append(product2.getPrice().toString()).append("원\n");
         prompt.append("- 제품 정보: ").append(product2.getProductInfo()).append("\n");
         prompt.append("- 카테고리: ").append(product2.getProductCategory()).append("\n");
-        if (product2.isDiscounted()) {
+        if (product2.getDiscounted()) {
             prompt.append("- 할인율: ").append(product2.getDiscountRate()).append("%\n");
         }
 

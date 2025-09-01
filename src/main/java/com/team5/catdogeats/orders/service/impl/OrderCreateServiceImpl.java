@@ -276,7 +276,6 @@ public class OrderCreateServiceImpl implements OrderCreateService {
     private Orders createAndSaveOrderOnly(Buyers buyer, Pets pet, Long subTotalPrice, Long discountAmount, Long finalPaymentAmount, Long totalDeliveryFee) {
         Orders order = Orders.builder()
                 .buyers(buyer)
-                .pet(pet)
                 .orderNumber(OrderCreateUtils.generateOrderNumber()) // String 타입 반환값 사용
                 .orderStatus(OrderStatus.PAYMENT_PENDING)
                 .subtotalPrice(subTotalPrice)
