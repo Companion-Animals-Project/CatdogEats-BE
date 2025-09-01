@@ -43,7 +43,7 @@ import static org.mockito.Mockito.*;
 
 @Slf4j
 @SpringBootTest(classes = {RefreshTokenConcurrencyTest.TestConfig.class, RedisScriptConfig.class})
-class RefreshTokenConcurrencyTest {
+    class RefreshTokenConcurrencyTest {
 
     @TestConfiguration
     static class TestConfig {
