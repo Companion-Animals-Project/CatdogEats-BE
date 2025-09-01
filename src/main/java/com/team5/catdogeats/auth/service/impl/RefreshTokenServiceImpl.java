@@ -8,8 +8,9 @@ import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RScript;
 import org.redisson.api.RedissonClient;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -29,49 +30,8 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     private final RedissonClient redissonClient;
     private static final int MAX_TOKENS_PER_USER = 3;
 
-    private static final String LUA_SCRIPT = """
-            local userId = KEYS[1]
-            local tokenId = ARGV[1]
-            local provider = ARGV[2]
-            local providerId = ARGV[3]
-            local createdAt = tonumber(ARGV[4])
-            local expiresAt = tonumber(ARGV[5])
-            local maxTokens = tonumber(ARGV[6])
-
-            if not createdAt or not expiresAt or not maxTokens then
-                return redis.error_reply("Invalid numeric argument")
-            end
-
-            local tokenKey = "refreshToken:" .. tokenId
-            local userTokensSetKey = "userTokens:" .. userId
-
-            redis.call("HMSET", tokenKey,
-                "id", tokenId,
-                "provider", provider,
-                "providerId", providerId,
-                "userId", userId,
-                "used", "false",
-                "createdAt", createdAt,
-                "expiresAt", expiresAt
-            )
-
-            redis.call("EXPIRE", tokenKey, 86400)
-
-            redis.call("ZADD", userTokensSetKey, createdAt, tokenId)
-
-            redis.call("EXPIRE", userTokensSetKey, 86400)
-
-            local currentTokenCount = redis.call("ZCARD", userTokensSetKey)
-
-            if currentTokenCount > maxTokens then
-                local oldestTokenId = redis.call("ZPOPMIN", userTokensSetKey, 1)
-                if oldestTokenId and oldestTokenId[1] then
-                    redis.call("DEL", "refreshToken:" .. oldestTokenId[1])
-                end
-            end
-
-            return tokenId
-    """;
+    private final RedisScript<String> refreshTokenScript;
+    private final StringRedisTemplate stringRedisTemplate;
 
     @Override
     public String createRefreshToken(Authentication authentication) {
@@ -89,17 +49,15 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         log.debug("Creating refresh token with userId: {}, tokenId: {}, provider: {}, providerId: {}, createdAt: {}, expiresAt: {}, maxTokens: {}",
                 user.getId(), tokenId, principal.provider(), principal.providerId(), now, expiresAt, maxTokens);
 
-        String result = redissonClient.getScript().eval(
-                RScript.Mode.READ_WRITE,
-                LUA_SCRIPT,
-                RScript.ReturnType.VALUE,
+        String result = stringRedisTemplate.execute(
+                refreshTokenScript,
                 Collections.singletonList(user.getId()),
                 tokenId,
                 principal.provider(),
                 principal.providerId(),
                 now,
                 expiresAt,
-                maxTokens
+                String.valueOf(MAX_TOKENS_PER_USER)
         );
 
         log.debug("Created refresh token with Lua: {}", result);
