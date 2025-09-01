@@ -57,7 +57,7 @@ public class AuthController {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(APIResponse.error(ResponseCode.INVALID_TOKEN));
             }
 
-            RotateTokenDTO dto = rotateRefreshTokenService.RotateRefreshToken((refreshTokenId));
+            RotateTokenDTO dto = rotateRefreshTokenService.rotateRefreshToken((refreshTokenId));
             ResponseCookie accessCookie = cookieUtils.createCookie("token", cookieProperties.getMaxAge(), dto.newAccessToken());
             ResponseCookie refreshIdCookie = cookieUtils.createCookie("refreshTokenId", cookieProperties.getMaxAge(), dto.newRefreshToken().toString());
 

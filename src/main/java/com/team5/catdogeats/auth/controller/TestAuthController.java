@@ -92,7 +92,7 @@ public class TestAuthController {
     public ResponseEntity<APIResponse<RotateTokenDTO>> testRefresh(
             @RequestParam String refreshTokenId) {
         try {
-            RotateTokenDTO dto = rotateRefreshTokenService.RotateRefreshToken(refreshTokenId);
+            RotateTokenDTO dto = rotateRefreshTokenService.rotateRefreshToken(refreshTokenId);
 
             ResponseCookie accessCookie = cookieUtils.createCookie("token",
                     cookieProperties.getMaxAge(), dto.newAccessToken());

@@ -195,7 +195,7 @@ class RotateRefreshTokenServiceImplTest {
         log.info("Created refresh token: {}", refreshTokenId);
 
         // when - 토큰 회전 실행
-        RotateTokenDTO result = rotateRefreshTokenService.RotateRefreshToken(refreshTokenId);
+        RotateTokenDTO result = rotateRefreshTokenService.rotateRefreshToken(refreshTokenId);
 
         // then
         assertThat(result).isNotNull();
@@ -218,7 +218,7 @@ class RotateRefreshTokenServiceImplTest {
 
         // when & then
         assertThrows(NoSuchElementException.class, () ->
-                rotateRefreshTokenService.RotateRefreshToken(nonExistentTokenId));
+                rotateRefreshTokenService.rotateRefreshToken(nonExistentTokenId));
     }
 
     @Test
@@ -244,7 +244,7 @@ class RotateRefreshTokenServiceImplTest {
 
         // when & then
         assertThrows(ExpiredTokenException.class, () ->
-                rotateRefreshTokenService.RotateRefreshToken(expiredTokenId));
+                rotateRefreshTokenService.rotateRefreshToken(expiredTokenId));
     }
 
     @Test
@@ -270,7 +270,7 @@ class RotateRefreshTokenServiceImplTest {
 
         // when & then
         assertThrows(InvalidTokenException.class, () ->
-                rotateRefreshTokenService.RotateRefreshToken(usedTokenId));
+                rotateRefreshTokenService.rotateRefreshToken(usedTokenId));
     }
 
     @Test
@@ -281,7 +281,7 @@ class RotateRefreshTokenServiceImplTest {
         String originalTokenId = refreshTokenService.createRefreshToken(auth);
 
         // when
-        RotateTokenDTO result = rotateRefreshTokenService.RotateRefreshToken(originalTokenId);
+        RotateTokenDTO result = rotateRefreshTokenService.rotateRefreshToken(originalTokenId);
 
         // then
         String newRefreshTokenId = result.newRefreshToken();

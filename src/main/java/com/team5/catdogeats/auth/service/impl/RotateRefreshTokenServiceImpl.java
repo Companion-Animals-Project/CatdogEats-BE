@@ -32,7 +32,7 @@ public class RotateRefreshTokenServiceImpl implements RotateRefreshTokenService 
     private final RedisScript<String> rotateTokenScript;
 
     @Override
-    public RotateTokenDTO RotateRefreshToken(String refreshTokenId) {
+    public RotateTokenDTO rotateRefreshToken(String refreshTokenId) {
         try {
             // Lua 스크립트로 원자적 토큰 회전 처리
             TokenRotationResult result = executeTokenRotationScript(refreshTokenId);
