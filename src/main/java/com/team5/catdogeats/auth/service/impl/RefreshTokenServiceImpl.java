@@ -8,7 +8,6 @@ import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.security.core.Authentication;
@@ -27,7 +26,6 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     private final OAuth2ProviderStrategyFactory strategyFactory;
     private final UserRepository userRepository;
-    private final RedissonClient redissonClient;
     private static final int MAX_TOKENS_PER_USER = 3;
 
     private final RedisScript<String> refreshTokenScript;

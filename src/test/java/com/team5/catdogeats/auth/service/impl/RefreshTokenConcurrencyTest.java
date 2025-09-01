@@ -4,22 +4,28 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.catdogeats.auth.assistant.JwtAssistant.OAuth2ProviderStrategy;
 import com.team5.catdogeats.auth.assistant.JwtAssistant.OAuth2ProviderStrategyFactory;
 import com.team5.catdogeats.chats.util.ChatSubscriber;
-import com.team5.catdogeats.global.config.RedisConfig;
+import com.team5.catdogeats.global.config.RedisScriptConfig;
 import com.team5.catdogeats.notifications.util.NotificationSubscriber;
 import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.domain.enums.Role;
 import com.team5.catdogeats.users.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
+import org.redisson.Redisson;
 import org.redisson.api.RScoredSortedSet;
 import org.redisson.api.RedissonClient;
+import org.redisson.client.codec.StringCodec;
+import org.redisson.config.Config;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
@@ -36,9 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 @Slf4j
-@SpringBootTest(classes = {RefreshTokenServiceImpl.class, RefreshTokenConcurrencyTest.TestConfig.class,
-        RedisConfig.class
-})
+@SpringBootTest(classes = {RefreshTokenConcurrencyTest.TestConfig.class, RedisScriptConfig.class})
 class RefreshTokenConcurrencyTest {
 
     @TestConfiguration
@@ -63,33 +67,63 @@ class RefreshTokenConcurrencyTest {
             return mock(NotificationSubscriber.class);
         }
 
-
         @Bean
         public UserRepository userRepository() {
             return mock(UserRepository.class);
         }
+
+        @Bean
+        public RedisConnectionFactory redisConnectionFactory() {
+            RedisStandaloneConfiguration config = new RedisStandaloneConfiguration("localhost", 6379);
+            config.setPassword("0000");
+            LettuceConnectionFactory factory = new LettuceConnectionFactory(config);
+            factory.afterPropertiesSet(); // 초기화
+            return factory;        }
+
+        @Bean
+        public StringRedisTemplate redisTemplate(RedisConnectionFactory factory) {
+            return new StringRedisTemplate(factory);
+        }
+
+        @Bean(destroyMethod = "shutdown")
+        public RedissonClient redissonClient() {
+            Config config = new Config();
+            config.setCodec(new StringCodec());
+            config.useSingleServer()
+                    .setAddress("redis://localhost:6379")
+                    .setPassword("0000");
+            return Redisson.create(config);
+        }
     }
 
     @Autowired
-    private RedissonClient redissonClient;
+    RedissonClient redissonClient;
 
     @Autowired
     private UserRepository userRepository;
-    @Autowired
-    private RefreshTokenServiceImpl refreshTokenService;
 
     @Autowired
     private OAuth2ProviderStrategyFactory strategyFactory;
 
-    private final String TEST_USER_ID = "test-user-1";
+    // 테스트에서는 서비스 인스턴스를 직접 생성(명시적 DI)
+    private RefreshTokenServiceImpl refreshTokenService;
 
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+    @Autowired
+    private RedisScript<String> refreshTokenScript;
+
+    private final String TEST_USER_ID = "test-user-1";
 
     @BeforeEach
     void setup() {
-        // Redis 초기화
-        redissonClient.getKeys().flushall();
+        // Redis 초기화 (테스트 전)
+        redisTemplate.<Object>execute((RedisCallback<Object>) connection -> {
+            connection.serverCommands().flushAll();
+            return null;
+        });
 
-        // 사용자 mock 설정만 남김
+        // 사용자 mock 설정
         Users testUser = Users.builder()
                 .id(TEST_USER_ID)
                 .name("테스트유저")
@@ -105,13 +139,22 @@ class RefreshTokenConcurrencyTest {
         when(strategyFactory.getStrategy("google")).thenReturn(strategy);
         when(strategy.extractProviderId(any())).thenReturn("google-123");
 
-        refreshTokenService = new RefreshTokenServiceImpl(strategyFactory, userRepository, redissonClient);
+        refreshTokenService = new RefreshTokenServiceImpl(
+                strategyFactory,
+                userRepository,
+                refreshTokenScript,
+                redisTemplate
+        );
     }
 
     @AfterEach
     void teardown() {
-        // 테스트 후 Redis 초기화
-        redissonClient.getKeys().flushall();
+        // Redis 초기화 (테스트 후)
+        Assertions.assertNotNull(redisTemplate.getConnectionFactory());
+        redisTemplate.execute((RedisCallback<Void>) connection -> {
+            connection.serverCommands().flushAll();
+            return null;
+        });
     }
 
     @Test
@@ -131,7 +174,7 @@ class RefreshTokenConcurrencyTest {
                 log.info("Thread {}: tokenId: {}", Thread.currentThread().getId(), tokenId);
                 tokenIds.add(tokenId);
             } catch (Exception e) {
-                log.error("Exception: {}", e.getMessage());
+                log.error("Exception: {}", e.getMessage(), e);
             } finally {
                 latch.countDown();
             }
@@ -145,6 +188,7 @@ class RefreshTokenConcurrencyTest {
         assertTrue(tokenCount <= 3, "Redis에 저장된 토큰이 3개를 초과했습니다!");
         log.info("Redis userTokens ZSET count: " + tokenCount);
         log.info("token size: " + tokenIds.size());
+
         // 실제 Lua 스크립트 원자적 처리 확인
         RScoredSortedSet<String> tokenSet = redissonClient.getScoredSortedSet("userTokens:" + TEST_USER_ID);
         List<String> tokensInRedis = tokenSet.stream().toList();
