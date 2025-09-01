@@ -98,9 +98,9 @@ public class PetServiceImpl implements PetService {
 
     @Override
     public void deletePet(PetDeleteRequestDto dto, UserPrincipal userPrincipal) {
-        petRepository.findByProviderAndProviderId(userPrincipal.provider(), userPrincipal.providerId(),dto.petId())
+        Pets pet = petRepository.findByProviderAndProviderId(userPrincipal.provider(), userPrincipal.providerId(),dto.petId())
                 .orElseThrow(() -> new NoSuchElementException("해당 펫 정보를 찾을 수 없습니다."));
 
-        petRepository.deleteById(dto.petId());
+        petRepository.delete(pet);
     }
 }
