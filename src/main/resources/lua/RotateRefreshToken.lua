@@ -1,3 +1,17 @@
+-- 사용자 토큰 정리 함수
+local function deleteAllUserTokens(userId, tokenKey)
+    if userId ~= '' then
+        local userTokensSetKey = 'userTokens:' .. userId
+        local tokenIds = redis.call('ZRANGE', userTokensSetKey, 0, -1)
+        for _, tid in ipairs(tokenIds) do
+            redis.call('DEL', 'refreshToken:' .. tid)
+        end
+        redis.call('DEL', userTokensSetKey)
+    end
+    redis.call('DEL', tokenKey)
+end
+
+
 local tokenKey = KEYS[1]
 local currentTime = tonumber(ARGV[1])
 
@@ -31,44 +45,20 @@ end
 
 -- expiresAt 존재/파싱 확인
 if not expiresAt then
-    if userId ~= '' then
-        local userTokensSetKey = 'userTokens:' .. userId
-        local tokenIds = redis.call('ZRANGE', userTokensSetKey, 0, -1)
-        for _, tid in ipairs(tokenIds) do
-            redis.call('DEL', 'refreshToken:' .. tid)
-        end
-        redis.call('DEL', userTokensSetKey)
-    end
-    redis.call('DEL', tokenKey)
+    deleteAllUserTokens(userId, tokenKey)
     return cjson.encode({code = -2, provider = '', providerId = '', userId = '', message = 'TOKEN_EXPIRED_OR_INVALID'})
 end
 
 -- 만료 체크
 if expiresAt < currentTime then
-    if userId ~= '' then
-        local userTokensSetKey = 'userTokens:' .. userId
-        local tokenIds = redis.call('ZRANGE', userTokensSetKey, 0, -1)
-        for _, tid in ipairs(tokenIds) do
-            redis.call('DEL', 'refreshToken:' .. tid)
-        end
-        redis.call('DEL', userTokensSetKey)
-    end
-    redis.call('DEL', tokenKey)
+    deleteAllUserTokens(userId, tokenKey)
     return cjson.encode({code = -2, provider = '', providerId = '', userId = '', message = 'TOKEN_EXPIRED'})
 end
 
 -- 사용 여부 검사
 local used = tokenMap['used'] or 'false'
 if used == 'true' then
-    if userId ~= '' then
-        local userTokensSetKey = 'userTokens:' .. userId
-        local tokenIds = redis.call('ZRANGE', userTokensSetKey, 0, -1)
-        for _, tid in ipairs(tokenIds) do
-            redis.call('DEL', 'refreshToken:' .. tid)
-        end
-        redis.call('DEL', userTokensSetKey)
-    end
-    redis.call('DEL', tokenKey)
+    deleteAllUserTokens(userId, tokenKey)
     return cjson.encode({code = -3, provider = '', providerId = '', userId = '', message = 'TOKEN_REUSE_DETECTED'})
 end
 
