@@ -2,31 +2,70 @@ package com.team5.catdogeats.notifications.service.impl;
 
 import com.team5.catdogeats.chats.service.UserIdCacheService;
 import com.team5.catdogeats.notifications.service.SseEmitterService;
-import lombok.RequiredArgsConstructor;
+import io.micrometer.core.instrument.MeterRegistry;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.atomic.AtomicInteger;
 
+@Slf4j
 @Service
-@RequiredArgsConstructor
 public class SseEmitterServiceImpl implements SseEmitterService {
+    private final MeterRegistry meterRegistry;
     private final UserIdCacheService userIdCacheService;
-    private final Map<String, List<SseEmitter>> emitters = new ConcurrentHashMap<>();
+    private final Map<String, Deque<SseEmitter>> emitters = new ConcurrentHashMap<>();
     private static final Long DEFAULT_TIMEOUT = 30 * 60 * 1000L;
-    private static final Long HEARTBEAT_INTERVAL = 30 * 1000L;
+    private static final int MAX_PER_USER = 5;
+
+
+    private final AtomicInteger activeConnections = new AtomicInteger(0);
+
+    public SseEmitterServiceImpl(MeterRegistry meterRegistry, UserIdCacheService userIdCacheService) {
+        this.meterRegistry = meterRegistry;
+        this.userIdCacheService = userIdCacheService;
+
+        // Gauge 한 번 등록
+        meterRegistry.gauge("sse_active_connections", activeConnections);
+    }
     @Override
     public SseEmitter connect(String provider, String providerId) {
         String userId = getUserId(provider, providerId);
 
         SseEmitter emitter = new SseEmitter(DEFAULT_TIMEOUT);
-        emitters.computeIfAbsent(userId, k -> new CopyOnWriteArrayList<>()).add(emitter);
+        Deque<SseEmitter> deque = emitters.computeIfAbsent(userId, k -> new ConcurrentLinkedDeque<>());
+        while (deque.size() >= MAX_PER_USER) {
+            SseEmitter oldest = deque.pollFirst(); // 오래된 연결 제거
+            if (oldest != null) {
+                try {
+                    oldest.complete();
+                } catch (Exception ex) {
+                    log.debug("oldest.complete() failed for user={}, err={}", userId, ex.getMessage());
+                } finally {
+                    activeConnections.decrementAndGet();
+                }
+
+            }
+        }
+
+        deque.addLast(emitter);
+        activeConnections.incrementAndGet(); // 전역 카운트 증가
+
+        Runnable cleanup = () -> {
+            removeEmitterAndDecrement(userId, emitter);
+        };
+
+        emitter.onCompletion(cleanup);
+        emitter.onTimeout(cleanup);
+        emitter.onError(e -> cleanup.run());
+
 
         // 연결 즉시 확인 메시지 전송
         try {
@@ -34,25 +73,10 @@ public class SseEmitterServiceImpl implements SseEmitterService {
                     .name("connected")
                     .data("연결되었습니다"));
         } catch (IOException e) {
-            emitters.get(userId).remove(emitter);
+            cleanup.run();
             emitter.completeWithError(e);
             return emitter;
         }
-
-        // 정리 로직
-        Runnable cleanup = () -> {
-            List<SseEmitter> userEmitters = emitters.get(userId);
-            if (userEmitters != null) {
-                userEmitters.remove(emitter);
-                if (userEmitters.isEmpty()) {
-                    emitters.remove(userId);
-                }
-            }
-        };
-
-        emitter.onCompletion(cleanup);
-        emitter.onTimeout(cleanup);
-        emitter.onError(e -> cleanup.run());
 
         return emitter;
     }
@@ -67,16 +91,45 @@ public class SseEmitterServiceImpl implements SseEmitterService {
                             .data("heartbeat"));
                 } catch (IOException e) {
                     emitter.completeWithError(e);
-                    emitterList.remove(emitter);
+                    removeEmitter(userId, emitter);
                 }
             }
         });
     }
 
+    @Override
+    public Deque<SseEmitter> getEmitters(String userId) {
+        return emitters.getOrDefault(userId, new ArrayDeque<>());
+    }
+
 
     @Override
-    public List<SseEmitter> getEmitters(String userId) {
-        return emitters.getOrDefault(userId, Collections.emptyList());
+    public void removeEmitter(String userId, SseEmitter emitter) {
+        Deque<SseEmitter> deque = emitters.get(userId);
+        if (deque != null) {
+            deque.remove(emitter);
+            if (deque.isEmpty()) {
+                emitters.remove(userId);
+            }
+        }
+    }
+
+    private void removeEmitterAndDecrement(String userId, SseEmitter emitter) {
+        Deque<SseEmitter> deque = emitters.get(userId);
+        if (deque == null) {
+            return;
+        }
+        boolean removed = deque.remove(emitter);
+        if (removed) {
+            // if deque became empty, remove the key
+            if (deque.isEmpty()) {
+                emitters.remove(userId, deque);
+            }
+            int now = activeConnections.decrementAndGet();
+            log.debug("Emitter removed for userId={}, remainingGlobalConnections={}", userId, now);
+        } else {
+            log.debug("Emitter to remove not found for userId={}, maybe already removed", userId);
+        }
     }
 
     private String getUserId(String provider, String providerId) {
@@ -89,15 +142,5 @@ public class SseEmitterServiceImpl implements SseEmitterService {
         return userId;
     }
 
-    @Override
-    public void removeEmitter(String userId, SseEmitter emitter) {
-        List<SseEmitter> list = emitters.get(userId);
-        if (list != null) {
-            list.remove(emitter);
-            if (list.isEmpty()) {
-                emitters.remove(userId);
-            }
-        }
-    }
 
 }

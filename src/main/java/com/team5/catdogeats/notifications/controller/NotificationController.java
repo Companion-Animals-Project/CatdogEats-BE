@@ -43,19 +43,19 @@ public class NotificationController {
         }
     }
 
-    @PostMapping("/send")
-    public ResponseEntity<APIResponse<Void>> send(@AuthenticationPrincipal UserPrincipal userPrincipal, @RequestBody String message) {
-        if (userPrincipal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
-        }
-        try {
-            notificationService.sendNotification(userPrincipal.provider(), userPrincipal.providerId(), message);
-            return ResponseEntity.ok().build();
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
-        }
-
-    }
+//    @PostMapping("/send")
+//    public ResponseEntity<APIResponse<Void>> send(@AuthenticationPrincipal UserPrincipal userPrincipal, @RequestBody String message) {
+//        if (userPrincipal == null) {
+//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(APIResponse.error(ResponseCode.UNAUTHORIZED));
+//        }
+//        try {
+//            notificationService.sendNotification(userPrincipal.provider(), userPrincipal.providerId(), message);
+//            return ResponseEntity.ok().build();
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(APIResponse.error(ResponseCode.INTERNAL_SERVER_ERROR));
+//        }
+//
+//    }
 
     @PatchMapping("/read")
     public ResponseEntity<APIResponse<Void>> markAsRead(@RequestBody @Valid NotificationReadRequestDTO request,

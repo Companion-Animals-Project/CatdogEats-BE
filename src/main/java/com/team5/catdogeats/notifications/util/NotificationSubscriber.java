@@ -9,12 +9,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
+import java.util.Deque;
 
 @Slf4j
 @Component
@@ -23,20 +24,34 @@ import java.util.List;
 public class NotificationSubscriber implements MessageListener {
     private final ObjectMapper objectMapper;
     private final SseEmitterService sseEmitterService;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @Override
     public void onMessage(Message redisMsg, byte[] pattern) {
 
 
         String channel = new String(redisMsg.getChannel(), StandardCharsets.UTF_8);
-        String messageBody = new String(redisMsg.getBody());
+//        String messageBody = new String(redisMsg.getBody());
         String userId = channel.substring("notify:".length());
 
         try {
-            Object notificationData = parseNotificationMessage(messageBody);
+            Object messageObj = redisTemplate.getValueSerializer().deserialize(redisMsg.getBody());
+            if (messageObj == null) {
+                log.warn("Redis 메시지 null: 채널={}", channel);
+                return;
+            }
 
-            // 해당 사용자에게 연결된 SSE 연결들에 알림 전송
-            sendNotificationToUser(userId, notificationData);
+            String messageBody;
+            if (messageObj instanceof String str) {
+                messageBody = str; // 이미 JSON 문자열이면 그대로 사용
+            } else {
+                messageBody = objectMapper.writeValueAsString(messageObj); // 객체면 JSON으로 변환
+            }            // 해당 사용자에게 연결된 SSE 연결들에 알림 전송
+            Object notificationData = parseNotificationMessage(messageBody);
+            if (notificationData != null) { // null 체크 추가
+                sendNotificationToUser(userId, notificationData); // ✅ 호출 추가
+            }
+
             log.debug("Redis → SSE 전송 완료: user={}, data={}", userId, notificationData);
 
         } catch (Exception e) {
@@ -47,7 +62,12 @@ public class NotificationSubscriber implements MessageListener {
     private Object parseNotificationMessage(String messageBody) {
         try {
             JsonNode root = objectMapper.readTree(messageBody);
-            String type = root.get("type").asText();
+            JsonNode typeNode = root.get("type");
+            if (typeNode == null || typeNode.isNull()) {
+                log.warn("type 필드 없음, 메시지 무시: {}", messageBody);
+                return null;
+            }
+            String type = typeNode.asText();
 
             return switch (type) {
                 case "NOTICE" -> objectMapper.readValue(messageBody, NoticeCompletedDTO.class);
@@ -63,7 +83,7 @@ public class NotificationSubscriber implements MessageListener {
     }
 
     private void sendNotificationToUser(String userId, Object notificationData) {
-        List<SseEmitter> emitters = sseEmitterService.getEmitters(userId);
+        Deque<SseEmitter> emitters = sseEmitterService.getEmitters(userId);
 
         if (emitters.isEmpty()) {
             log.debug("사용자 {}에 대한 SSE 연결이 없어 알림을 전송하지 않습니다.", userId);

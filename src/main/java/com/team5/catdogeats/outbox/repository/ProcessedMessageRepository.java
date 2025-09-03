@@ -4,4 +4,5 @@ import com.team5.catdogeats.outbox.domain.ProcessedMessage;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ProcessedMessageRepository extends JpaRepository<ProcessedMessage, String> {
+    boolean existsByMessageIdAndConsumerGroup(String messageId, String consumerGroup);
 }

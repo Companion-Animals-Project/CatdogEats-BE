@@ -7,16 +7,14 @@ import org.springframework.session.data.redis.config.annotation.web.http.EnableR
 @EnableRedisHttpSession
 public class SessionConfig {
 //    @Bean
-//    public FilterRegistrationBean<SessionRepositoryFilter<?>> springSessionFilter(
-//            SessionRepositoryFilter<?> springSessionRepositoryFilter) {
+//    public RedisSerializer<Object> springSessionDefaultRedisSerializer() {
+//        ObjectMapper mapper = new ObjectMapper();
+//        mapper.activateDefaultTyping(
+//                LaissezFaireSubTypeValidator.instance,
+//                ObjectMapper.DefaultTyping.NON_FINAL,
+//                JsonTypeInfo.As.PROPERTY
+//        );
 //
-//        FilterRegistrationBean<SessionRepositoryFilter<?>> registration =
-//                new FilterRegistrationBean<>(springSessionRepositoryFilter);
-//
-//        registration.addUrlPatterns("/v1/admins/**");
-//
-//        registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
-//
-//        return registration;
+//        return new GenericJackson2JsonRedisSerializer(mapper);
 //    }
 }

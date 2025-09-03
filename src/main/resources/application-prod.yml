@@ -252,3 +252,13 @@ cloud:
       bucket: ${S3_BUCKET_NAME}
     cloudfront:
       domain: ${CLOUD_FRONT_DOMAIN_NAME}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus, health
+  metrics:
+    enable:
+      all: true
+

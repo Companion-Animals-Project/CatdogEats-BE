@@ -96,7 +96,6 @@ public class OrderEventListener {
     public OrderCompletedDTO handleOrderItemsAndShipmentsCreation(PaymentCompletedEvent event, Message message) {
         String messageId = message.getMessageProperties().getMessageId();
         String orderId = event.orderId();
-
         if (!idempotentConsumer.processOnce(messageId, "payment-completed-listener")) {
             log.info("이미 처리된 결제 완료 메시지입니다: messageId={}, orderId={}", messageId, orderId);
             return null;
@@ -138,7 +137,7 @@ public class OrderEventListener {
             productStockManager.decrementStockForConfirmedReservations(orderId);
             log.debug("재고 확정 완료: orderId={}", orderId);
             log.debug("결제 완료 처리 전체 완료: orderId={} ✅", orderId);
-            return new OrderCompletedDTO(event.orderId(), event.orderNumber(), event.buyerId(), event.discountedTotalPrice());
+            return new OrderCompletedDTO(event.orderId(), event.orderNumber(), event.buyerId(), event.discountedTotalPrice(), NotificationType.NEW_ORDER);
         } catch (Exception e) {
             log.error("결제 완료 처리 실패: orderId={}, error={}", orderId, e.getMessage(), e);
             return null;

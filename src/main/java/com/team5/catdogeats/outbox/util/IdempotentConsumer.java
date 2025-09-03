@@ -22,6 +22,12 @@ public class IdempotentConsumer {
         }
 
         try {
+            boolean exists = processedMessageRepository.existsByMessageIdAndConsumerGroup(messageId, consumerGroup);
+            if (exists) {
+                log.debug("이미 처리된 메시지입니다: messageId={}, consumerGroup={}", messageId, consumerGroup);
+                return false;
+            }
+
             ProcessedMessage processedMessage = ProcessedMessage.builder()
                     .messageId(messageId)
                     .processedAt(ZonedDateTime.now())

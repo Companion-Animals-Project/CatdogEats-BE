@@ -1,8 +1,8 @@
     package com.team5.catdogeats.notifications.event;
 
+    import com.fasterxml.jackson.databind.ObjectMapper;
     import com.team5.catdogeats.notifications.domain.Notifications;
     import com.team5.catdogeats.notifications.domain.dto.NoticeCompletedDTO;
-    import com.team5.catdogeats.notifications.domain.dto.NotificationDTO;
     import com.team5.catdogeats.notifications.domain.enums.NotificationType;
     import com.team5.catdogeats.notifications.domain.mapping.NotificationReceiver;
     import com.team5.catdogeats.notifications.repository.NotificationReceiverRepository;
@@ -26,6 +26,7 @@
         private final UserRepository userRepository;
         private final RedisTemplate<String, Object> redisTemplate;
         private final NotificationService notificationService;
+        private final ObjectMapper objectMapper;
 
         @Override
         public void create(Object result) {
@@ -49,6 +50,7 @@
             notificationReceiverRepository.saveAll(receivers);
             allUsers.forEach(user -> {
                     try{
+                        sendRedis(user.getId(), notice);
                         notificationService.sendNotification(user.getProvider(), user.getProviderId(), dto);
                     } catch (Exception e) {
                         log.warn("사용자 {}에게 알림 발송 실패: {}", user.getId(), e.getMessage());
@@ -63,14 +65,14 @@
 
         private void sendRedis(String userId, Notifications saved) {
             try {
-                NotificationDTO sseDTO = new NotificationDTO(
+                NoticeCompletedDTO sseDTO = new NoticeCompletedDTO(
                         saved.getTitle(),
                         saved.getMessage(),
-                        saved.getNotificationType(),
-                        saved.getCreatedAt()
+                        saved.getNotificationType()
                 );
                 // notify:USER_ID 채널로 보냄
-                redisTemplate.convertAndSend("notify:" + userId, sseDTO);
+                String json = objectMapper.writeValueAsString(sseDTO);
+                redisTemplate.convertAndSend("notify:" + userId, json);
             } catch (Exception e) {
                 log.warn("Redis 알림 발송 실패 - 알림은 DB에 저장됨:  error={}", e.getMessage());
             }
