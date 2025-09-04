@@ -113,6 +113,7 @@ public class SecurityConfig {
                     .authorizeHttpRequests(authorize
                             -> authorize
                             .requestMatchers("/").permitAll()
+                            .requestMatchers("/actuator/prometheus").permitAll()
                             .requestMatchers("tossTest.html").permitAll()
                             .requestMatchers("/alarm.html").permitAll()
                             .requestMatchers("/health").permitAll()

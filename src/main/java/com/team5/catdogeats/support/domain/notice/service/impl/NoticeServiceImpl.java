@@ -110,8 +110,14 @@ public class NoticeServiceImpl implements NoticeService {
 
         Notices savedNotice = noticeRepository.save(notice);
         log.info("공지사항 생성 완료 - ID: {}, 제목: {}", savedNotice.getId(), savedNotice.getTitle());
+        String content = savedNotice.getContent();
+        int endIndex = Math.min(content.length(), 10);
 
-        return new NoticeCompletedDTO(savedNotice.getTitle(), savedNotice.getContent().substring(0,10), NotificationType.NOTICE);
+        return new NoticeCompletedDTO(
+                savedNotice.getTitle(),
+                content.substring(0, endIndex),
+                NotificationType.NOTICE
+        );
     }
 
     // ========== 공지사항 수정 ==========

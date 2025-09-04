@@ -154,9 +154,9 @@ public class OrderCreateRequest {
 
         }
     }
-    /**
-     * 반려동물 ID (기존 반려동물 선택)
-     */
-    @NotBlank(message = "반려동물 ID는 필수입니다")
-    private String petId;
+//    /**
+//     * 반려동물 ID (기존 반려동물 선택)
+//     */
+//    @NotBlank(message = "반려동물 ID는 필수입니다")
+//    private String petId;
 }

@@ -4,6 +4,8 @@ import com.team5.catdogeats.notifications.domain.Notifications;
 import com.team5.catdogeats.notifications.domain.dto.NotificationDTO;
 import com.team5.catdogeats.notifications.domain.dto.OrderCompletedDTO;
 import com.team5.catdogeats.notifications.domain.enums.NotificationType;
+import com.team5.catdogeats.notifications.domain.mapping.NotificationReceiver;
+import com.team5.catdogeats.notifications.repository.NotificationReceiverRepository;
 import com.team5.catdogeats.notifications.repository.NotificationRepository;
 import com.team5.catdogeats.users.domain.Users;
 import com.team5.catdogeats.users.repository.UserRepository;
@@ -12,11 +14,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.CompletableFuture;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderCompletedNotificationCreator implements NotificationEventCreator {
     private final NotificationRepository notificationRepository;
+    private final NotificationReceiverRepository notificationReceiverRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final UserRepository userRepository;
 
@@ -29,12 +34,20 @@ public class OrderCompletedNotificationCreator implements NotificationEventCreat
             Users user = userRepository.getReferenceById(dto.userId());
             Notifications saved = notificationRepository.save(
                     Notifications.builder()
-                            .notificationType(NotificationType.NEW_ORDER)
+                            .notificationType(dto.type())
                             .title("주문이 완료되었습니다")
                             .message("주문번호: %s, 결제 금액: %,d원".formatted(dto.orderNumber(), dto.totalPrice()))
                             .build()
             );
-            sendRedis(dto, saved);
+            notificationReceiverRepository.save(
+                    NotificationReceiver.builder()
+                            .notifications(saved)
+                            .users(user)
+                            .isRead(false)
+                            .readAt(null)
+                            .build()
+            );
+            CompletableFuture.runAsync(() -> sendRedis(dto, saved));
         } catch (Exception e) {
             log.error("알림 생성 실패: {}", e.getMessage());
             throw e;
@@ -56,7 +69,7 @@ public class OrderCompletedNotificationCreator implements NotificationEventCreat
                     saved.getNotificationType(),
                     saved.getCreatedAt()
             );
-            redisTemplate.convertAndSend("notify:" , sseDTO);
+            redisTemplate.convertAndSend("notify:" + dto.userId() , sseDTO);
         } catch (Exception e) {
             log.warn("Redis 알림 발송 실패 - 알림은 DB에 저장됨: userId={}, error={}",
                     dto.userId(), e.getMessage());
