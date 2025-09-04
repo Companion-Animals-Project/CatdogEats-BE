@@ -46,7 +46,8 @@ public class NotificationSubscriber implements MessageListener {
                 messageBody = str; // 이미 JSON 문자열이면 그대로 사용
             } else {
                 messageBody = objectMapper.writeValueAsString(messageObj); // 객체면 JSON으로 변환
-            }            // 해당 사용자에게 연결된 SSE 연결들에 알림 전송
+            }
+            // 해당 사용자에게 연결된 SSE 연결들에 알림 전송
             Object notificationData = parseNotificationMessage(messageBody);
             if (notificationData != null) { // null 체크 추가
                 sendNotificationToUser(userId, notificationData); // ✅ 호출 추가

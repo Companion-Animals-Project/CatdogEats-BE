@@ -9,9 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -99,7 +97,7 @@ public class SseEmitterServiceImpl implements SseEmitterService {
 
     @Override
     public Deque<SseEmitter> getEmitters(String userId) {
-        return emitters.getOrDefault(userId, new ArrayDeque<>());
+        return emitters.getOrDefault(userId, new ConcurrentLinkedDeque<>());
     }
 
 
